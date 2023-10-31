@@ -2,31 +2,43 @@
 
 namespace CrystalData;
 
+// From a quite simple class for data storage...
+[TinyhandObject]
+public partial record SimpleExample
+{
+    public SimpleExample()
+    {
+    }
+
+    [Key(0)]
+    public string UserName { get; set; } = string.Empty;
+}
+
+// To a complex class designed for handling large-scale data in terms of both quantity and capacity.
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public partial record AdvancedClass
+public partial record AdvancedExample
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
     public static void Register(IUnitCrystalContext context)
     {
-        context.AddCrystal<AdvancedClass>(
+        context.AddCrystal<AdvancedExample>(
             new()
             {
-                SaveFormat = SaveFormat.Utf8,
+                SaveFormat = SaveFormat.Binary,
                 SavePolicy = SavePolicy.Periodic,
                 SaveInterval = TimeSpan.FromMinutes(10),
-                FileConfiguration = new GlobalFileConfiguration("CrystalClassMain.tinyhand"),
-                BackupFileConfiguration = new GlobalFileConfiguration("CrystalClassBackup.tinyhand"),
-                StorageConfiguration = GlobalStorageConfiguration.Default,
-                /*StorageConfiguration = new SimpleStorageConfiguration(
+                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain.tinyhand"),
+                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup.tinyhand"),
+                StorageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage"),
-                    new GlobalDirectoryConfiguration("BackupStorage")),*/
+                    new GlobalDirectoryConfiguration("BackupStorage")),
                 NumberOfFileHistories = 2,
             });
 
         context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));
     }
 
-    public AdvancedClass()
+    public AdvancedExample()
     {
     }
 
@@ -39,10 +51,10 @@ public partial record AdvancedClass
     private string name = string.Empty;
 
     [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedClass> child = new();
+    private StorageData<AdvancedExample> child = new();
 
     [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedClass.GoshujinClass> children = new();
+    private StorageData<AdvancedExample.GoshujinClass> children = new();
 
     [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StorageData<byte[]> byteArray = new();
