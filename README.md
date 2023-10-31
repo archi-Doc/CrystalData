@@ -1,4 +1,5 @@
 ## CrystalData is a storage engine for C#
+![Nuget](https://img.shields.io/nuget/v/CrystalData) ![Build and Test](https://github.com/archi-Doc/CrystalData/workflows/Build%20and%20Test/badge.svg)
 
 - Very versatile and easy to use.
 - Covers a wide range of storage needs.
@@ -363,7 +364,7 @@ context.AddCrystal<FirstData>(
 
 #### Local path
 
-If a relative path is specified, it combines the root directory of Crystalizer with the path to create an absolute path.
+If a relative path is specified, it combines the root directory of **Crystalizer** with the path to create an absolute path.
 
 ```csharp
 FileConfiguration = new LocalFileConfiguration("Local/PathExample/FirstData.tinyhand"),
@@ -379,7 +380,7 @@ FileConfiguration = new LocalFileConfiguration("C:\\Local/PathExample/FirstData.
 
 #### Global path
 
-When specifying GlobalFileConfiguration, the path will be combined with GlobalDirectory of CrystalizerOptions to create an absolute path.
+When specifying **GlobalFileConfiguration**, the path will be combined with **GlobalDirectory** of **CrystalizerOptions** to create an absolute path.
 
 ```csharp
 FileConfiguration = new GlobalFileConfiguration("Global/FirstData.tinyhand"),
@@ -405,7 +406,7 @@ var builder = new CrystalControl.Builder()
 
 #### AWS S3
 
-You can also save data on AWS S3. Please enter authentication information using IStorageKey.
+You can also save data on AWS S3. Please enter authentication information using **IStorageKey**.
 
 ```csharp
 FileConfiguration = new S3FileConfiguration(BucketName, "Test/FirstData.tinyhand"),
@@ -456,22 +457,22 @@ The process of loading data is as follows:
 1. Load the main file.
 2. If it fails, load the backup file.
 3. If there are history files (main or backup), load the latest history file.
-4. When Journaling is set (detailed later), load the Journal to update to the most recent data.
+4. When journaling is enabled (detailed later), load the Journal to update to the most recent data.
 
-By performing the above processes, CrystalData tries to minimize data loss.
+By performing the above processes, **CrystalData** tries to minimize data loss.
 
 
 
 ## Journaling
 
-CrystalData offers a limited journaling feature to enhance data durability.
+**CrystalData** offers a limited journaling feature to enhance data durability.
 
 The goal is to minimize data loss in the event of a failure, reducing potential loss from one hour to one second.
 
 Here is an example class.
 
 ```csharp
-[TinyhandObject(Journal = true)] // Enable the journaling feature.
+[TinyhandObject(Structual = true)] // Enable the journaling feature.
 [ValueLinkObject] // You can use ValuLink to handle a collection of objects.
 public partial class JournalData
 {
@@ -500,7 +501,7 @@ public partial class JournalData
 }
 ```
 
-To use the journal feature, please set `NumberOfFileHistories` to greater than or equal to 1 in `CrystalConfiguration` and configure the journal with `context.SetJournal()`.
+To use the journal feature, please set **NumberOfFileHistories** to greater than or equal to 1 in **CrystalConfiguration** and configure the journal with `context.SetJournal()`.
 
 ```csharp
 var builder = new CrystalControl.Builder()

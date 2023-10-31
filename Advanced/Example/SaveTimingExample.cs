@@ -1,5 +1,8 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+#pragma warning disable SA1307
+#pragma warning disable SA1401
+
 namespace QuickStart;
 
 [TinyhandObject(Structual = true)] // Journaling feature is necessary to allow the function to save data when properties are changed.
@@ -47,7 +50,7 @@ public partial class Program
         data.Id += 2; // Add to the save queue when the value is changed
 
         // On changed - alternative
-        data.id += 2; 
+        data.id += 2;
         crystal.TryAddToSaveQueue();
 
         // Manual...

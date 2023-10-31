@@ -14,7 +14,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CrystalData", "CrystalData\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Advanced", "Advanced\Advanced.csproj", "{4E5CE4B6-463C-4B0C-BD26-8482569BD961}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "xUnitTest", "xUnitTest\xUnitTest.csproj", "{460E04B0-4CA5-4672-8BCB-D3D03D07B2D8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xUnitTest", "xUnitTest\xUnitTest.csproj", "{460E04B0-4CA5-4672-8BCB-D3D03D07B2D8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickStart", "QuickStart\QuickStart.csproj", "{B89EE766-400C-4688-BEFA-F242661C8C8A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +40,10 @@ Global
 		{460E04B0-4CA5-4672-8BCB-D3D03D07B2D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{460E04B0-4CA5-4672-8BCB-D3D03D07B2D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{460E04B0-4CA5-4672-8BCB-D3D03D07B2D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
