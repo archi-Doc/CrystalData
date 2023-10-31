@@ -1,0 +1,43 @@
+// identifier = "string" /* null: Use the default value. */
+
+CrystalDataQueryDefault = {
+  NoCheckFile = """Check file not found. Do you want to force a launch? (enter 'y' if this is the first launch)"""
+  InconsistentJournal = """Journal file is inconsistent with data file '{0}'
+Would you like to clear the journal file and continue loading the data?"""
+  LoadError = """Failed to load file '{0}' ({1})
+Do you want to create a new data file?"""
+  BackupAhead = """The backup file '{0}' is ahead of the main file.
+Do you want to load the backup file?"""
+}
+
+CrystalFiler = {
+  BackupLoaded = "The backup file '{0}' has been loaded."
+}
+
+Journal = {
+  Corrupted = "Reading the journal was aborted due to a corrupted journal file."
+  Restored = "Data has been restored from the journal file: {0}"
+  ReadFailure = "The journal file was read, but data recovery was unsuccessful."
+}
+
+LocalFiler = {
+  FailedToAccess = "Failed to access files in directory '{0}"
+}
+
+S3Filer = {
+  NoAccessKey = "No access key for bucket '{0}'"
+  FailedToAccess = "Failed to access files in bucket '{0}/{1}'"
+}
+
+TestJournal = {
+  LoadingFailure = "Could not load: {0}"
+  DeserializationFailure = "Could not deserialize: {0}"
+  Success = "Journal test: Success, Waypoint: {0}"
+  Failure = "Journal test: Failure, Waypoint: {0}"
+}
+
+Unload = {
+  ForceUnloaded = "Forcibly unloaded: {0}"
+  Unloaded = "Unloaded: {0}"
+  Locked = "Locked: {0}"
+}

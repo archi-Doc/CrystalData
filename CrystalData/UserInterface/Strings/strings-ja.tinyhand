@@ -1,0 +1,6 @@
+// identifier = "string" /* null: Use the default value. */
+
+CrystalDataQueryDefault = {
+    NoCheckFile = "Checkファイルが見つかりません"
+    NoCheckFileQuery = "強制的に起動しますか？ (初回起動の場合は 'y' を入力してください)"
+}
