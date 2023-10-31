@@ -5,6 +5,7 @@ global using Arc.Unit;
 global using CrystalData;
 global using Microsoft.Extensions.DependencyInjection;
 global using Tinyhand;
+global using ValueLink;
 
 namespace QuickStart;
 
