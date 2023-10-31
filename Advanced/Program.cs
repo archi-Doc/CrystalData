@@ -39,6 +39,7 @@ public partial class Program
         {// Save all data managed by CrystalData.
             await unit.Context.ServiceProvider.GetRequiredService<Crystalizer>().SaveAllAndTerminate();
         }
+
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
         if (unit?.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
         {// Flush the buffered logs and then shut down the logger.

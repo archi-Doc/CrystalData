@@ -49,7 +49,7 @@ public partial class Program
             })
             .SetupOptions<CrystalizerOptions>((context, options) =>
             {
-                context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
+                context.GetOptions<UnitOptions>(out var unitOptions); // Get the application root directory.
                 if (unitOptions is not null)
                 {
                     // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.

@@ -16,7 +16,7 @@ public partial class Program
             })
             .SetupOptions<CrystalizerOptions>((context, options) =>
             {// You can change the root directory of the CrystalData by modifying CrystalizerOptions.
-                context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
+                context.GetOptions<UnitOptions>(out var unitOptions); // Get the application root directory.
                 if (unitOptions is not null)
                 {
                     // options.RootPath = Path.Combine(unitOptions.RootDirectory, "Additional"); // Root directory
@@ -27,7 +27,8 @@ public partial class Program
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
 
-        var crystal = crystalizer.GetOrCreateCrystal<FirstData>( // Get the crystal from crystalizer.
+        // Get the crystal from crystalizer.
+        var crystal = crystalizer.GetOrCreateCrystal<FirstData>(
             new CrystalConfiguration()
             {
                 SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
