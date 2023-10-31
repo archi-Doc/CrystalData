@@ -1,0 +1,7 @@
+// ChatGPT: The following text has a structure of identifier = string. Please translate the string into Japanese.
+
+mode = "process"
+process = "language file"
+
+reference = "strings-en.tinyhand"
+"strings-ja.tinyhand"
