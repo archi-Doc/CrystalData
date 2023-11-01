@@ -34,8 +34,8 @@ internal class Program
                 context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
-                        SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
+                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
+                        SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                     });
