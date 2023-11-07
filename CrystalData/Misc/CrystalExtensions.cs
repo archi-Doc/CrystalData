@@ -2,10 +2,23 @@
 
 using System.Runtime.CompilerServices;
 using CrystalData;
+using Microsoft.Extensions.DependencyInjection;
 using Tinyhand.IO;
 
 public static class CrystalExtensions
-{// -> implicit extension...
+{
+    /// <summary>
+    /// Retrieve the data managed by CrystalData via <see cref="IServiceProvider"/>.
+    /// </summary>
+    /// <typeparam name="TData">The type of data.</typeparam>
+    /// <param name="provider">The <see cref="IServiceProvider"/> to retrieve the service object from.</param>
+    /// <returns>The data of type <typeparamref name="TData"/>.</returns>
+    public static TData GetRequiredData<TData>(this IServiceProvider provider)
+        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+    {
+        return ((ICrystal<TData>)provider.GetRequiredService(typeof(ICrystal<TData>))).Data;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGetJournalWriter(this IStructualObject obj, out TinyhandWriter writer)
     {
