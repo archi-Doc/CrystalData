@@ -7,15 +7,19 @@ namespace QuickStart;
 [TinyhandObject(UseServiceProvider = true)] // Annotate TinyhandObject attribute to make this class serializable.
 public partial class ServiceProviderData
 {
-    public ServiceProviderData()
+    public ServiceProviderData(FirstData firstData)
     {
+        this.FirstData = firstData;
     }
 
-    [Key(0)] // The key attribute specifies the index at serialization
+    [Key(0)]
     public double Age { get; set; }
 
+    [Key(1)]
+    public FirstData FirstData { get; set; }
+
     public override string ToString()
-        => $"Age: {this.Age.ToString()}";
+        => $"{this.FirstData.ToString()} Age: {this.Age.ToString()}";
 }
 
 public partial class Program
@@ -26,7 +30,8 @@ public partial class Program
         var builder = new CrystalControl.Builder()
             .Configure(context =>
             {
-                context.AddTransient<ServiceProviderData>();
+                context.AddSingleton<FirstData>();
+                context.AddSingleton<ServiceProviderData>();
             })
             .ConfigureCrystal(context =>
             {
@@ -46,9 +51,11 @@ public partial class Program
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
         await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
+        // var data = unit.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
+        var data = unit.Context.ServiceProvider.GetRequiredService<ServiceProviderData>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine($"Load {data.ToString()}");
+        data.FirstData.Id++;
         data.Age += 1000d;
         Console.WriteLine($"Save {data.ToString()}");
 

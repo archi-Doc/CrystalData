@@ -31,7 +31,7 @@ internal class Program
         var builder = new CrystalControl.Builder()
             .Configure(context =>
             {
-                context.AddTransient<FirstData>();
+                // context.AddTransient<FirstData>();
             })
             .ConfigureCrystal(context =>
             {
@@ -63,6 +63,8 @@ internal class Program
 
         await crystal.Save(UnloadMode.ForceUnload);
         Console.WriteLine($"Unload {crystal.Data.ToString()}");
+        crystal.Data.Id++;
+        Console.WriteLine($"Unload++ {crystal.Data.ToString()}");
 
         data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"Data {data.ToString()}");
