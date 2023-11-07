@@ -1,8 +1,20 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrystalData;
+
+public readonly struct CrystalNew<T>
+{
+    public CrystalNew(T instance)
+    {
+        this.Instance = instance;
+    }
+
+    public readonly T Instance;
+}
 
 internal class UnitCrystalContext : IUnitCrystalContext, IUnitCustomContext
 {
@@ -39,8 +51,14 @@ internal class UnitCrystalContext : IUnitCrystalContext, IUnitCustomContext
             // Singleton: ICrystal<T> => Crystalizer.GetCrystal<T>()
             context.Services.Add(ServiceDescriptor.Singleton(typeof(ICrystal<>).MakeGenericType(x.Key), provider => provider.GetRequiredService<Crystalizer>().GetCrystal(x.Key)));
 
-            // Singleton: T => Crystalizer.GetObject<T>()
-            context.Services.Add(ServiceDescriptor.Singleton(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetObject(x.Key)));
+            if (x.Key.GetCustomAttribute<TinyhandObjectAttribute>() is { } attribute &&
+                attribute.UseServiceProvider)
+            {// Tinyhand invokes ServiceProvider during object creation, which leads to recursive calls.
+            }
+            else
+            {// Singleton: T => Crystalizer.GetObject<T>()
+                context.Services.TryAdd(ServiceDescriptor.Singleton(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetObject(x.Key)));
+            }
         }
 
         if (!context.TryGetOptions<CrystalizerConfiguration>(out var configuration))
