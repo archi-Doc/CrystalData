@@ -18,11 +18,7 @@
 
 ## Requirements
 
-**Visual Studio 2022** or later for Source Generator V2.
-
-**C# 11** or later for generated codes.
-
-**.NET 7** or later target framework.
+**Visual Studio 2022** or later.
 
 
 
