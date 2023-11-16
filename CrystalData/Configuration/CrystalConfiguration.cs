@@ -5,19 +5,30 @@ namespace CrystalData;
 [TinyhandObject(ImplicitKeyAsName = true, EnumAsString = true)]
 public sealed partial record CrystalConfiguration
 {
-    public static readonly TimeSpan DefaultInterval = TimeSpan.FromHours(1);
     public static readonly CrystalConfiguration Default = new();
 
     public CrystalConfiguration()
     {
-        this.SaveInterval = DefaultInterval;
         this.FileConfiguration = EmptyFileConfiguration.Default;
+    }
+
+    public CrystalConfiguration(FileConfiguration fileConfiguration)
+    {
+        this.FileConfiguration = fileConfiguration;
+        this.StorageConfiguration = EmptyStorageConfiguration.Default;
     }
 
     public CrystalConfiguration(SavePolicy savePolicy, FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
     {
         this.SavePolicy = savePolicy;
-        this.SaveInterval = DefaultInterval;
+        this.FileConfiguration = fileConfiguration;
+        this.StorageConfiguration = storageConfiguration ?? EmptyStorageConfiguration.Default;
+    }
+
+    public CrystalConfiguration(SaveFormat saveFormat, SavePolicy savePolicy, FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
+    {
+        this.SaveFormat = saveFormat;
+        this.SavePolicy = savePolicy;
         this.FileConfiguration = fileConfiguration;
         this.StorageConfiguration = storageConfiguration ?? EmptyStorageConfiguration.Default;
     }

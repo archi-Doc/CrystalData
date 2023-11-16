@@ -32,8 +32,9 @@ public partial class Program
         // var unit = await JournalExample();
         // var unit = await PathExample();
         // var unit = await BackupExample();
-        var unit = await ServiceProviderExample();
+        // var unit = await ServiceProviderExample();
         // var unit = await IntegratedExample();
+        var unit = await DefaultExample();
 
         ThreadCore.Root.Terminate();
         if (unit is not null)

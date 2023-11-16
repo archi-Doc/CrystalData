@@ -5,6 +5,12 @@ namespace CrystalData;
 public enum SavePolicy
 {
     /// <summary>
+    /// The saving policy is specified in <see cref="CrystalizerOptions"/>.<br/>
+    /// If not specified, <see cref="SavePolicy.Manual"/> is used as default.
+    /// </summary>
+    Default,
+
+    /// <summary>
     /// Timing of saving data is controlled by the application [default].
     /// </summary>
     Manual,
