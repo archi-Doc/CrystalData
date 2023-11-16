@@ -14,7 +14,8 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     internal CrystalObject(Crystalizer crystalizer)
     {
         this.Crystalizer = crystalizer;
-        this.CrystalConfiguration = CrystalConfiguration.Default;
+        this.originalCrystalConfiguration = CrystalConfiguration.Default;
+        this.crystalConfiguration = CrystalConfiguration.Default;
         ((IStructualObject)this).StructualRoot = this;
     }
 
@@ -26,6 +27,8 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     private IStorage? storage;
     private Waypoint waypoint;
     private DateTime lastSavedTime;
+    private CrystalConfiguration originalCrystalConfiguration;
+    private CrystalConfiguration crystalConfiguration;
 
     #endregion
 
@@ -33,7 +36,9 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     public Crystalizer Crystalizer { get; }
 
-    public CrystalConfiguration CrystalConfiguration { get; private set; }
+    public CrystalConfiguration OriginalCrystalConfiguration => this.originalCrystalConfiguration;
+
+    public CrystalConfiguration CrystalConfiguration => this.crystalConfiguration;
 
     public Type DataType => typeof(TData);
 
@@ -75,28 +80,6 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     public CrystalState State { get; private set; }
 
-    /*public IFiler Filer
-    {
-        get
-        {
-            if (this.rawFiler is { } v)
-            {
-                return v;
-            }
-
-            using (this.semaphore.Lock())
-            {
-                if (this.rawFiler != null)
-                {
-                    return this.rawFiler;
-                }
-
-                this.ResolveAndPrepareFiler();
-                return this.rawFiler;
-            }
-        }
-    }*/
-
     public IStorage Storage
     {
         get
@@ -125,22 +108,8 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     {
         using (this.semaphore.Lock())
         {
-            if (this.Crystalizer.DefaultBackup is { } globalBackup)
-            {
-                if (configuration.BackupFileConfiguration == null)
-                {
-                    configuration = configuration with { BackupFileConfiguration = globalBackup.CombineFile(configuration.FileConfiguration.Path) };
-                }
-
-                if (configuration.StorageConfiguration is not null &&
-                    configuration.StorageConfiguration.BackupDirectoryConfiguration == null)
-                {
-                    var storageConfiguration = configuration.StorageConfiguration with { BackupDirectoryConfiguration = globalBackup.CombineDirectory(configuration.StorageConfiguration.DirectoryConfiguration), };
-                    configuration = configuration with { StorageConfiguration = storageConfiguration, };
-                }
-            }
-
-            this.CrystalConfiguration = configuration;
+            this.originalCrystalConfiguration = configuration;
+            this.PrepareCrystalConfiguration();
             this.crystalFiler = null;
             this.storage = null;
             this.State = CrystalState.Initial;
@@ -151,7 +120,8 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     {
         using (this.semaphore.Lock())
         {
-            this.CrystalConfiguration = this.CrystalConfiguration with { FileConfiguration = configuration, };
+            this.originalCrystalConfiguration = this.originalCrystalConfiguration with { FileConfiguration = configuration, };
+            this.PrepareCrystalConfiguration();
             this.crystalFiler = null;
             this.State = CrystalState.Initial;
         }
@@ -161,7 +131,8 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     {
         using (this.semaphore.Lock())
         {
-            this.CrystalConfiguration = this.CrystalConfiguration with { StorageConfiguration = configuration, };
+            this.originalCrystalConfiguration = this.originalCrystalConfiguration with { StorageConfiguration = configuration, };
+            this.PrepareCrystalConfiguration();
             this.storage = null;
             this.State = CrystalState.Initial;
         }
@@ -267,11 +238,11 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         byte[] byteArray;
         // var options = unloadMode == UnloadMode.NoUnload ? TinyhandSerializerOptions.Standard : TinyhandSerializerOptions.Unload;
         if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
-        {
+        {// utf8
             byteArray = TinyhandSerializer.SerializeObjectToUtf8(obj);
         }
         else
-        {
+        {// binary
             byteArray = TinyhandSerializer.SerializeObject(obj);
         }
 
@@ -837,5 +808,43 @@ Exit:
     {
         var logger = this.Crystalizer.UnitLogger.GetLogger<TData>();
         logger.TryGet(LogLevel.Error)?.Log($"{prefix}, {this.waypoint.ToString()}");
+    }
+
+    private void PrepareCrystalConfiguration()
+    {
+        var configuration = this.originalCrystalConfiguration;
+
+        if (this.Crystalizer.DefaultBackup is { } globalBackup)
+        {
+            if (configuration.BackupFileConfiguration == null)
+            {
+                configuration = configuration with { BackupFileConfiguration = globalBackup.CombineFile(configuration.FileConfiguration.Path) };
+            }
+
+            if (configuration.StorageConfiguration is not null &&
+                configuration.StorageConfiguration.BackupDirectoryConfiguration == null)
+            {
+                var storageConfiguration = configuration.StorageConfiguration with { BackupDirectoryConfiguration = globalBackup.CombineDirectory(configuration.StorageConfiguration.DirectoryConfiguration), };
+                configuration = configuration with { StorageConfiguration = storageConfiguration, };
+            }
+        }
+
+        var saveFormat = configuration.SaveFormat;
+        saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.DefaultSaveFormat : saveFormat;
+
+        var savePolicy = configuration.SavePolicy;
+        savePolicy = savePolicy == SavePolicy.Default ? this.Crystalizer.DefaultSavePolicy : savePolicy;
+
+        var saveInterval = configuration.SaveInterval;
+        saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.DefaultSaveInterval : saveInterval;
+
+        if (saveFormat != configuration.SaveFormat ||
+            savePolicy != configuration.SavePolicy ||
+            saveInterval != configuration.SaveInterval)
+        {
+            configuration = configuration with { SaveFormat = saveFormat, SavePolicy = savePolicy, SaveInterval = saveInterval, };
+        }
+
+        this.crystalConfiguration = configuration;
     }
 }

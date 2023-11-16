@@ -49,6 +49,8 @@ internal interface ICrystalInternal : ICrystal
 
     Task<bool> TestJournal();
 
+    CrystalConfiguration OriginalCrystalConfiguration { get; }
+
     Waypoint Waypoint { get; }
 }
 

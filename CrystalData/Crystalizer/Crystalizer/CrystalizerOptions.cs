@@ -5,12 +5,12 @@ namespace CrystalData;
 public class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
-    public const int DefaultMaxParentInMemory = 10_000;
 
     public CrystalizerOptions()
     {
         this.FilerTimeout = TimeSpan.MinValue; // TimeSpan.FromSeconds(3);
         this.UnloadTimeout = TimeSpan.FromSeconds(10);
+        this.DefaultSaveInterval = CrystalConfiguration.DefaultSaveInterval;
     }
 
     public bool EnableFilerLogger { get; set; } = false;
@@ -21,11 +21,15 @@ public class CrystalizerOptions
 
     public long MemoryUsageLimit { get; set; } = DefaultMemoryUsageLimit;
 
-    public int MaxParentInMemory { get; set; } = DefaultMaxParentInMemory;
-
     public int ConcurrentUnload { get; set; } = 8;
 
     public TimeSpan UnloadTimeout { get; set; }
+
+    public SaveFormat DefaultSaveFormat { get; set; } = SaveFormat.Binary;
+
+    public SavePolicy DefaultSavePolicy { get; set; } = SavePolicy.Manual;
+
+    public TimeSpan DefaultSaveInterval { get; set; }
 
     public DirectoryConfiguration GlobalDirectory { get; set; } = new LocalDirectoryConfiguration();
 

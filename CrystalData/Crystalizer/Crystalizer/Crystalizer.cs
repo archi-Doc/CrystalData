@@ -60,13 +60,16 @@ public class Crystalizer
         this.RootDirectory = options.RootPath;
         this.FilerTimeout = options.FilerTimeout;
         this.MemoryUsageLimit = options.MemoryUsageLimit;
-        this.MaxParentInMemory = options.MaxParentInMemory;
         this.ConcurrentUnload = options.ConcurrentUnload;
         this.UnloadTimeout = options.UnloadTimeout;
         if (string.IsNullOrEmpty(this.RootDirectory))
         {
             this.RootDirectory = Directory.GetCurrentDirectory();
         }
+
+        this.DefaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
+        this.DefaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
+        this.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
 
         this.Logger = logger;
         this.task = new(this);
@@ -105,11 +108,15 @@ public class Crystalizer
 
     public long MemoryUsageLimit { get; }
 
-    public int MaxParentInMemory { get; }
-
     public int ConcurrentUnload { get; }
 
     public TimeSpan UnloadTimeout { get; }
+
+    public SaveFormat DefaultSaveFormat { get; set; }
+
+    public SavePolicy DefaultSavePolicy { get; set; }
+
+    public TimeSpan DefaultSaveInterval { get; set; }
 
     public IJournal? Journal { get; private set; }
 
@@ -362,7 +369,7 @@ public class Crystalizer
             if (this.typeToCrystal.TryGetValue(x.Key, out var crystal) &&
                 x.Key.FullName is { } name)
             {
-                data[name] = crystal.CrystalConfiguration;
+                data[name] = crystal.OriginalCrystalConfiguration;
             }
         }
 
