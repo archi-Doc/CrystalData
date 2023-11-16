@@ -69,7 +69,7 @@ public class Crystalizer
 
         this.DefaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
         this.DefaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
-        this.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalizerOptions.InternalDefaultSaveInterval : options.DefaultSaveInterval;
+        this.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
 
         this.Logger = logger;
         this.task = new(this);
@@ -369,7 +369,7 @@ public class Crystalizer
             if (this.typeToCrystal.TryGetValue(x.Key, out var crystal) &&
                 x.Key.FullName is { } name)
             {
-                data[name] = crystal.CrystalConfiguration;
+                data[name] = crystal.OriginalCrystalConfiguration;
             }
         }
 

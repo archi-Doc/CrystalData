@@ -5,13 +5,12 @@ namespace CrystalData;
 public class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
-    internal static readonly TimeSpan InternalDefaultSaveInterval = TimeSpan.FromHours(1); // 1 Hour
 
     public CrystalizerOptions()
     {
         this.FilerTimeout = TimeSpan.MinValue; // TimeSpan.FromSeconds(3);
         this.UnloadTimeout = TimeSpan.FromSeconds(10);
-        this.DefaultSaveInterval = InternalDefaultSaveInterval;
+        this.DefaultSaveInterval = CrystalConfiguration.DefaultSaveInterval;
     }
 
     public bool EnableFilerLogger { get; set; } = false;

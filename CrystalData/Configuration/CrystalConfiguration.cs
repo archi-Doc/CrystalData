@@ -6,14 +6,17 @@ namespace CrystalData;
 public sealed partial record CrystalConfiguration
 {
     public static readonly CrystalConfiguration Default = new();
+    public static readonly TimeSpan DefaultSaveInterval = TimeSpan.FromHours(1); // 1 Hour
 
     public CrystalConfiguration()
     {
+        this.SaveInterval = DefaultSaveInterval;
         this.FileConfiguration = EmptyFileConfiguration.Default;
     }
 
     public CrystalConfiguration(FileConfiguration fileConfiguration)
     {
+        this.SaveInterval = DefaultSaveInterval;
         this.FileConfiguration = fileConfiguration;
         this.StorageConfiguration = EmptyStorageConfiguration.Default;
     }
@@ -21,6 +24,7 @@ public sealed partial record CrystalConfiguration
     public CrystalConfiguration(SavePolicy savePolicy, FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
     {
         this.SavePolicy = savePolicy;
+        this.SaveInterval = DefaultSaveInterval;
         this.FileConfiguration = fileConfiguration;
         this.StorageConfiguration = storageConfiguration ?? EmptyStorageConfiguration.Default;
     }
@@ -29,6 +33,7 @@ public sealed partial record CrystalConfiguration
     {
         this.SaveFormat = saveFormat;
         this.SavePolicy = savePolicy;
+        this.SaveInterval = DefaultSaveInterval;
         this.FileConfiguration = fileConfiguration;
         this.StorageConfiguration = storageConfiguration ?? EmptyStorageConfiguration.Default;
     }

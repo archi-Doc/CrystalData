@@ -42,8 +42,8 @@ public partial class Program
         var data = unit.Context.ServiceProvider.GetRequiredService<DefaultData>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
-        data.Id = 1;
-        data.Name = "Fuga";
+        data.Id += 1;
+        data.Name += "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
         await crystalizer.SaveAll(); // Save all data.
