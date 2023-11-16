@@ -32,7 +32,7 @@ public static class SerializeHelper
         }
 
         if (formatHint == SaveFormat.Utf8)
-        {
+        {// utf8
             try
             {
                 TinyhandSerializer.DeserializeObjectFromUtf8(span, ref data);
@@ -52,7 +52,7 @@ public static class SerializeHelper
             }
         }
         else
-        {
+        {// Binary
             try
             {
                 TinyhandSerializer.DeserializeObject(span, ref data);

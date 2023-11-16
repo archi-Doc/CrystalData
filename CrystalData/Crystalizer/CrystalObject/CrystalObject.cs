@@ -267,11 +267,11 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         byte[] byteArray;
         // var options = unloadMode == UnloadMode.NoUnload ? TinyhandSerializerOptions.Standard : TinyhandSerializerOptions.Unload;
         if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
-        {
+        {// utf8
             byteArray = TinyhandSerializer.SerializeObjectToUtf8(obj);
         }
         else
-        {
+        {// binary
             byteArray = TinyhandSerializer.SerializeObject(obj);
         }
 
