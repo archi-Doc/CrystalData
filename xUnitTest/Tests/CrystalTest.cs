@@ -72,4 +72,39 @@ public class CrystalTest
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }
+
+    [Fact]
+    public async Task Test2()
+    {
+        var crystal = await TestHelper.CreateAndStartCrystal2<CreditData.GoshujinClass>();
+
+        var g = crystal.Data;
+        await crystal.Save(UnloadMode.ForceUnload);
+
+        await crystal.PrepareAndLoad(false);
+        g = crystal.Data;
+
+        CreditData creditData;
+        using (var w = g.TryLock(1, TryLockMode.GetOrCreate)!)
+        {
+            creditData = w.Commit()!;
+        }
+
+        var borrowers = await creditData.Borrowers.Get();
+        using (var w2 = borrowers.TryLock(22, TryLockMode.Create)!)
+        {
+            w2.Commit();
+        }
+
+        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.PrepareAndLoad(false);
+        g = crystal.Data;
+
+        var ww = g.TryGet(1);
+        var ww2 = await ww!.Borrowers.Get();
+        var ww3 = ww2.TryGet(22);
+        ww3.IsNotNull();
+
+        await TestHelper.UnloadAndDeleteAll(crystal);
+    }
 }

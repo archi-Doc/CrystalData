@@ -329,6 +329,16 @@ public class Crystalizer
             }
             else if (configuration is SimpleStorageConfiguration simpleStorageConfiguration)
             {
+                if (simpleStorageConfiguration.DirectoryConfiguration is GlobalDirectoryConfiguration globalDirectoryConfiguration)
+                {
+                    configuration = configuration with { DirectoryConfiguration = this.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration), };
+                }
+
+                if (simpleStorageConfiguration.BackupDirectoryConfiguration is GlobalDirectoryConfiguration backupDirectoryConfiguration)
+                {
+                    configuration = configuration with { BackupDirectoryConfiguration = this.GlobalDirectory.CombineDirectory(backupDirectoryConfiguration), };
+                }
+
                 if (!this.configurationToStorage.TryGetValue(configuration, out storage))
                 {
                     storage = new SimpleStorage(this);
@@ -564,6 +574,25 @@ public class Crystalizer
         var tasks = this.crystals.Keys.Select(x => x.Delete()).ToArray();
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return results;
+    }
+
+    public void DeleteDirectory(DirectoryConfiguration directoryConfiguration)
+    {
+        if (directoryConfiguration is GlobalDirectoryConfiguration globalDirectoryConfiguration)
+        {
+            directoryConfiguration = this.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration);
+        }
+
+        if (directoryConfiguration is LocalDirectoryConfiguration localDirectoryConfiguration)
+        {
+            try
+            {
+                Directory.Delete(localDirectoryConfiguration.Path, true);
+            }
+            catch
+            {
+            }
+        }
     }
 
     public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool managedByCrystalizer = true)
