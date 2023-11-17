@@ -249,30 +249,19 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
 
         var storage = crystal.Storage;
         ulong fileId = 0;
-        CrystalMemoryOwnerResult result;
-        if (this.storageId0.IsValid)
+        CrystalMemoryOwnerResult result = new(CrystalResult.NotFound);
+        while (this.storageId0.IsValid)
         {
             fileId = this.storageId0.FileId;
             result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-            if (result.IsFailure && this.storageId1.IsValid)
+            if (result.IsSuccess)
             {
-                fileId = this.storageId1.FileId;
-                result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-                if (result.IsFailure && this.storageId2.IsValid)
-                {
-                    fileId = this.storageId2.FileId;
-                    result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-                    /*if (result.IsFailure && this.storageId3.IsValid)
-                    {
-                        fileId = this.storageId3.FileId;
-                        result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-                    }*/
-                }
+                break;
             }
-        }
-        else
-        {
-            result = new(CrystalResult.NotFound);
+
+            this.storageId0 = this.storageId1;
+            this.storageId1 = this.storageId2;
+            this.storageId2 = default;
         }
 
         if (result.IsFailure)
