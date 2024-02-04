@@ -139,7 +139,7 @@ public class Crystalizer
     private CrystalizerConfiguration configuration;
 
     private CrystalizerTask task;
-    private ThreadsafeTypeKeyHashTable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
+    private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private ConcurrentDictionary<ICrystalInternal, int> crystals = new(); // All crystals
     private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
     private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
