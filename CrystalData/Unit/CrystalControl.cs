@@ -41,21 +41,12 @@ public class CrystalControl
                     context.TryAddSingleton<ICrystalDataQuery, CrystalDataQueryDefault>();
                 }
 
-                var crystalContext = context.GetCustomContext<UnitCrystalContext>();
+                var crystalContext = context.GetCustomContext<CrystalUnitContext>();
                 foreach (var x in this.crystalActions)
                 {
                     x(crystalContext);
                 }
             });
-
-            /*this.CustomConfigure = context =>
-            {
-                var crystalContext = context.GetCustomContext<UnitCrystalContext>();
-                foreach (var x in this.crystalActions)
-                {
-                    x(crystalContext);
-                }
-            };*/
         }
 
         public new Builder Preload(Action<IUnitPreloadContext> @delegate)
@@ -70,7 +61,7 @@ public class CrystalControl
             return this;
         }
 
-        public Builder ConfigureCrystal(Action<IUnitCrystalContext> @delegate)
+        public Builder ConfigureCrystal(Action<ICrystalUnitContext> @delegate)
         {
             this.crystalActions.Add(@delegate);
             return this;
@@ -89,7 +80,7 @@ public class CrystalControl
             }
         }
 
-        private List<Action<IUnitCrystalContext>> crystalActions = new();
+        private List<Action<ICrystalUnitContext>> crystalActions = new();
     }
 
     public class Unit : BuiltUnit

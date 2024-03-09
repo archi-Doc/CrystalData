@@ -103,7 +103,7 @@ public partial record SimpleExample
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public partial record AdvancedExample
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
-    public static void Register(IUnitCrystalContext context)
+    public static void Register(ICrystalUnitContext context)
     {
         context.AddCrystal<AdvancedExample>(
             new()
