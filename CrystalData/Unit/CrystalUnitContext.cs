@@ -6,34 +6,19 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrystalData;
 
-public readonly struct CrystalNew<T>
+internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
 {
-    public CrystalNew(T instance)
-    {
-        this.Instance = instance;
-    }
-
-    public readonly T Instance;
-}
-
-internal class UnitCrystalContext : IUnitCrystalContext, IUnitCustomContext
-{
-    void IUnitCrystalContext.AddCrystal<TData>(CrystalConfiguration configuration)
+    void ICrystalUnitContext.AddCrystal<TData>(CrystalConfiguration configuration)
     {
         this.typeToCrystalConfiguration[typeof(TData)] = configuration;
     }
 
-    /*bool IUnitCrystalContext.TryAddCrystal<TData>(CrystalConfiguration configuration)
-    {
-        return this.typeToCrystalConfiguration.TryAdd(typeof(TData), configuration);
-    }*/
-
-    void IUnitCrystalContext.SetJournal(JournalConfiguration configuration)
+    void ICrystalUnitContext.SetJournal(JournalConfiguration configuration)
     {
         this.journalConfiguration = configuration;
     }
 
-    bool IUnitCrystalContext.TrySetJournal(JournalConfiguration configuration)
+    bool ICrystalUnitContext.TrySetJournal(JournalConfiguration configuration)
     {
         if (this.journalConfiguration != EmptyJournalConfiguration.Default)
         {

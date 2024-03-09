@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-public interface IUnitCrystalContext
+public interface ICrystalUnitContext
 {
     void AddCrystal<TData>(CrystalConfiguration configuration)
         where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>;
