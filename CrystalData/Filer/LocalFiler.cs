@@ -134,7 +134,14 @@ TryWrite:
                     // Console.WriteLine($"Read {filePath} {read.ToString()}");
                     if (read != lengthToRead)
                     {
-                        File.Delete(filePath);
+                        try
+                        {
+                            File.Delete(filePath);
+                        }
+                        catch
+                        {
+                        }
+
                         worker.logger?.TryGet(LogLevel.Error)?.Log($"Read error and deleted: {work.Path}");
                         work.Result = CrystalResult.FileOperationError;
                         return;
