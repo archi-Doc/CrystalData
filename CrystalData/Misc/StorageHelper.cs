@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-public static class StorageHelper
+public static partial class StorageHelper
 {
     public const long Megabytes = 1024 * 1024;
     public const long Gigabytes = 1024 * 1024 * 1024;

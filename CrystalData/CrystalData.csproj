@@ -24,7 +24,7 @@
   <ItemGroup>
     <PackageReference Include="Arc.Threading" Version="0.28.0" />
     <PackageReference Include="Arc.Crypto" Version="1.23.1" />
-    <PackageReference Include="Arc.Unit" Version="0.10.3" />
+    <PackageReference Include="Arc.Unit" Version="0.10.4" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.307" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="SimpleCommandLine" Version="0.20.0" />
