@@ -16,10 +16,10 @@ public partial record GlobalDirectoryConfiguration : DirectoryConfiguration
     }
 
     public override GlobalFileConfiguration CombineFile(string file)
-        => new GlobalFileConfiguration(PathHelper.CombineWithSlash(this.Path, PathHelper.GetPathNotRoot(file)));
+        => new GlobalFileConfiguration(StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathNotRoot(file)));
 
     public override GlobalDirectoryConfiguration CombineDirectory(DirectoryConfiguration directory)
-        => new GlobalDirectoryConfiguration(PathHelper.CombineWithSlash(this.Path, PathHelper.GetPathNotRoot(directory.Path)));
+        => new GlobalDirectoryConfiguration(StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathNotRoot(directory.Path)));
 
     public override string ToString()
         => $"Global directory: {this.Path}";

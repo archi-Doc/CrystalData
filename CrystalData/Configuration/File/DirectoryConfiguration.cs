@@ -16,7 +16,7 @@ public abstract partial record DirectoryConfiguration : PathConfiguration
     }
 
     public DirectoryConfiguration(string directory)
-        : base(PathHelper.EndsWithSlashOrBackslash(directory) ? directory : directory + PathHelper.Slash)
+        : base(StorageHelper.EndsWithSlashOrBackslash(directory) ? directory : directory + StorageHelper.Slash)
     {
     }
 

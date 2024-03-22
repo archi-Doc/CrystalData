@@ -158,9 +158,9 @@ TryWrite:
         }
         else if (work.Type == FilerWork.WorkType.DeleteDirectory)
         {
-            if (!filePath.EndsWith(PathHelper.Slash))
+            if (!filePath.EndsWith(StorageHelper.Slash))
             {
-                filePath += PathHelper.Slash;
+                filePath += StorageHelper.Slash;
             }
 
             while (true)
@@ -205,7 +205,7 @@ TryWrite:
             {
                 string? continuationToken = null;
 RepeatList:
-                var request = new Amazon.S3.Model.ListObjectsV2Request() { BucketName = worker.bucket, Prefix = filePath, Delimiter = PathHelper.SlashString, ContinuationToken = continuationToken, };
+                var request = new Amazon.S3.Model.ListObjectsV2Request() { BucketName = worker.bucket, Prefix = filePath, Delimiter = StorageHelper.SlashString, ContinuationToken = continuationToken, };
 
                 var response = await worker.client.ListObjectsV2Async(request, worker.CancellationToken).ConfigureAwait(false);
                 foreach (var x in response.S3Objects)
@@ -269,7 +269,7 @@ RepeatList:
         {
             try
             {
-                var path = PathHelper.CombineWithSlash(directoryPath, WriteTestFile);
+                var path = StorageHelper.CombineWithSlash(directoryPath, WriteTestFile);
                 using (var ms = new MemoryStream())
                 {
                     var request = new Amazon.S3.Model.PutObjectRequest() { BucketName = this.bucket, Key = path, InputStream = ms, };

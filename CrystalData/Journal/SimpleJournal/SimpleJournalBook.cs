@@ -187,13 +187,13 @@ public partial class SimpleJournal
             }
 
             // Write (IsSaved -> true)
-            this.path = PathHelper.CombineWithSlash(this.simpleJournal.SimpleJournalConfiguration.DirectoryConfiguration.Path, this.GetFileName());
+            this.path = StorageHelper.CombineWithSlash(this.simpleJournal.SimpleJournalConfiguration.DirectoryConfiguration.Path, this.GetFileName());
             this.simpleJournal.rawFiler.WriteAndForget(this.path, 0, this.memoryOwner);
 
             if (this.simpleJournal.SimpleJournalConfiguration.BackupDirectoryConfiguration is { } backupConfiguration &&
                 this.simpleJournal.backupFiler is not null)
             {
-                this.backupPath ??= PathHelper.CombineWithSlash(backupConfiguration.Path, this.GetFileName());
+                this.backupPath ??= StorageHelper.CombineWithSlash(backupConfiguration.Path, this.GetFileName());
                 this.simpleJournal.backupFiler.WriteAndForget(this.backupPath, 0, this.memoryOwner);
             }
         }
@@ -238,13 +238,13 @@ public partial class SimpleJournal
             }
 
             // Write (IsSaved -> true)
-            this.path = PathHelper.CombineWithSlash(this.simpleJournal.SimpleJournalConfiguration.DirectoryConfiguration.Path, this.GetFileName());
+            this.path = StorageHelper.CombineWithSlash(this.simpleJournal.SimpleJournalConfiguration.DirectoryConfiguration.Path, this.GetFileName());
             var result = await this.simpleJournal.rawFiler.WriteAsync(this.path, 0, this.memoryOwner).ConfigureAwait(false);
 
             if (this.simpleJournal.BackupConfiguration is not null &&
                 this.simpleJournal.backupFiler is not null)
             {
-                this.backupPath ??= PathHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
+                this.backupPath ??= StorageHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
                 _ = this.simpleJournal.backupFiler.WriteAsync(this.backupPath, 0, this.memoryOwner);
             }
 
@@ -261,7 +261,7 @@ public partial class SimpleJournal
             if (this.simpleJournal.backupFiler is not null &&
                 this.simpleJournal.BackupConfiguration is not null)
             {
-                this.backupPath ??= PathHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
+                this.backupPath ??= StorageHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
                 this.simpleJournal.backupFiler.DeleteAndForget(this.backupPath);
             }
 
