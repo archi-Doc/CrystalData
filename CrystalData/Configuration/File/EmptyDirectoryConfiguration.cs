@@ -18,10 +18,10 @@ public partial record EmptyDirectoryConfiguration : DirectoryConfiguration
     }
 
     public override EmptyFileConfiguration CombineFile(string file)
-        => new EmptyFileConfiguration(System.IO.Path.Combine(this.Path, PathHelper.GetPathNotRoot(file)));
+        => new EmptyFileConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathNotRoot(file)));
 
     public override EmptyDirectoryConfiguration CombineDirectory(DirectoryConfiguration directory)
-        => new EmptyDirectoryConfiguration(System.IO.Path.Combine(this.Path, PathHelper.GetPathNotRoot(directory.Path)));
+        => new EmptyDirectoryConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathNotRoot(directory.Path)));
 
     public override string ToString()
         => $"Empty directory";

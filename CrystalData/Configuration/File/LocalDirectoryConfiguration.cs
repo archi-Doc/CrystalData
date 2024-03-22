@@ -16,10 +16,10 @@ public partial record LocalDirectoryConfiguration : DirectoryConfiguration
     }
 
     public override LocalFileConfiguration CombineFile(string file)
-        => new LocalFileConfiguration(System.IO.Path.Combine(this.Path, PathHelper.GetPathNotRoot(file)));
+        => new LocalFileConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathNotRoot(file)));
 
     public override LocalDirectoryConfiguration CombineDirectory(DirectoryConfiguration directory)
-        => new LocalDirectoryConfiguration(System.IO.Path.Combine(this.Path, PathHelper.GetPathNotRoot(directory.Path)));
+        => new LocalDirectoryConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathNotRoot(directory.Path)));
 
     public override string ToString()
         => $"Local directory: {this.Path}";

@@ -96,7 +96,7 @@ public class CrystalFiler
 
                     var waypointString = path.Substring(path.Length - Waypoint.LengthInBase32, Waypoint.LengthInBase32);
                     path = path.Substring(0, path.Length - Waypoint.LengthInBase32);
-                    if (!PathHelper.EndsWith_SlashInseisitive(path, this.prefix))
+                    if (!StorageHelper.EndsWith_SlashInsensitive(path, this.prefix))
                     {
                         continue;
                     }

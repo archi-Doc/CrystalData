@@ -212,7 +212,7 @@ TryWrite:
                     (directory, prefix) = PathHelper.PathToDirectoryAndFile(filePath);
                 }*/
 
-                (directory, prefix) = PathHelper.PathToDirectoryAndFile(filePath);
+                (directory, prefix) = StorageHelper.PathToDirectoryAndFile(filePath);
                 var directoryInfo = new DirectoryInfo(directory);
                 foreach (var x in directoryInfo.EnumerateFileSystemInfos())
                 {
@@ -263,7 +263,7 @@ TryWrite:
         if (!this.checkedPath.TryGetValue(directoryPath, out var accessible))
         {
             Directory.CreateDirectory(directoryPath);
-            accessible = PathHelper.IsDirectoryWritable(directoryPath);
+            accessible = StorageHelper.IsDirectoryWritable(directoryPath);
             this.checkedPath.TryAdd(directoryPath, accessible);
 
             if (!accessible)
