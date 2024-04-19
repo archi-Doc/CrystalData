@@ -2,7 +2,7 @@
 
 namespace CrystalData.Storage;
 
-public class StorageKey : IStorageKey
+internal class StorageKey : IStorageKey
 {
     public StorageKey()
     {
@@ -10,7 +10,7 @@ public class StorageKey : IStorageKey
 
     public bool AddKey(string bucket, AccessKeyPair accessKeyPair)
     {
-        lock(this.syncObject)
+        lock (this.syncObject)
         {
             this.dictionary[bucket] = accessKeyPair;
             return true;
