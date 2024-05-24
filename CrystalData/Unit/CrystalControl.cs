@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1210 // Using directives should be ordered alphabetically by namespace
 
+global using Arc.Collections;
 global using Arc.Crypto;
 global using Arc.Threading;
 global using Arc.Unit;

@@ -121,7 +121,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
         }
     }
 
-    CrystalResult IStorage.PutAndForget(ref ulong fileId, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared)
+    CrystalResult IStorage.PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
         if (this.mainFiler == null || this.data == null)
         {
@@ -207,7 +207,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
         }
     }
 
-    Task<CrystalResult> IStorage.PutAsync(ref ulong fileId, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared)
+    Task<CrystalResult> IStorage.PutAsync(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
         if (this.mainFiler == null || this.data == null)
         {

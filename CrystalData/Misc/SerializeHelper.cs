@@ -113,25 +113,25 @@ public static class SerializeHelper
         }
     }
 
-    public static bool TrySerialize<T>(T obj, out ByteArrayPool.MemoryOwner owner)
+    public static bool TrySerialize<T>(T obj, out BytePool.RentMemory owner)
         where T : ITinyhandSerialize<T>
-    {
-        var arrayOwner = ByteArrayPool.Default.Rent(StandardFragmentSize);
+    {//
+        var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
         {
-            var writer = new Tinyhand.IO.TinyhandWriter(arrayOwner.ByteArray);
+            var writer = new Tinyhand.IO.TinyhandWriter(arrayOwner.Array);
             TinyhandSerializer.SerializeObject(ref writer, obj, SerializerOptions);
 
             writer.FlushAndGetArray(out var array, out var arrayLength, out var isInitialBuffer);
             if (isInitialBuffer)
             {
-                owner = arrayOwner.ToMemoryOwner(0, arrayLength);
+                owner = arrayOwner.AsMemory(0, arrayLength);
                 return true;
             }
             else
             {
                 arrayOwner.Return();
-                owner = new ByteArrayPool.MemoryOwner(array);
+                owner = new BytePool.RentMemory(array);
                 return true;
             }
         }
@@ -143,24 +143,24 @@ public static class SerializeHelper
         }
     }
 
-    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out ByteArrayPool.MemoryOwner owner)
-    {
-        var arrayOwner = ByteArrayPool.Default.Rent(StandardFragmentSize);
+    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentMemory owner)
+    {//
+        var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
         {
-            var writer = new Tinyhand.IO.TinyhandWriter(arrayOwner.ByteArray);
+            var writer = new Tinyhand.IO.TinyhandWriter(arrayOwner.Array);
             TinyhandSerializer.Serialize(ref writer, obj, options);
 
             writer.FlushAndGetArray(out var array, out var arrayLength, out var isInitialBuffer);
             if (isInitialBuffer)
             {
-                owner = arrayOwner.ToMemoryOwner(0, arrayLength);
+                owner = arrayOwner.AsMemory(0, arrayLength);
                 return true;
             }
             else
             {
                 arrayOwner.Return();
-                owner = new ByteArrayPool.MemoryOwner(array);
+                owner = new BytePool.RentMemory(array);
                 return true;
             }
         }

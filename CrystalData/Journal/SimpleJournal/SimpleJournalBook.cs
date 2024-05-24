@@ -50,7 +50,7 @@ public partial class SimpleJournal
         private string? path;
         private string? backupPath;
         private ulong hash;
-        private ByteArrayPool.ReadOnlyMemoryOwner memoryOwner;
+        private BytePool.RentReadOnlyMemory memoryOwner;
 
         #endregion
 
@@ -102,9 +102,9 @@ public partial class SimpleJournal
             book.length = dataLength;
             book.bookType = BookType.Incomplete;
 
-            var owner = ByteArrayPool.Default.Rent(dataLength);
-            data.AsSpan(0, dataLength).CopyTo(owner.ByteArray.AsSpan());
-            book.memoryOwner = owner.ToReadOnlyMemoryOwner(0, dataLength);
+            var owner = BytePool.Default.Rent(dataLength);
+            data.AsSpan(0, dataLength).CopyTo(owner.AsSpan());
+            book.memoryOwner = owner.AsReadOnly(0, dataLength);
             book.hash = FarmHash.Hash64(book.memoryOwner.Span);
 
             lock (simpleJournal.syncBooks)
@@ -115,7 +115,7 @@ public partial class SimpleJournal
             return book;
         }
 
-        public static async Task<bool> MergeBooks(SimpleJournal simpleJournal, ulong start, ulong end, ByteArrayPool.ReadOnlyMemoryOwner toBeMoved)
+        public static async Task<bool> MergeBooks(SimpleJournal simpleJournal, ulong start, ulong end, BytePool.RentReadOnlyMemory toBeMoved)
         {
             var book = new Book(simpleJournal);
             book.position = start;
@@ -268,7 +268,7 @@ public partial class SimpleJournal
             this.Goshujin = null;
         }
 
-        public bool TrySetBuffer(ByteArrayPool.ReadOnlyMemoryOwner data)
+        public bool TrySetBuffer(BytePool.RentReadOnlyMemory data)
         {
             if (this.IsInMemory)
             {

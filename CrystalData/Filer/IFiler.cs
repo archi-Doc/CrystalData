@@ -21,9 +21,9 @@ public interface IFiler
 
     Task<CrystalMemoryOwnerResult> ReadAsync(long offset, int length);
 
-    Task<CrystalResult> WriteAsync(long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, bool truncate = true);
+    Task<CrystalResult> WriteAsync(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true);
 
-    CrystalResult WriteAndForget(long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, bool truncate = true);
+    CrystalResult WriteAndForget(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true);
 
     CrystalResult DeleteAndForget();
 

@@ -141,7 +141,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
             {// Different data
                 // Put
                 ulong fileId = 0;
-                crystal.Storage.PutAndForget(ref fileId, owner.AsReadOnly());
+                crystal.Storage.PutAndForget(ref fileId, owner.ReadOnly);
                 var storageId = new StorageId(currentPosition, fileId, hash);
 
                 // Update histories

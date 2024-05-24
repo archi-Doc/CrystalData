@@ -49,7 +49,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         this.Dispose();
     }
 
-    CrystalResult IRawFiler.WriteAndForget(string path, long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, bool truncate)
+    CrystalResult IRawFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
     {
         if (!((IRawFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
         {// Not supported
@@ -71,10 +71,10 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         var work = new FilerWork(path, offset, length);
         var workInterface = this.AddLast(work);
         await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return new(work.Result, work.ReadData.AsReadOnly());
+        return new(work.Result, work.ReadData.ReadOnly);
     }
 
-    async Task<CrystalResult> IRawFiler.WriteAsync(string path, long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, TimeSpan timeToWait, bool truncate)
+    async Task<CrystalResult> IRawFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
     {
         if (!((IRawFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
         {// Not supported

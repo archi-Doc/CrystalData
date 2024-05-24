@@ -25,13 +25,13 @@ public class FilerWork : IEquatable<FilerWork>
 
     public bool Truncate { get; }
 
-    public ByteArrayPool.ReadOnlyMemoryOwner WriteData { get; }
+    public BytePool.RentReadOnlyMemory WriteData { get; }
 
-    public ByteArrayPool.MemoryOwner ReadData { get; internal set; }
+    public BytePool.RentMemory ReadData { get; internal set; }
 
     public object? OutputObject { get; internal set; }
 
-    public FilerWork(string path, long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, bool truncate)
+    public FilerWork(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
     {// Write
         this.Type = WorkType.Write;
         this.Path = path;

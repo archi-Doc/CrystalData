@@ -129,7 +129,7 @@ TryWrite:
 
                 using (var handle = File.OpenHandle(filePath, mode: FileMode.Open, access: FileAccess.Read))
                 {
-                    var memoryOwner = ByteArrayPool.Default.Rent(lengthToRead).ToMemoryOwner(0, lengthToRead);
+                    var memoryOwner = BytePool.Default.Rent(lengthToRead).AsMemory(0, lengthToRead);
                     var read = await RandomAccess.ReadAsync(handle, memoryOwner.Memory, offset, worker.CancellationToken).ConfigureAwait(false);
                     // Console.WriteLine($"Read {filePath} {read.ToString()}");
                     if (read != lengthToRead)
