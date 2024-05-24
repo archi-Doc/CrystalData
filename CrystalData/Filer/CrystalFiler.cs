@@ -109,7 +109,7 @@ public class CrystalFiler
             }
         }
 
-        public Task<CrystalResult> Save(byte[] data, Waypoint waypoint)
+        public Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
         {
             if (this.rawFiler == null)
             {
@@ -118,7 +118,7 @@ public class CrystalFiler
 
             if (!this.crystalFiler.IsProtected)
             {// Prefix.Extension
-                return this.rawFiler.WriteAsync(this.GetFilePath(), 0, new(data));
+                return this.rawFiler.WriteAsync(this.GetFilePath(), 0, rentMemory);
             }
 
             lock (this.syncObject)
@@ -128,7 +128,7 @@ public class CrystalFiler
             }
 
             var path = this.GetFilePath(waypoint);
-            return this.rawFiler.WriteAsync(path, 0, new(data));
+            return this.rawFiler.WriteAsync(path, 0, rentMemory);
         }
 
         public Task<CrystalResult> LimitNumberOfFiles()
@@ -356,15 +356,15 @@ public class CrystalFiler
         return CrystalResult.Success;
     }
 
-    public async Task<CrystalResult> Save(byte[] data, Waypoint waypoint)
+    public async Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
     {
         if (this.main is null)
         {
             return CrystalResult.NotPrepared;
         }
 
-        var result = await this.main.Save(data, waypoint).ConfigureAwait(false);
-        _ = this.backup?.Save(data, waypoint);
+        var result = await this.main.Save(rentMemory, waypoint).ConfigureAwait(false);
+        _ = this.backup?.Save(rentMemory, waypoint);
         return result;
     }
 

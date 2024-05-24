@@ -235,19 +235,19 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         var startingPosition = this.Crystalizer.GetJournalPosition();
 
         // Serialize
-        byte[] byteArray;
+        BytePool.RentMemory rentMemory;
         // var options = unloadMode == UnloadMode.NoUnload ? TinyhandSerializerOptions.Standard : TinyhandSerializerOptions.Unload;
         if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
         {// utf8
-            byteArray = TinyhandSerializer.SerializeObjectToUtf8(obj);
+            rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(obj);
         }
         else
         {// binary
-            byteArray = TinyhandSerializer.SerializeObject(obj);
+            rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(obj);
         }
 
         // Get hash
-        var hash = FarmHash.Hash64(byteArray.AsSpan());
+        var hash = FarmHash.Hash64(rentMemory.Span);
         if (hash == currentWaypoint.Hash)
         {// Identical data
             goto Exit;
@@ -261,7 +261,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
         this.Crystalizer.UpdateWaypoint(this, ref currentWaypoint, hash);
 
-        var result = await filer.Save(byteArray, currentWaypoint).ConfigureAwait(false);
+        var result = await filer.Save(rentMemory.ReadOnly, currentWaypoint).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {// Write error
             return result;
@@ -774,24 +774,24 @@ Exit:
             TinyhandSerializer.ReconstructObject<TData>(ref this.data);
         }
 
-        byte[] byteArray;
+        BytePool.RentMemory rentMemory;
         if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
         {
-            byteArray = TinyhandSerializer.SerializeObjectToUtf8(this.data);
+            rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(this.data);
         }
         else
         {
-            byteArray = TinyhandSerializer.SerializeObject(this.data);
+            rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(this.data);
         }
 
-        var hash = FarmHash.Hash64(byteArray);
+        var hash = FarmHash.Hash64(rentMemory.Span);
         this.waypoint = default;
         this.Crystalizer.UpdateWaypoint(this, ref this.waypoint, hash);
 
         this.SetJournal();
 
         // Save immediately to fix the waypoint.
-        _ = this.crystalFiler?.Save(byteArray, this.waypoint);
+        _ = this.crystalFiler?.Save(rentMemory.ReadOnly, this.waypoint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

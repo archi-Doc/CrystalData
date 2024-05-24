@@ -113,9 +113,9 @@ public static class SerializeHelper
         }
     }
 
-    public static bool TrySerialize<T>(T obj, out BytePool.RentMemory rentMemory)
+    /*public static bool TrySerialize<T>(T obj, out BytePool.RentMemory rentMemory)
         where T : ITinyhandSerialize<T>
-    {//
+    {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
         {
@@ -144,7 +144,7 @@ public static class SerializeHelper
     }
 
     public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentMemory rentMemory)
-    {//
+    {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
         {
@@ -170,7 +170,7 @@ public static class SerializeHelper
             rentMemory = default;
             return false;
         }
-    }
+    }*/
 
     /*public static byte[] Serialize(Dictionary<ulong, ISimpleSerializable> dictionary)
     {
