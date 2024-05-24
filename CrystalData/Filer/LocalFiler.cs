@@ -33,73 +33,75 @@ public class LocalFiler : FilerBase, IRawFiler
         // Console.WriteLine($"{work.ToString()} -> {filePath}");
         if (work.Type == FilerWork.WorkType.Write)
         {// Write
-TryWrite:
-            tryCount++;
-            if (tryCount > 2)
-            {
-                work.Result = CrystalResult.FileOperationError;
-                work.WriteData.Return();
-                return;
-            }
-
             try
             {
-                using (var handle = File.OpenHandle(filePath, mode: FileMode.OpenOrCreate, access: FileAccess.Write))
-                {
-                    await RandomAccess.WriteAsync(handle, work.WriteData.Memory, work.Offset, worker.CancellationToken).ConfigureAwait(false);
-                    worker.logger?.TryGet(LogLevel.Debug)?.Log($"Written[{work.WriteData.Memory.Length}] {work.Path}");
-
-                    if (work.Truncate)
-                    {
-                        try
-                        {
-                            var newSize = work.Offset + work.WriteData.Memory.Length;
-                            if (RandomAccess.GetLength(handle) > newSize)
-                            {
-                                RandomAccess.SetLength(handle, newSize);
-                            }
-                        }
-                        catch
-                        {
-                        }
-                    }
-
-                    work.Result = CrystalResult.Success;
-                }
-            }
-            catch (DirectoryNotFoundException)
-            {
-                if (Path.GetDirectoryName(filePath) is string directoryPath)
-                {// Create directory
-                    try
-                    {
-                        Directory.CreateDirectory(directoryPath);
-                    }
-                    catch
-                    {
-                        work.Result = CrystalResult.FileOperationError;
-                        return;
-                    }
-
-                    worker.logger?.TryGet(LogLevel.Debug)?.Log($"Directory created: {directoryPath}");
-                }
-                else
+TryWrite:
+                tryCount++;
+                if (tryCount > 2)
                 {
                     work.Result = CrystalResult.FileOperationError;
                     return;
                 }
 
-                goto TryWrite;
-            }
-            catch (OperationCanceledException)
-            {
-                work.Result = CrystalResult.Aborted;
-                return;
-            }
-            catch
-            {
-                worker.logger?.TryGet(LogLevel.Warning)?.Log($"Retry {work.Path}");
-                goto TryWrite;
+                try
+                {
+                    using (var handle = File.OpenHandle(filePath, mode: FileMode.OpenOrCreate, access: FileAccess.Write))
+                    {
+                        await RandomAccess.WriteAsync(handle, work.WriteData.Memory, work.Offset, worker.CancellationToken).ConfigureAwait(false);
+                        worker.logger?.TryGet(LogLevel.Debug)?.Log($"Written[{work.WriteData.Memory.Length}] {work.Path}");
+
+                        if (work.Truncate)
+                        {
+                            try
+                            {
+                                var newSize = work.Offset + work.WriteData.Memory.Length;
+                                if (RandomAccess.GetLength(handle) > newSize)
+                                {
+                                    RandomAccess.SetLength(handle, newSize);
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+
+                        work.Result = CrystalResult.Success;
+                    }
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    if (Path.GetDirectoryName(filePath) is string directoryPath)
+                    {// Create directory
+                        try
+                        {
+                            Directory.CreateDirectory(directoryPath);
+                        }
+                        catch
+                        {
+                            work.Result = CrystalResult.FileOperationError;
+                            return;
+                        }
+
+                        worker.logger?.TryGet(LogLevel.Debug)?.Log($"Directory created: {directoryPath}");
+                    }
+                    else
+                    {
+                        work.Result = CrystalResult.FileOperationError;
+                        return;
+                    }
+
+                    goto TryWrite;
+                }
+                catch (OperationCanceledException)
+                {
+                    work.Result = CrystalResult.Aborted;
+                    return;
+                }
+                catch
+                {
+                    worker.logger?.TryGet(LogLevel.Warning)?.Log($"Retry {work.Path}");
+                    goto TryWrite;
+                }
             }
             finally
             {
