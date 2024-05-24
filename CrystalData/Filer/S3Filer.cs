@@ -60,45 +60,47 @@ public class S3Filer : FilerBase, IRawFiler
         var filePath = work.Path;
         if (work.Type == FilerWork.WorkType.Write)
         {// Write
-TryWrite:
-            tryCount++;
-            if (tryCount > 1)
-            {
-                work.Result = CrystalResult.FileOperationError;
-                work.WriteData.Return();
-                return;
-            }
-
             try
             {
-                using (var ms = new ReadOnlyMemoryStream(work.WriteData.Memory))
+TryWrite:
+                tryCount++;
+                if (tryCount > 1)
                 {
-                    var request = new Amazon.S3.Model.PutObjectRequest() { BucketName = worker.bucket, Key = filePath, InputStream = ms, };
-                    var response = await worker.client.PutObjectAsync(request, worker.CancellationToken).ConfigureAwait(false);
-                    if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                    work.Result = CrystalResult.FileOperationError;
+                    return;
+                }
+
+                try
+                {
+                    using (var ms = new ReadOnlyMemoryStream(work.WriteData.Memory))
                     {
-                        worker.logger?.TryGet(LogLevel.Debug)?.Log($"Written {filePath}, {work.WriteData.Memory.Length}");
-                        work.Result = CrystalResult.Success;
-                        return;
+                        var request = new Amazon.S3.Model.PutObjectRequest() { BucketName = worker.bucket, Key = filePath, InputStream = ms, };
+                        var response = await worker.client.PutObjectAsync(request, worker.CancellationToken).ConfigureAwait(false);
+                        if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                        {
+                            worker.logger?.TryGet(LogLevel.Debug)?.Log($"Written {filePath}, {work.WriteData.Memory.Length}");
+                            work.Result = CrystalResult.Success;
+                            return;
+                        }
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                work.Result = CrystalResult.Aborted;
-                return;
-            }
-            catch
-            {
+                catch (OperationCanceledException)
+                {
+                    work.Result = CrystalResult.Aborted;
+                    return;
+                }
+                catch
+                {
+                }
+
+                // Retry
+                worker.logger?.TryGet(LogLevel.Warning)?.Log($"Retry {filePath}");
+                goto TryWrite;
             }
             finally
             {
                 work.WriteData.Return();
             }
-
-            // Retry
-            worker.logger?.TryGet(LogLevel.Warning)?.Log($"Retry {filePath}");
-            goto TryWrite;
         }
         else if (work.Type == FilerWork.WorkType.Read)
         {// Read

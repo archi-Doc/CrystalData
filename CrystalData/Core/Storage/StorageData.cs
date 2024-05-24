@@ -133,15 +133,15 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
             var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
 
             // Serialize and get hash.
-            SerializeHelper.Serialize<TData>(this.data, TinyhandSerializerOptions.Standard, out var owner);
-            var dataSize = owner.Span.Length;
-            var hash = FarmHash.Hash64(owner.Span);
+            SerializeHelper.Serialize<TData>(this.data, TinyhandSerializerOptions.Standard, out var rentMemory);
+            var dataSize = rentMemory.Span.Length;
+            var hash = FarmHash.Hash64(rentMemory.Span);
 
             if (hash != this.storageId0.Hash)
             {// Different data
                 // Put
                 ulong fileId = 0;
-                crystal.Storage.PutAndForget(ref fileId, owner.ReadOnly);
+                crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
                 var storageId = new StorageId(currentPosition, fileId, hash);
 
                 // Update histories
@@ -165,7 +165,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
                 }
             }
 
-            owner.Return();
+            rentMemory.Return();
 
             if (unloadMode.IsUnload())
             {// Unload

@@ -113,7 +113,7 @@ public static class SerializeHelper
         }
     }
 
-    public static bool TrySerialize<T>(T obj, out BytePool.RentMemory owner)
+    public static bool TrySerialize<T>(T obj, out BytePool.RentMemory rentMemory)
         where T : ITinyhandSerialize<T>
     {//
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
@@ -125,25 +125,25 @@ public static class SerializeHelper
             writer.FlushAndGetArray(out var array, out var arrayLength, out var isInitialBuffer);
             if (isInitialBuffer)
             {
-                owner = arrayOwner.AsMemory(0, arrayLength);
+                rentMemory = arrayOwner.AsMemory(0, arrayLength);
                 return true;
             }
             else
             {
                 arrayOwner.Return();
-                owner = new BytePool.RentMemory(array);
+                rentMemory = new BytePool.RentMemory(array);
                 return true;
             }
         }
         catch
         {
             arrayOwner.Return();
-            owner = default;
+            rentMemory = default;
             return false;
         }
     }
 
-    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentMemory owner)
+    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentMemory rentMemory)
     {//
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
@@ -154,20 +154,20 @@ public static class SerializeHelper
             writer.FlushAndGetArray(out var array, out var arrayLength, out var isInitialBuffer);
             if (isInitialBuffer)
             {
-                owner = arrayOwner.AsMemory(0, arrayLength);
+                rentMemory = arrayOwner.AsMemory(0, arrayLength);
                 return true;
             }
             else
             {
                 arrayOwner.Return();
-                owner = new BytePool.RentMemory(array);
+                rentMemory = new BytePool.RentMemory(array);
                 return true;
             }
         }
         catch
         {
             arrayOwner.Return();
-            owner = default;
+            rentMemory = default;
             return false;
         }
     }
