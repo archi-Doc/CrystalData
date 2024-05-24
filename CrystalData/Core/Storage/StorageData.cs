@@ -133,7 +133,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
             var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
 
             // Serialize and get hash.
-            SerializeHelper.Serialize<TData>(this.data, TinyhandSerializerOptions.Standard, out var rentMemory);
+            var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
             var dataSize = rentMemory.Span.Length;
             var hash = FarmHash.Hash64(rentMemory.Span);
 
