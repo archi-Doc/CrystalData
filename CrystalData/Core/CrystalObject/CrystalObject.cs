@@ -456,7 +456,7 @@ Exit:
 
                 // Read journal [waypoints[i].JournalPosition, waypoints[i + 1].JournalPosition)
                 var length = (int)(waypoints[i + 1].JournalPosition - waypoints[i].JournalPosition);
-                var memoryOwner = ByteArrayPool.Default.Rent(length).ToMemoryOwner(0, length);
+                var memoryOwner = BytePool.Default.Rent(length).AsMemory(0, length);
                 var journalResult = await journal.ReadJournalAsync(waypoints[i].JournalPosition, waypoints[i + 1].JournalPosition, memoryOwner.Memory).ConfigureAwait(false);
                 if (!journalResult)
                 {// Journal error

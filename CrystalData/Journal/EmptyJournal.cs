@@ -39,6 +39,6 @@ public class EmptyJournal : IJournal
     {
     }
 
-    Task<(ulong NextPosition, ByteArrayPool.MemoryOwner Data)> IJournal.ReadJournalAsync(ulong position)
-        => Task.FromResult((default(ulong), default(ByteArrayPool.MemoryOwner)));
+    Task<(ulong NextPosition, BytePool.RentMemory Data)> IJournal.ReadJournalAsync(ulong position)
+        => Task.FromResult((default(ulong), default(BytePool.RentMemory)));
 }

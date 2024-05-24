@@ -218,7 +218,7 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    public async Task<(ulong NextPosition, ByteArrayPool.MemoryOwner Data)> ReadJournalAsync(ulong position)
+    public async Task<(ulong NextPosition, BytePool.RentMemory Data)> ReadJournalAsync(ulong position)
     {
         ulong length, nextPosition;
         lock (this.syncBooks)
@@ -239,7 +239,7 @@ public partial class SimpleJournal : IJournal
             nextPosition = endBook.NextPosition;
         }
 
-        var memoryOwner = ByteArrayPool.Default.Rent((int)length).ToMemoryOwner(0, (int)length);
+        var memoryOwner = BytePool.Default.Rent((int)length).AsMemory(0, (int)length);
         var success = await this.ReadJournalAsync(position, nextPosition, memoryOwner.Memory).ConfigureAwait(false);
         if (!success)
         {
@@ -448,14 +448,14 @@ Load:
             return;
         }
 
-        var owner = ByteArrayPool.Default.Rent(lastLength);
-        if (!await this.ReadJournalAsync(start, end, owner.ByteArray.AsMemory(0, lastLength)).ConfigureAwait(false))
+        var owner = BytePool.Default.Rent(lastLength);
+        if (!await this.ReadJournalAsync(start, end, owner.AsMemory(0, lastLength).Memory).ConfigureAwait(false))
         {
             owner.Return();
             return;
         }
 
-        if (await Book.MergeBooks(this, start, end, owner.ToReadOnlyMemoryOwner(0, lastLength)).ConfigureAwait(false))
+        if (await Book.MergeBooks(this, start, end, owner.AsReadOnly(0, lastLength)).ConfigureAwait(false))
         {// Success
             this.logger.TryGet()?.Log($"Merged: {start} - {end}");
         }

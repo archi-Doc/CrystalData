@@ -21,9 +21,9 @@ public interface IStorage
 
     Task<CrystalMemoryOwnerResult> GetAsync(ref ulong fileId);
 
-    CrystalResult PutAndForget(ref ulong fileId, ByteArrayPool.ReadOnlyMemoryOwner memoryToBeShared);
+    CrystalResult PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory memoryToBeShared);
 
-    Task<CrystalResult> PutAsync(ref ulong fileId, ByteArrayPool.ReadOnlyMemoryOwner memoryToBeShared);
+    Task<CrystalResult> PutAsync(ref ulong fileId, BytePool.RentReadOnlyMemory memoryToBeShared);
 
     CrystalResult DeleteAndForget(ref ulong fileId);
 

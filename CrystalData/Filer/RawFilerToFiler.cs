@@ -37,10 +37,10 @@ internal class RawFilerToFiler : IFiler
     Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(long offset, int length)
         => this.RawFiler.ReadAsync(this.Path, offset, length, this.timeout);
 
-    CrystalResult IFiler.WriteAndForget(long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, bool truncate)
+    CrystalResult IFiler.WriteAndForget(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
         => this.RawFiler.WriteAndForget(this.Path, offset, dataToBeShared, truncate);
 
-    Task<CrystalResult> IFiler.WriteAsync(long offset, ByteArrayPool.ReadOnlyMemoryOwner dataToBeShared, bool truncate)
+    Task<CrystalResult> IFiler.WriteAsync(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
         => this.RawFiler.WriteAsync(this.Path, offset, dataToBeShared, this.timeout, truncate);
 
     IFiler IFiler.CloneWithExtension(string extension)
