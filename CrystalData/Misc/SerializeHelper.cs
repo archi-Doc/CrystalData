@@ -2,18 +2,18 @@
 
 namespace CrystalData;
 
-public interface ISimpleSerializable
+/*public interface ISimpleSerializable
 {
     void Serialize(ref Tinyhand.IO.TinyhandWriter writer);
 
     bool Deserialize(ReadOnlySpan<byte> span, out int bytesRead);
-}
+}*/
 
 public static class SerializeHelper
 {
-    public const int StandardFragmentSize = 1024 * 4; // 4KB
+    // public const int StandardFragmentSize = 1024 * 4; // 4KB
 
-    public static TinyhandSerializerOptions SerializerOptions { get; } = TinyhandSerializerOptions.Standard;
+    // public static TinyhandSerializerOptions SerializerOptions { get; } = TinyhandSerializerOptions.Standard;
 
     public static (TData? Data, SaveFormat Format) TryDeserialize<TData>(ReadOnlySpan<byte> span, SaveFormat formatHint, bool reconstructIfEmpty)
         where TData : ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>

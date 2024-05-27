@@ -11,7 +11,7 @@ public class EmptyJournal : IJournal
         return Task.FromResult(CrystalResult.Success);
     }
 
-    ulong IJournal.Add(in TinyhandWriter writer)
+    ulong IJournal.Add(ref TinyhandWriter writer)
     {
         return 0;
     }

@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -14,9 +15,6 @@ public partial class SimpleJournal : IJournal
     public const string IncompleteSuffix = ".incomplete";
     public const int RecordBufferLength = 1024 * 1024 * 1; // 1MB
     private const int MergeThresholdNumber = 100;
-
-    [ThreadStatic]
-    private static byte[]? initialBuffer;
 
     public SimpleJournal(Crystalizer crystalizer, SimpleJournalConfiguration configuration, ILogger<SimpleJournal> logger)
     {
@@ -110,45 +108,47 @@ public partial class SimpleJournal : IJournal
 
     void IJournal.GetWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (initialBuffer == null)
-        {
-            initialBuffer = new byte[this.SimpleJournalConfiguration.MaxRecordLength];
-        }
-
-        writer = new(initialBuffer);
+        writer = TinyhandWriter.CreateFromBytePool();
         writer.Advance(3); // Size(0-16MB): byte[3]
         writer.RawWriteUInt8(Unsafe.As<JournalType, byte>(ref recordType)); // JournalRecordType: byte
     }
 
-    ulong IJournal.Add(in TinyhandWriter writer)
+    ulong IJournal.Add(ref TinyhandWriter writer)
     {
-        writer.FlushAndGetMemory(out var memory, out var useInitialBuffer);
+        var rentMemory = writer.FlushAndGetRentMemory();
         writer.Dispose();
-
-        if (memory.Length > this.SimpleJournalConfiguration.MaxRecordLength)
+        try
         {
-            // throw new InvalidOperationException($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
-            this.logger.TryGet(LogLevel.Error)?.Log($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
-            return ((IJournal)this).GetCurrentPosition();
-        }
-
-        // Size (0-16MB)
-        var span = memory.Span;
-        var length = memory.Length - 4;
-        span[2] = (byte)length;
-        span[1] = (byte)(length >> 8);
-        span[0] = (byte)(length >> 16);
-
-        lock (this.syncRecordBuffer)
-        {
-            if (this.recordBufferRemaining < span.Length)
+            var memory = rentMemory.Memory;
+            if (memory.Length > this.SimpleJournalConfiguration.MaxRecordLength)
             {
-                this.FlushRecordBufferInternal();
+                // throw new InvalidOperationException($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
+                this.logger.TryGet(LogLevel.Error)?.Log($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
+                return ((IJournal)this).GetCurrentPosition();
             }
 
-            span.CopyTo(this.recordBuffer.AsSpan(this.recordBufferLength));
-            this.recordBufferLength += span.Length;
-            return this.recordBufferPosition + (ulong)this.recordBufferLength;
+            // Size (0-16MB)
+            var span = memory.Span;
+            var length = memory.Length - 4;
+            span[2] = (byte)length;
+            span[1] = (byte)(length >> 8);
+            span[0] = (byte)(length >> 16);
+
+            lock (this.syncRecordBuffer)
+            {
+                if (this.recordBufferRemaining < span.Length)
+                {
+                    this.FlushRecordBufferInternal();
+                }
+
+                span.CopyTo(this.recordBuffer.AsSpan(this.recordBufferLength));
+                this.recordBufferLength += span.Length;
+                return this.recordBufferPosition + (ulong)this.recordBufferLength;
+            }
+        }
+        finally
+        {
+            rentMemory.Return();
         }
     }
 
