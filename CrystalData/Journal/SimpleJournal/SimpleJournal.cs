@@ -113,8 +113,8 @@ public partial class SimpleJournal : IJournal
         writer.RawWriteUInt8(Unsafe.As<JournalType, byte>(ref recordType)); // JournalRecordType: byte
     }
 
-    ulong IJournal.Add(in TinyhandWriter writer)
-    {//
+    ulong IJournal.Add(ref TinyhandWriter writer)
+    {
         var rentMemory = writer.FlushAndGetRentMemory();
         writer.Dispose();
         try

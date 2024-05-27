@@ -73,7 +73,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
             {
                 writer.Write(JournalRecord.Remove);
                 writer.Write(file);
-                root.AddJournal(writer);
+                root.AddJournal(ref writer);
             }
 
             return this.fileToSize.Remove(file);
@@ -115,7 +115,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
                     writer.Write(file);
                     writer.Write(dataSize);
                     writer.Write(sizeDiff);
-                    root.AddJournal(writer);
+                    root.AddJournal(ref writer);
                 }
             }
             else
@@ -140,7 +140,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
                     writer.Write(file);
                     writer.Write(size);
                     writer.Write(size);
-                    root.AddJournal(writer);
+                    root.AddJournal(ref writer);
                 }
 
                 return file;

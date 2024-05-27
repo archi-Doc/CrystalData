@@ -698,7 +698,7 @@ public class Crystalizer
             this.Journal.GetWriter(JournalType.Waypoint, out var writer);
             writer.Write(plane);
             writer.Write(hash);
-            journalPosition = this.Journal.Add(writer);
+            journalPosition = this.Journal.Add(ref writer);
         }
         else
         {

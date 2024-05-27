@@ -160,7 +160,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
 
                         writer.Write(JournalRecord.AddStorage);
                         TinyhandSerializer.SerializeObject(ref writer, storageId);
-                        root.AddJournal(writer);
+                        root.AddJournal(ref writer);
                     }
                 }
             }

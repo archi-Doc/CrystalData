@@ -496,11 +496,11 @@ Exit:
         }
     }
 
-    ulong IStructualRoot.AddJournal(in TinyhandWriter writer)
+    ulong IStructualRoot.AddJournal(ref TinyhandWriter writer)
     {
         if (this.Crystalizer.Journal is not null)
         {
-            return this.Crystalizer.Journal.Add(writer);
+            return this.Crystalizer.Journal.Add(ref writer);
         }
         else
         {

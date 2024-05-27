@@ -10,7 +10,7 @@ public interface IJournal
 
     void GetWriter(JournalType recordType, out TinyhandWriter writer);
 
-    ulong Add(in TinyhandWriter writer);
+    ulong Add(ref TinyhandWriter writer);
 
     Task SaveJournalAsync();
 
