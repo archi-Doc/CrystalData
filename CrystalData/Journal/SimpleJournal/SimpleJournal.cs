@@ -114,7 +114,7 @@ public partial class SimpleJournal : IJournal
     }
 
     ulong IJournal.Add(in TinyhandWriter writer)
-    {
+    {//
         var rentMemory = writer.FlushAndGetRentMemory();
         writer.Dispose();
         try
