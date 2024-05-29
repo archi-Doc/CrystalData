@@ -110,7 +110,7 @@ public partial class SimpleJournal : IJournal
     {
         writer = TinyhandWriter.CreateFromBytePool();
         writer.Advance(3); // Size(0-16MB): byte[3]
-        writer.RawWriteUInt8(Unsafe.As<JournalType, byte>(ref recordType)); // JournalRecordType: byte
+        writer.WriteUnsafe(Unsafe.As<JournalType, byte>(ref recordType)); // JournalRecordType: byte
     }
 
     ulong IJournal.Add(ref TinyhandWriter writer)
