@@ -416,7 +416,7 @@ public class Crystalizer
             var data = TinyhandSerializer.DeserializeFromUtf8<Dictionary<string, CrystalConfiguration>>(readResult.Data.Memory);
             if (data == null)
             {
-                return CrystalResult.DeserializeError;
+                return CrystalResult.DeserializationFailed;
             }
 
             var nameToCrystal = new Dictionary<string, ICrystal>();
@@ -440,7 +440,7 @@ public class Crystalizer
         }
         catch
         {
-            return CrystalResult.DeserializeError;
+            return CrystalResult.DeserializationFailed;
         }
         finally
         {

@@ -48,6 +48,7 @@ internal class Program
 
                 context.AddCrystal<Netsphere.Stats.NetStats>(new CrystalConfiguration() with
                 {
+                    SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                     NumberOfFileHistories = 2,
                     FileConfiguration = new GlobalFileConfiguration("Local/NetStat.tinyhand"),
                 });
@@ -80,10 +81,6 @@ internal class Program
 
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         Console.WriteLine($"Crystal {crystal.Data.ToString()}");
-
-        var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<NetStats>>();
-        await crystal2.PrepareAndLoad(false);
-        var stats = crystal2.Data;
 
         await crystalizer.SaveAll(); // Save all data.
     }

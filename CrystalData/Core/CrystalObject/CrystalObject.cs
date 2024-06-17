@@ -699,7 +699,7 @@ Exit:
         param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)
-        var data = await filer.LoadLatest(param).ConfigureAwait(false);
+        var data = await filer.LoadLatest<TData>(param, configuration.SaveFormat).ConfigureAwait(false);
         if (data.Result.IsFailure)
         {
             if (!newlyRegistered &&
@@ -712,34 +712,21 @@ Exit:
             return (CrystalResult.Success, default, default); // Reconstruct
         }
 
-        // Deserialize
-        try
+        /*if (configuration.RequiredForLoading &&
+            await param.Query.FailedToLoad(configuration.FileConfiguration, CrystalResult.DeserializationFailed).ConfigureAwait(false) == AbortOrContinue.Abort)
         {
-            var deserializeResult = SerializeHelper.TryDeserialize<TData>(data.Result.Data.Memory.Span, configuration.SaveFormat, true);
-            if (deserializeResult.Data == null)
-            {
-                if (configuration.RequiredForLoading &&
-                    await param.Query.FailedToLoad(configuration.FileConfiguration, CrystalResult.DeserializeError).ConfigureAwait(false) == AbortOrContinue.Abort)
-                {
-                    return (data.Result.Result, default, default);
-                }
+            return (data.Result.Result, default, default);
+        }*/
 
-                return (CrystalResult.Success, default, default); // Reconstruct
-            }
-
-            if (configuration.HasFileHistories)
-            {
-                return (CrystalResult.Success, deserializeResult.Data, data.Waypoint);
-            }
-            else
-            {// Calculate a hash to prevent saving the same data.
-                var waypoint = data.Waypoint.WithHash(FarmHash.Hash64(data.Result.Data.Memory.Span));
-                return (CrystalResult.Success, deserializeResult.Data, waypoint);
-            }
+        if (configuration.HasFileHistories)
+        {
+            return (CrystalResult.Success, data.Result.Object, data.Waypoint);
         }
-        finally
-        {
-            data.Result.Return();
+        else
+        {// Calculate a hash to prevent saving the same data.
+            // var waypoint = data.Waypoint.WithHash(FarmHash.Hash64(data.Result.Data.Memory.Span));//
+            var waypoint = data.Waypoint.WithHash(data.Waypoint.Hash);
+            return (CrystalResult.Success, data.Result.Object, waypoint);
         }
     }
 
