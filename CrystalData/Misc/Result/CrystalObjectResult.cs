@@ -18,6 +18,8 @@ public readonly struct CrystalObjectResult<T>
 
     public bool IsSuccess => this.Result == CrystalResult.Success;
 
+    public bool IsFailure => this.Result != CrystalResult.Success;
+
     public readonly CrystalResult Result;
 
     public readonly T? Object;

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
+using Netsphere.Stats;
 using Tinyhand;
 
 namespace Sandbox;
@@ -44,9 +45,18 @@ internal class Program
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                     });
-            });
+
+                context.AddCrystal<Netsphere.Stats.NetStats>(new CrystalConfiguration() with
+                {
+                    SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
+                    NumberOfFileHistories = 2,
+                    FileConfiguration = new GlobalFileConfiguration("Local/NetStat.tinyhand"),
+                });
+            })
+            .AddBuilder(new Netsphere.NetControl.Builder());//
 
         var unit = builder.Build(); // Build.
+        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
         await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
 

@@ -10,14 +10,11 @@ public enum CrystalResult
     NotPrepared,
     Aborted,
 
-    OverSizeLimit, // Checked
-    OverNumberLimit, // Checked
-    DatumNotRegistered, // Checked
     Deleted, // Checked
     NotFound, // Checked
     CorruptedData, // Checked
-    SerializeError, // Checked
-    DeserializeError, // Checked
+    DeserializationFailed, // Checked
+    SerializationFailed, // Checked
     FileOperationError, // Checked
     NoPartialWriteSupport, // Checked
     NoAccess, // Checked

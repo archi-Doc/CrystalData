@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.IO;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Filer;
 
@@ -170,7 +171,8 @@ public class CrystalFiler
             return Task.WhenAll(tasks).ContinueWith(x => CrystalResult.Success);
         }
 
-        public async Task<(CrystalMemoryOwnerResult Result, Waypoint Waypoint, string Path)> LoadLatest(PrepareParam param)
+        public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
+            where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
         {
             if (this.rawFiler == null)
             {
@@ -178,15 +180,23 @@ public class CrystalFiler
             }
 
             string path;
-            CrystalMemoryOwnerResult result;
-
+            //
             if (!this.crystalFiler.IsProtected)
             {
                 path = this.GetFilePath();
-                result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
+                var result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
-                    return (result, default, path);
+                    var hash = FarmHash.Hash64(result.Data.Span);
+                    var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true);
+                    result.Return();
+                    if (r.Data is not null)
+                    {
+                        return (new(CrystalResult.Success, r.Data), new(Waypoint.InvalidJournalPosition, 0, hash), path);
+                    }
+
+                    _ = this.rawFiler.DeleteAsync(path);
+                    return (new(CrystalResult.DeserializationFailed), Waypoint.Invalid, string.Empty);
                 }
 
                 // List data
@@ -197,11 +207,21 @@ public class CrystalFiler
             foreach (var x in array)
             {
                 path = this.GetFilePath(x);
-                result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
-                if (result.IsSuccess &&
-                    FarmHash.Hash64(result.Data.Memory.Span) == x.Hash)
+                var result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
+                if (result.IsSuccess)
                 {// Success
-                    return (result, x, path);
+                    if (FarmHash.Hash64(result.Data.Memory.Span) == x.Hash)
+                    {
+                        var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true);
+                        result.Return();
+                        if (r.Data is not null)
+                        {
+                            return (new(CrystalResult.Success, r.Data), x, path);
+                        }
+                    }
+
+                    _ = this.rawFiler.DeleteAsync(path);
+                    this.TryDeleteWaypoint(x);
                 }
             }
 
@@ -270,6 +290,17 @@ public class CrystalFiler
         private string GetFilePath(Waypoint waypoint)
         {
             return $"{this.prefix}{waypoint.ToBase32()}{this.extension}";
+        }
+
+        private void TryDeleteWaypoint(Waypoint waypoint)
+        {
+            lock (this.syncObject)
+            {
+                if (this.waypoints is { } waypoints)
+                {
+                    waypoints.Remove(waypoint);
+                }
+            }
         }
 
         private Waypoint[] GetReverseWaypointArray()
@@ -380,8 +411,9 @@ public class CrystalFiler
         return result;
     }
 
-    public async Task<(CrystalMemoryOwnerResult Result, Waypoint Waypoint, string Path)> LoadLatest(PrepareParam param)
-    {
+    public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
+        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+    {//
         if (this.main is null)
         {
             return (new(CrystalResult.NotPrepared), Waypoint.Invalid, string.Empty);
@@ -389,10 +421,10 @@ public class CrystalFiler
 
         if (!this.IsProtected)
         {// Not protected
-            var result = await this.main.LoadLatest(param).ConfigureAwait(false);
+            var result = await this.main.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
             if (result.Result.IsFailure && this.backup is not null)
             {// Load backup
-                result = await this.backup.LoadLatest(param).ConfigureAwait(false);
+                result = await this.backup.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
                 if (result.Result.IsSuccess)
                 {// Backup restored
                     this.logger.TryGet(LogLevel.Warning)?.Log(string.Format(HashedString.Get(CrystalDataHashed.CrystalFiler.BackupLoaded), result.Path));
@@ -409,7 +441,7 @@ public class CrystalFiler
                 var backupLatest = this.backup.GetLatestWaypoint();
                 if (backupLatest > mainLatest)
                 {// Backup ahead
-                    var resultBackup = await this.backup.LoadLatest(param).ConfigureAwait(false);
+                    var resultBackup = await this.backup.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
                     if (resultBackup.Result.IsSuccess)
                     {
                         if (await param.Query.LoadBackup(resultBackup.Path).ConfigureAwait(false) == UserInterface.YesOrNo.Yes)
@@ -420,7 +452,7 @@ public class CrystalFiler
                 }
             }
 
-            var result = await this.main.LoadLatest(param).ConfigureAwait(false);
+            var result = await this.main.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
             return result;
         }
     }
