@@ -381,7 +381,7 @@ public class CrystalFiler
     }
 
     public async Task<(CrystalMemoryOwnerResult Result, Waypoint Waypoint, string Path)> LoadLatest(PrepareParam param)
-    {
+    {//
         if (this.main is null)
         {
             return (new(CrystalResult.NotPrepared), Waypoint.Invalid, string.Empty);
