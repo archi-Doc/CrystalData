@@ -1,8 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using static FastExpressionCompiler.ExpressionCompiler;
-
 namespace CrystalData.Filer;
 
 public class CrystalFiler
@@ -180,9 +177,8 @@ public class CrystalFiler
             }
 
             string path;
-            //
             if (!this.crystalFiler.IsProtected)
-            {
+            {// No file history
                 path = this.GetFilePath();
                 var result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
                 if (result.IsSuccess)
@@ -191,7 +187,7 @@ public class CrystalFiler
                     var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true);
                     result.Return();
                     if (r.Data is not null)
-                    {
+                    {// Success
                         return (new(CrystalResult.Success, r.Data), new(Waypoint.InvalidJournalPosition, 0, hash), path);
                     }
 
@@ -209,7 +205,7 @@ public class CrystalFiler
                 path = this.GetFilePath(x);
                 var result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
                 if (result.IsSuccess)
-                {// Success
+                {// Read successful
                     if (FarmHash.Hash64(result.Data.Memory.Span) == x.Hash)
                     {
                         var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true);
@@ -220,6 +216,7 @@ public class CrystalFiler
                         }
                     }
 
+                    // Checksum mismatch or deserialization error.
                     _ = this.rawFiler.DeleteAsync(path);
                     this.TryDeleteWaypoint(x);
                 }
@@ -413,14 +410,14 @@ public class CrystalFiler
 
     public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
         where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
-    {//
+    {
         if (this.main is null)
         {
             return (new(CrystalResult.NotPrepared), Waypoint.Invalid, string.Empty);
         }
 
         if (!this.IsProtected)
-        {// Not protected
+        {// Not protected (no file history)
             var result = await this.main.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
             if (result.Result.IsFailure && this.backup is not null)
             {// Load backup

@@ -40,6 +40,7 @@ internal class Program
                 context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
+                        RequiredForLoading = true,
                         SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
@@ -58,7 +59,7 @@ internal class Program
         var unit = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoadAll(true); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>(); // Retrieve a data instance from the service provider.
 

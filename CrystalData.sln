@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34219.65
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sandbox", "Sandbox\Sandbox.csproj", "{2B574101-BAE8-4BB9-A8DA-22760EA4BD90}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0EAF5544-B4BB-4198-81AB-56835FC8DDED}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
@@ -16,7 +14,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Advanced", "Advanced\Advanc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xUnitTest", "xUnitTest\xUnitTest.csproj", "{460E04B0-4CA5-4672-8BCB-D3D03D07B2D8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickStart", "QuickStart\QuickStart.csproj", "{B89EE766-400C-4688-BEFA-F242661C8C8A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuickStart", "QuickStart\QuickStart.csproj", "{B89EE766-400C-4688-BEFA-F242661C8C8A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Playground", "Playground\Playground.csproj", "{F560C481-8D65-4D71-8A68-7F32AC3AAAE0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,10 +24,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{2B574101-BAE8-4BB9-A8DA-22760EA4BD90}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2B574101-BAE8-4BB9-A8DA-22760EA4BD90}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2B574101-BAE8-4BB9-A8DA-22760EA4BD90}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2B574101-BAE8-4BB9-A8DA-22760EA4BD90}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3D362860-ACA2-4192-976D-11DC5DA9AD69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3D362860-ACA2-4192-976D-11DC5DA9AD69}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3D362860-ACA2-4192-976D-11DC5DA9AD69}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -44,6 +40,10 @@ Global
 		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B89EE766-400C-4688-BEFA-F242661C8C8A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F560C481-8D65-4D71-8A68-7F32AC3AAAE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F560C481-8D65-4D71-8A68-7F32AC3AAAE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F560C481-8D65-4D71-8A68-7F32AC3AAAE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F560C481-8D65-4D71-8A68-7F32AC3AAAE0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
