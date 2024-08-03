@@ -236,14 +236,20 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
         // Serialize
         BytePool.RentMemory rentMemory;
-        // var options = unloadMode == UnloadMode.NoUnload ? TinyhandSerializerOptions.Standard : TinyhandSerializerOptions.Unload;
-        if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
-        {// utf8
-            rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(obj);
+        try
+        {
+            if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
+            {// utf8
+                rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(obj);
+            }
+            else
+            {// binary
+                rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(obj);
+            }
         }
-        else
-        {// binary
-            rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(obj);
+        catch
+        {
+            return CrystalResult.SerializationFailed;
         }
 
         // Get hash
@@ -761,14 +767,20 @@ Exit:
             TinyhandSerializer.ReconstructObject<TData>(ref this.data);
         }
 
-        BytePool.RentMemory rentMemory;
-        if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
+        BytePool.RentMemory rentMemory = default;
+        try
         {
-            rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(this.data);
+            if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
+            {
+                rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(this.data);
+            }
+            else
+            {
+                rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(this.data);
+            }
         }
-        else
+        catch
         {
-            rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(this.data);
         }
 
         var hash = FarmHash.Hash64(rentMemory.Span);
