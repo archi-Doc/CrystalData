@@ -102,13 +102,13 @@ internal static class HashHelper
         var hash = new byte[8];
         BitConverter.TryWriteBytes(hash, Arc.Crypto.FarmHash.Hash64(data.AsSpan()));
 
-        var result = await filer.WriteAsync(0, new(hash), false).ConfigureAwait(false);
+        var result = await filer.WriteAsync(0, BytePool.RentReadOnlyMemory.CreateFrom(hash), false).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {
             return false;
         }
 
-        result = await filer.WriteAsync(hash.Length, new(data), true).ConfigureAwait(false);
+        result = await filer.WriteAsync(hash.Length, BytePool.RentReadOnlyMemory.CreateFrom(data), true).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {
             return false;

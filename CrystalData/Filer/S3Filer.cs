@@ -120,7 +120,7 @@ TryWrite:
                     {
                         response.ResponseStream.CopyTo(ms);
                         work.Result = CrystalResult.Success;
-                        work.ReadData = new(ms.ToArray());
+                        work.ReadData = BytePool.RentMemory.CreateFrom(ms.ToArray());
                         worker.logger?.TryGet(LogLevel.Debug)?.Log($"Read {filePath}, {work.ReadData.Memory.Length}");
                         return;
                     }

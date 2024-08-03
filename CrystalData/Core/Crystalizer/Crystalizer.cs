@@ -391,7 +391,7 @@ public class Crystalizer
         }
 
         var bytes = TinyhandSerializer.SerializeToUtf8(data);
-        result = await resolved.Filer.WriteAsync(0, new(bytes)).ConfigureAwait(false);
+        result = await resolved.Filer.WriteAsync(0, BytePool.RentReadOnlyMemory.CreateFrom(bytes)).ConfigureAwait(false);
 
         return result;
     }
