@@ -15,6 +15,7 @@ public partial class MemoryControl
     {
         this.crystalizer = crystalizer;
         this.unloader = new(this);
+        this.unloader.Start();
         this.stats = memoryStats;
     }
 
@@ -23,7 +24,7 @@ public partial class MemoryControl
     private class Unloader : TaskCore
     {
         public Unloader(MemoryControl memoryControl)
-            : base(null, Process)
+            : base(null, Process, false)
         {
             this.memoryControl = memoryControl;
         }
