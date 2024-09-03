@@ -3,12 +3,14 @@
 namespace CrystalData;
 
 /// <summary>
-/// Monolithic data store.
+/// An example of <see cref="MonoData{TIdentifier, TDatum}"/>.
 /// </summary>
 [TinyhandObject]
-internal sealed partial class MonoTemplate
+internal sealed partial class MonoExample
 {
-    public MonoTemplate()
+    public const string Filename = "MonoExample.tinyhand";
+
+    public MonoExample()
     {
     }
 
