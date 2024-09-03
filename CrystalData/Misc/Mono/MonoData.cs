@@ -6,6 +6,13 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// <see cref="MonoData{TIdentifier, TDatum}"/> is a simple key-value store that uses TinyhandSerializer.<br/>
+/// You can set the data capacity, and data exceeding this limit will be deleted in order from the oldest.<br/>
+/// It is thread-safe (using lock statements).
+/// </summary>
+/// <typeparam name="TIdentifier">The type of the identifier.</typeparam>
+/// <typeparam name="TDatum">The type of the data.</typeparam>
 [TinyhandObject]
 public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerialize<MonoData<TIdentifier, TDatum>>
 {
@@ -13,6 +20,11 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
     private sealed partial class Item
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Item"/> class.
+        /// </summary>
+        /// <param name="key">The identifier.</param>
+        /// <param name="datum">The data associated with the key.</param>
         [Link(Primary = true, Name = "Queue", Type = ChainType.QueueList)]
         public Item(TIdentifier key, TDatum datum)
         {
@@ -20,6 +32,9 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
             this.Datum = datum;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Item"/> class.
+        /// </summary>
         public Item()
         {
         }
@@ -32,10 +47,17 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         internal TDatum Datum = default!;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MonoData{TIdentifier, TDatum}"/> class.
+    /// </summary>
     public MonoData()
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MonoData{TIdentifier, TDatum}"/> class with the specified capacity.
+    /// </summary>
+    /// <param name="capacity">The initial capacity of the MonoData collection.</param>
     public MonoData(int capacity)
     {
         this.Capacity = capacity;
@@ -75,12 +97,34 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         }
     }
 
+    /// <summary>
+    /// Gets the number of items in the MonoData collection.
+    /// </summary>
+    public int Count => this.goshujin.QueueChain.Count;
+
+    /// <summary>
+    /// Gets the capacity of the MonoData collection.
+    /// </summary>
     [IgnoreMember]
     public int Capacity { get; private set; }
 
     [IgnoreMember]
     private Item.GoshujinClass goshujin = new();
 
+    /// <summary>
+    /// Sets the capacity of the MonoData collection.
+    /// </summary>
+    /// <param name="capacity">The new capacity of the MonoData collection.</param>
+    public void SetCapacity(int capacity)
+    {
+        this.Capacity = capacity;
+    }
+
+    /// <summary>
+    /// Sets the specified identifier and data in the MonoData collection.
+    /// </summary>
+    /// <param name="id">The identifier.</param>
+    /// <param name="datum">The data associated with the identifier.</param>
     public void Set(in TIdentifier id, in TDatum datum)
     {
         lock (this.goshujin.SyncObject)
@@ -104,6 +148,12 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         }
     }
 
+    /// <summary>
+    /// Tries to get the data associated with the specified identifier from the MonoData collection.
+    /// </summary>
+    /// <param name="id">The identifier.</param>
+    /// <param name="datum">When this method returns, contains the data associated with the specified identifier, if the identifier is found; otherwise, the default value for the data type.</param>
+    /// <returns><c>true</c> if the identifier is found in the MonoData collection; otherwise, <c>false</c>.</returns>
     public bool TryGet(in TIdentifier id, out TDatum datum)
     {
         lock (this.goshujin.SyncObject)
@@ -119,6 +169,11 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         return false;
     }
 
+    /// <summary>
+    /// Removes the specified identifier from the MonoData collection.
+    /// </summary>
+    /// <param name="id">The identifier key.</param>
+    /// <returns><c>true</c> if the identifier is successfully removed; otherwise, <c>false</c>. This method also returns <c>false</c> if the identifier was not found in the MonoData collection.</returns>
     public bool Remove(in TIdentifier id)
     {
         lock (this.goshujin.SyncObject)
@@ -132,19 +187,6 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
             {
                 return false;
             }
-        }
-    }
-
-    public void SetCapacity(int capacity)
-    {
-        this.Capacity = capacity;
-    }
-
-    public int Count()
-    {
-        lock (this.goshujin.SyncObject)
-        {
-            return this.goshujin.QueueChain.Count;
         }
     }
 }
