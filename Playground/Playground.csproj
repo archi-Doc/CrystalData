@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Netsphere" Version="0.14.0" />
+    <PackageReference Include="Netsphere" Version="0.14.1" />
   </ItemGroup>
 
   <ItemGroup>
