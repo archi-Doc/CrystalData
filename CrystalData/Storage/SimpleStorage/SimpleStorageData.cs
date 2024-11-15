@@ -16,7 +16,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
 
     public long StorageUsage => this.storageUsage;
 
-    private object syncObject = new();
+    private Lock lockObject = new();
     private long storageUsage; // syncObject
     private Dictionary<uint, int> fileToSize = new(); // syncObject
 
@@ -30,7 +30,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
             return;
         }
 
-        lock (value.syncObject)
+        using (value.lockObject.EnterScope())
         {
             writer.Write(value.storageUsage);
 
@@ -51,7 +51,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
         }
 
         value ??= new();
-        lock (value.syncObject)
+        using (value.lockObject.EnterScope())
         {
             value.storageUsage = reader.ReadInt64();
 
@@ -67,7 +67,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Remove(uint file)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
             {
@@ -83,7 +83,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetValue(uint file, out int size)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             return this.fileToSize.TryGetValue(file, out size);
         }
@@ -92,7 +92,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
     /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
     public uint NewFile(int size)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             return this.NewFileInternal(size);
         }
@@ -100,7 +100,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
 
     public void Put(ref uint file, int dataSize)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (file != 0 && this.fileToSize.TryGetValue(file, out var size))
             {

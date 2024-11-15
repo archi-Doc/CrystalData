@@ -144,7 +144,7 @@ public class Crystalizer
     private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
     private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
 
-    private object syncObject = new();
+    private Lock lockObject = new();
     private IRawFiler? localFiler;
     private Dictionary<string, IRawFiler> bucketToS3Filer = new();
     private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new();
@@ -228,7 +228,7 @@ public class Crystalizer
 
     public (IRawFiler RawFiler, FileConfiguration FixedConfiguration) ResolveRawFiler(FileConfiguration configuration)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (configuration is GlobalFileConfiguration)
             {// Global file
@@ -268,7 +268,7 @@ public class Crystalizer
 
     public (IRawFiler RawFiler, DirectoryConfiguration FixedConfiguration) ResolveRawFiler(DirectoryConfiguration configuration)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (configuration is GlobalDirectoryConfiguration)
             {// Global directory
@@ -308,7 +308,7 @@ public class Crystalizer
 
     public IStorage ResolveStorage(ref StorageConfiguration configuration)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             IStorage? storage;
             if (configuration is GlobalStorageConfiguration globalStorageConfiguration)
@@ -542,7 +542,7 @@ public class Crystalizer
 
         // Terminate filers/journal
         var tasks = new List<Task>();
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (this.localFiler is not null)
             {

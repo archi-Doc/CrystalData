@@ -44,7 +44,7 @@ public partial class MemoryControl
                 }
 
                 IStorageData? storageData;
-                lock (memoryControl.syncObject)
+                using (memoryControl.lockObject.EnterScope())
                 {// Get the first item.
                     if (memoryControl.items.UnloadQueueChain.TryPeek(out var item))
                     {
@@ -129,7 +129,7 @@ public partial class MemoryControl
     private readonly Unloader unloader;
 
     // Items/Stats
-    private readonly object syncObject = new();
+    private readonly Lock lockObject = new();
     private readonly Item.GoshujinClass items = new();
     private readonly Stat.GoshujinClass stats;
     private long memoryUsage;
@@ -150,7 +150,7 @@ public partial class MemoryControl
 
     public (long MemoryUsage, int MemoryCount) GetStat()
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             return (this.memoryUsage, this.items.UnloadQueueChain.Count);
         }
@@ -163,7 +163,7 @@ public partial class MemoryControl
             return;
         }
 
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (this.items.StorageDataChain.FindFirst(storageData) is { } item)
             {
@@ -189,7 +189,7 @@ public partial class MemoryControl
             return;
         }
 
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             if (dataSize <= 0)
             {// Estimate the data size.

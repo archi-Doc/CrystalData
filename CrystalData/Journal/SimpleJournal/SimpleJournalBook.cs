@@ -107,7 +107,7 @@ public partial class SimpleJournal
             book.memoryOwner = owner.AsReadOnly(0, dataLength);
             book.hash = FarmHash.Hash64(book.memoryOwner.Span);
 
-            lock (simpleJournal.syncBooks)
+            using (simpleJournal.lockBooks.EnterScope())
             {
                 book.Goshujin = simpleJournal.books;
             }
@@ -138,7 +138,7 @@ public partial class SimpleJournal
                 return false;
             }
 
-            lock (simpleJournal.syncBooks)
+            using (simpleJournal.lockBooks.EnterScope())
             {
                 var range = simpleJournal.books.PositionChain.GetRange(start, end - 1);
                 if (range.Lower == null || range.Upper == null)
@@ -172,7 +172,7 @@ public partial class SimpleJournal
         }
 
         public void SaveInternal()
-        {// lock (core.simpleJournal.syncBooks)
+        {// using (core.simpleJournal.lockBooks.EnterScope())
             if (this.IsSaved)
             {
                 return;
