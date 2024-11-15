@@ -18,7 +18,7 @@ public class CrystalFiler
         private FileConfiguration fileConfiguration;
 
         private IRawFiler? rawFiler;
-        private object syncObject = new();
+        private Lock lockObject = new();
         private string prefix = string.Empty; // "Directory/File."
         private string extension = string.Empty; // string.Empty or ".extension"
         private SortedSet<Waypoint>? waypoints;
@@ -27,7 +27,7 @@ public class CrystalFiler
 
         public Waypoint GetLatestWaypoint()
         {
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 return this.waypoints == null ? Waypoint.Invalid : this.waypoints.LastOrDefault();
             }
@@ -45,7 +45,7 @@ public class CrystalFiler
                 }
             }
 
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 // identifier/extension
                 this.extension = Path.GetExtension(this.fileConfiguration.Path) ?? string.Empty;
@@ -68,7 +68,7 @@ public class CrystalFiler
 
             var listResult = await this.rawFiler.ListAsync(this.prefix).ConfigureAwait(false); // "Folder/Data."
 
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 this.waypoints ??= new();
 
@@ -119,7 +119,7 @@ public class CrystalFiler
                 return this.rawFiler.WriteAsync(this.GetFilePath(), 0, rentMemory);
             }
 
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 this.waypoints ??= new();
                 this.waypoints.Add(waypoint);
@@ -148,7 +148,7 @@ public class CrystalFiler
 
             Waypoint[] array;
             string[] pathArray;
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 array = this.waypoints.Take(this.waypoints.Count - numberOfFiles).ToArray();
                 if (array.Length == 0)
@@ -237,7 +237,7 @@ public class CrystalFiler
             }
 
             List<string> pathList;
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 pathList = this.waypoints.Select(x => this.GetFilePath(x)).ToList();
                 pathList.Add(this.GetFilePath());
@@ -250,7 +250,7 @@ public class CrystalFiler
 
         internal Waypoint[] GetWaypoints()
         {
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 return this.waypoints == null ? Array.Empty<Waypoint>() : this.waypoints.ToArray();
             }
@@ -291,7 +291,7 @@ public class CrystalFiler
 
         private void TryDeleteWaypoint(Waypoint waypoint)
         {
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 if (this.waypoints is { } waypoints)
                 {
@@ -302,7 +302,7 @@ public class CrystalFiler
 
         private Waypoint[] GetReverseWaypointArray()
         {
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 if (this.waypoints == null)
                 {
@@ -315,7 +315,7 @@ public class CrystalFiler
 
         private bool TryGetLatestWaypoint(out Waypoint waypoint)
         {
-            lock (this.syncObject)
+            using (this.lockObject.EnterScope())
             {
                 if (this.waypoints == null || this.waypoints.Count == 0)
                 {

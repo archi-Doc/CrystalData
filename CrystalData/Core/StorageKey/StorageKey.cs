@@ -10,7 +10,7 @@ internal class StorageKey : IStorageKey
 
     public bool AddKey(string bucket, AccessKeyPair accessKeyPair)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             this.dictionary[bucket] = accessKeyPair;
             return true;
@@ -19,12 +19,12 @@ internal class StorageKey : IStorageKey
 
     public bool TryGetKey(string bucket, out AccessKeyPair accessKeyPair)
     {
-        lock (this.syncObject)
+        using (this.lockObject.EnterScope())
         {
             return this.dictionary.TryGetValue(bucket, out accessKeyPair);
         }
     }
 
-    private object syncObject = new();
+    private Lock lockObject = new();
     private Dictionary<string, AccessKeyPair> dictionary = new();
 }

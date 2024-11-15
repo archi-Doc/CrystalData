@@ -78,7 +78,7 @@ public class JournalTest
     {
         var c = await TestHelper.CreateAndStartCrystal<SerializableData.GoshujinClass>();
         var g1 = c.Data;
-        lock (g1.SyncObject)
+        using (g1.LockObject.EnterScope())
         {
         }
 
@@ -90,7 +90,7 @@ public class JournalTest
         var g2 = c.Data;
         g2.GoshujinEquals(g1).IsTrue();
 
-        lock (g2.SyncObject)
+        using (g2.LockObject.EnterScope())
         {
             g2.Count.Is(0);
 
@@ -105,7 +105,7 @@ public class JournalTest
         var g3 = c.Data;
         g3.GoshujinEquals(g2).IsTrue();
 
-        lock (g3.SyncObject)
+        using (g3.LockObject.EnterScope())
         {
             g3.Count.Is(1);
             var d = g3.IdChain.FindFirst(0)!;
@@ -124,7 +124,7 @@ public class JournalTest
         await c.PrepareAndLoad(false);
         var g4 = c.Data;
         g4.GoshujinEquals(g3).IsTrue();
-        lock (g4.SyncObject)
+        using (g4.LockObject.EnterScope())
         {
             g4.Add(new(1, "1", 1d));
             g4.Add(new(4, "4", 4d));
@@ -147,7 +147,7 @@ public class JournalTest
         await c.PrepareAndLoad(false);
         var g5 = c.Data;
         g5.GoshujinEquals(g4).IsTrue();
-        lock (g5.SyncObject)
+        using (g5.LockObject.EnterScope())
         {
             var d = g5.IdChain.FindFirst(1)!;
             d.Name = "One";
@@ -170,7 +170,7 @@ public class JournalTest
     {
         var c = await TestHelper.CreateAndStartCrystal<RepeatableData.GoshujinClass>();
         var g1 = c.Data;
-        lock (g1.SyncObject)
+        using (g1.LockObject.EnterScope())
         {
         }
 

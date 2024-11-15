@@ -40,7 +40,7 @@ public partial class SimpleJournal : IJournal
     private SimpleJournalTask? task;
 
     // Record buffer
-    private object syncRecordBuffer = new(); // syncRecordBuffer -> syncBooks
+    private Lock lockRecordBuffer = new(); // syncRecordBuffer -> syncBooks
     private byte[] recordBuffer = new byte[RecordBufferLength];
     private ulong recordBufferPosition = 1; // JournalPosition
     private int recordBufferLength = 0;
@@ -48,7 +48,7 @@ public partial class SimpleJournal : IJournal
     private int recordBufferRemaining => RecordBufferLength - this.recordBufferLength;
 
     // Books
-    private object syncBooks = new();
+    private Lock lockBooks = new();
     private Book.GoshujinClass books = new();
     private int memoryUsage;
     private ulong incompleteSize;
@@ -134,7 +134,7 @@ public partial class SimpleJournal : IJournal
             span[1] = (byte)(length >> 8);
             span[0] = (byte)(length >> 16);
 
-            lock (this.syncRecordBuffer)
+            using (this.lockRecordBuffer.EnterScope())
             {
                 if (this.recordBufferRemaining < span.Length)
                 {
@@ -165,7 +165,7 @@ public partial class SimpleJournal : IJournal
             await task.WaitForTerminationAsync(-1).ConfigureAwait(false);
         }
 
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             var array = this.books.ToArray();
             foreach (var x in array)
@@ -180,7 +180,7 @@ public partial class SimpleJournal : IJournal
 
     ulong IJournal.GetStartingPosition()
     {
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             if (this.books.PositionChain.First is { } firstBook)
             {
@@ -195,7 +195,7 @@ public partial class SimpleJournal : IJournal
 
     ulong IJournal.GetCurrentPosition()
     {
-        lock (this.syncRecordBuffer)
+        using (this.lockRecordBuffer.EnterScope())
         {
             return this.recordBufferPosition + (ulong)this.recordBufferLength;
         }
@@ -203,7 +203,7 @@ public partial class SimpleJournal : IJournal
 
     void IJournal.ResetJournal(ulong position)
     {
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             var array = this.books.ToArray();
             foreach (var x in array)
@@ -221,7 +221,7 @@ public partial class SimpleJournal : IJournal
     public async Task<(ulong NextPosition, BytePool.RentMemory Data)> ReadJournalAsync(ulong position)
     {
         ulong length, nextPosition;
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             var startBook = this.books.PositionChain.GetUpperBound(position);
             if (startBook == null || startBook.NextPosition <= position)
@@ -276,7 +276,7 @@ Load:
 
             try
             {
-                lock (this.syncBooks)
+                using (this.lockBooks.EnterScope())
                 {
                     var book = this.books.PositionChain.FindFirst(x.Position);
                     if (book is not null)
@@ -291,7 +291,7 @@ Load:
             }
         }
 
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             var startBook = this.books.PositionChain.GetUpperBound(start);
             var endBook = this.books.PositionChain.GetUpperBound(end - 1);
@@ -354,7 +354,7 @@ Load:
 
     internal async Task SaveJournalAsync(bool merge)
     {
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             // Flush record buffer
             this.FlushRecordBufferInternal();
@@ -414,7 +414,7 @@ Load:
         var lastLength = 0;
         ulong start, end;
 
-        lock (this.syncBooks)
+        using (this.lockBooks.EnterScope())
         {
             while (book != null)
             {
@@ -462,7 +462,7 @@ Load:
     }
 
     private void FlushRecordBufferInternal()
-    {// lock (this.syncRecordBuffer)
+    {// using (this.lockRecordBuffer.EnterScope())
         if (this.recordBufferLength == 0)
         {// Empty
             return;

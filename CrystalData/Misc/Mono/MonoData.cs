@@ -127,7 +127,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <param name="datum">The data associated with the identifier.</param>
     public void Set(in TIdentifier id, in TDatum datum)
     {
-        lock (this.goshujin.SyncObject)
+        using (this.goshujin.LockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {// Update
@@ -156,7 +156,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <returns><c>true</c> if the identifier is found in the MonoData collection; otherwise, <c>false</c>.</returns>
     public bool TryGet(in TIdentifier id, out TDatum datum)
     {
-        lock (this.goshujin.SyncObject)
+        using (this.goshujin.LockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {// Get
@@ -176,7 +176,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <returns><c>true</c> if the identifier is successfully removed; otherwise, <c>false</c>. This method also returns <c>false</c> if the identifier was not found in the MonoData collection.</returns>
     public bool Remove(in TIdentifier id)
     {
-        lock (this.goshujin.SyncObject)
+        using (this.goshujin.LockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {
