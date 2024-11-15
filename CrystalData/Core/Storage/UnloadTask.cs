@@ -29,7 +29,7 @@ internal static class UnloadTaskExtension
         while (true)
         {
             utc = DateTime.UtcNow;
-            lock (goshujin)//
+            using (goshujin.LockObject.EnterScope())
             {
                 task = goshujin.LastProcessedChain.First;
                 if (task is null)
@@ -63,7 +63,7 @@ internal static class UnloadTaskExtension
                 {
                     crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.Crystal.DataType.FullName!);
                     task.GoshujinSemaphore?.LockAndForceUnload();
-                    lock (goshujin)
+                    using (goshujin.LockObject.EnterScope())
                     {
                         task.LastProcessed = utc;
                         task.Goshujin = goshujin;
