@@ -11,7 +11,7 @@ namespace xUnitTest;
 public static class TestHelper
 {
     public static async Task<ICrystal<TData>> CreateAndStartCrystal<TData>(bool addStorage = false)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var directory = $"Crystal[{RandomVault.Pseudo.NextUInt32():x4}]";
         StorageConfiguration storageConfiguration = addStorage ?
@@ -41,7 +41,7 @@ public static class TestHelper
     }
 
     public static async Task<ICrystal<TData>> CreateAndStartCrystal2<TData>()
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var builder = new CrystalControl.Builder();
         builder.ConfigureCrystal(context =>

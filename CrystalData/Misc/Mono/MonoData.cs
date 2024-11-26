@@ -14,7 +14,7 @@ namespace CrystalData;
 /// <typeparam name="TIdentifier">The type of the identifier.</typeparam>
 /// <typeparam name="TDatum">The type of the data.</typeparam>
 [TinyhandObject]
-public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerialize<MonoData<TIdentifier, TDatum>>
+public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerializable<MonoData<TIdentifier, TDatum>>
 {
     [TinyhandObject]
     [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
@@ -63,7 +63,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         this.Capacity = capacity;
     }
 
-    static void ITinyhandSerialize<MonoData<TIdentifier, TDatum>>.Serialize(ref TinyhandWriter writer, scoped ref MonoData<TIdentifier, TDatum>? value, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<MonoData<TIdentifier, TDatum>>.Serialize(ref TinyhandWriter writer, scoped ref MonoData<TIdentifier, TDatum>? value, TinyhandSerializerOptions options)
     {
         if (value is null)
         {
@@ -74,7 +74,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         TinyhandSerializer.Serialize(ref writer, value.goshujin, options);
     }
 
-    static void ITinyhandSerialize<MonoData<TIdentifier, TDatum>>.Deserialize(ref TinyhandReader reader, scoped ref MonoData<TIdentifier, TDatum>? value, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<MonoData<TIdentifier, TDatum>>.Deserialize(ref TinyhandReader reader, scoped ref MonoData<TIdentifier, TDatum>? value, TinyhandSerializerOptions options)
     {
         if (reader.TryReadNil())
         {

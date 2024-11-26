@@ -6,7 +6,7 @@ using Tinyhand.IO;
 namespace CrystalData.Storage;
 
 [TinyhandObject(Structual = true)]
-internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>, ITinyhandCustomJournal
+internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal
 {
     public SimpleStorageData()
     {
@@ -22,7 +22,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
 
     #endregion
 
-    static void ITinyhandSerialize<SimpleStorageData>.Serialize(ref TinyhandWriter writer, scoped ref SimpleStorageData? value, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<SimpleStorageData>.Serialize(ref TinyhandWriter writer, scoped ref SimpleStorageData? value, TinyhandSerializerOptions options)
     {
         if (value == null)
         {
@@ -43,7 +43,7 @@ internal partial class SimpleStorageData : ITinyhandSerialize<SimpleStorageData>
         }
     }
 
-    static void ITinyhandSerialize<SimpleStorageData>.Deserialize(ref TinyhandReader reader, scoped ref SimpleStorageData? value, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<SimpleStorageData>.Deserialize(ref TinyhandReader reader, scoped ref SimpleStorageData? value, TinyhandSerializerOptions options)
     {
         if (reader.TryReadNil())
         {

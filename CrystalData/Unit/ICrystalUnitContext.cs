@@ -5,10 +5,10 @@ namespace CrystalData;
 public interface ICrystalUnitContext
 {
     void AddCrystal<TData>(CrystalConfiguration configuration)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>;
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>;
 
     /*bool TryAddCrystal<TData>(CrystalConfiguration configuration)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>;*/
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>;*/
 
     void SetJournal(JournalConfiguration configuration);
 

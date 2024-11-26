@@ -16,7 +16,7 @@ public static class SerializeHelper
     // public static TinyhandSerializerOptions SerializerOptions { get; } = TinyhandSerializerOptions.Standard;
 
     public static (TData? Data, SaveFormat Format) TryDeserialize<TData>(ReadOnlySpan<byte> span, SaveFormat formatHint, bool reconstructIfEmpty)
-        where TData : ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         TData? data = default;
         SaveFormat format = SaveFormat.Binary;
@@ -76,7 +76,7 @@ public static class SerializeHelper
     }
 
     public static T? TryReadAndDeserialize<T>(string path)
-        where T : ITinyhandSerialize<T>
+        where T : ITinyhandSerializable<T>
     {
         byte[] data;
         try
@@ -99,7 +99,7 @@ public static class SerializeHelper
     }
 
     public static async Task<bool> TrySerializeAndWrite<T>(T obj, string path)
-        where T : ITinyhandSerialize<T>
+        where T : ITinyhandSerializable<T>
     {
         try
         {
@@ -114,7 +114,7 @@ public static class SerializeHelper
     }
 
     /*public static bool TrySerialize<T>(T obj, out BytePool.RentMemory rentMemory)
-        where T : ITinyhandSerialize<T>
+        where T : ITinyhandSerializable<T>
     {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
