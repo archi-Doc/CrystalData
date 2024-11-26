@@ -38,7 +38,7 @@ public interface ICrystal : IStructualRoot
 }
 
 public interface ICrystal<TData> : ICrystal
-    where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+    where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {
     public new TData Data { get; }
 }
@@ -55,6 +55,6 @@ internal interface ICrystalInternal : ICrystal
 }
 
 internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal
-    where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+    where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {
 }

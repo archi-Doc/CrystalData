@@ -14,7 +14,7 @@ public static class CrystalExtensions
     /// <param name="provider">The <see cref="IServiceProvider"/> to retrieve the service object from.</param>
     /// <returns>The data of type <typeparamref name="TData"/>.</returns>
     public static TData GetRequiredData<TData>(this IServiceProvider provider)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         return ((ICrystal<TData>)provider.GetRequiredService(typeof(ICrystal<TData>))).Data;
     }

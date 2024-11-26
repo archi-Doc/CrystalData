@@ -596,7 +596,7 @@ public class Crystalizer
     }
 
     public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool managedByCrystalizer = true)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var crystal = new CrystalObject<TData>(this);
         if (managedByCrystalizer)
@@ -613,7 +613,7 @@ public class Crystalizer
     }
 
     public ICrystal<TData> GetOrCreateCrystal<TData>(CrystalConfiguration configuration)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         if (this.typeToCrystal.TryGetValue(typeof(TData), out var crystal) &&
             crystal is ICrystal<TData> crystalData)
@@ -628,7 +628,7 @@ public class Crystalizer
     }
 
     public ICrystal<TData> GetCrystal<TData>()
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         if (!this.typeToCrystal.TryGetValue(typeof(TData), out var c) ||
             c is not ICrystal<TData> crystal)

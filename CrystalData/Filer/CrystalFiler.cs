@@ -169,7 +169,7 @@ public class CrystalFiler
         }
 
         public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
-            where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+            where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
         {
             if (this.rawFiler == null)
             {
@@ -409,7 +409,7 @@ public class CrystalFiler
     }
 
     public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
-        where TData : class, ITinyhandSerialize<TData>, ITinyhandReconstruct<TData>
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         if (this.main is null)
         {

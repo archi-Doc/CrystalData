@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Netsphere" Version="0.15.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\CrystalData\CrystalData.csproj" />
   </ItemGroup>
 
