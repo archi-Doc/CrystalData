@@ -683,7 +683,7 @@ public class Crystalizer
         {
             while (true)
             {
-                plane = RandomVault.Pseudo.NextUInt32();
+                plane = RandomVault.Default.NextUInt32();
                 if (plane != 0 && this.planeToCrystal.TryAdd(plane, crystal))
                 {// Success
                     break;

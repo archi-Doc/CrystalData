@@ -131,7 +131,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
     {// this.syncObject
         while (true)
         {
-            var file = RandomVault.Pseudo.NextUInt32();
+            var file = RandomVault.Default.NextUInt32();
             if (this.fileToSize.TryAdd(file, size))
             {
                 if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
