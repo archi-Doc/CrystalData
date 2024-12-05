@@ -13,7 +13,7 @@ public static class TestHelper
     public static async Task<ICrystal<TData>> CreateAndStartCrystal<TData>(bool addStorage = false)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
-        var directory = $"Crystal[{RandomVault.Pseudo.NextUInt32():x4}]";
+        var directory = $"Crystal[{RandomVault.Default.NextUInt32():x4}]";
         StorageConfiguration storageConfiguration = addStorage ?
             new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Storage"))) :
             EmptyStorageConfiguration.Default;
@@ -57,7 +57,7 @@ public static class TestHelper
         });
         builder.SetupOptions<CrystalizerOptions>((context, options) =>
         {
-            options.GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Pseudo.NextUInt32():x4}]");
+            options.GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]");
         });
 
         var unit = builder.Build();
