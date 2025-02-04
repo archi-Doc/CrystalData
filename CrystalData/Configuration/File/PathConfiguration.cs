@@ -32,7 +32,7 @@ public abstract partial record PathConfiguration
     public virtual Type PathType => Type.Unknown;
 
     [Key("Path")]
-    public string Path { get; protected set; }
+    public string Path { get; init; }
 
     public bool IsPathRooted
         => System.IO.Path.IsPathRooted(this.Path);

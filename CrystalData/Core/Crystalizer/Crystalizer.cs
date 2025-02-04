@@ -18,6 +18,8 @@ namespace CrystalData;
 
 public class Crystalizer
 {
+    public const string BinaryExtension = ".th";
+    public const string Utf8Extension = ".tinyhand";
     public const string CheckFile = "Crystal.check";
     public const int TaskIntervalInMilliseconds = 1_000;
     public const int PeriodicSaveInMilliseconds = 10_000;
