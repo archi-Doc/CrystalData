@@ -813,11 +813,31 @@ Exit:
     {
         var configuration = this.originalCrystalConfiguration;
 
+        var saveFormat = configuration.SaveFormat;
+        saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.DefaultSaveFormat : saveFormat;
+
+        var savePolicy = configuration.SavePolicy;
+        savePolicy = savePolicy == SavePolicy.Default ? this.Crystalizer.DefaultSavePolicy : savePolicy;
+
+        var saveInterval = configuration.SaveInterval;
+        saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.DefaultSaveInterval : saveInterval;
+
+        var fileConfiguration = configuration.FileConfiguration;
+        var filePath = fileConfiguration.Path;
+        if (string.IsNullOrEmpty(filePath))
+        {
+            fileConfiguration = fileConfiguration with { Path = $"{typeof(TData).Name}{saveFormat.ToExtension()}", };
+        }
+        else if (Path.GetFileName(filePath).IndexOf('.') < 0)
+        {
+            fileConfiguration = fileConfiguration with { Path = $"{filePath}{saveFormat.ToExtension()}", };
+        }
+
         if (this.Crystalizer.DefaultBackup is { } globalBackup)
         {
             if (configuration.BackupFileConfiguration == null)
             {
-                configuration = configuration with { BackupFileConfiguration = globalBackup.CombineFile(configuration.FileConfiguration.Path) };
+                configuration = configuration with { BackupFileConfiguration = globalBackup.CombineFile(fileConfiguration.Path) };
             }
 
             if (configuration.StorageConfiguration is not null &&
@@ -828,20 +848,12 @@ Exit:
             }
         }
 
-        var saveFormat = configuration.SaveFormat;
-        saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.DefaultSaveFormat : saveFormat;
-
-        var savePolicy = configuration.SavePolicy;
-        savePolicy = savePolicy == SavePolicy.Default ? this.Crystalizer.DefaultSavePolicy : savePolicy;
-
-        var saveInterval = configuration.SaveInterval;
-        saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.DefaultSaveInterval : saveInterval;
-
         if (saveFormat != configuration.SaveFormat ||
             savePolicy != configuration.SavePolicy ||
-            saveInterval != configuration.SaveInterval)
+            saveInterval != configuration.SaveInterval ||
+            fileConfiguration != configuration.FileConfiguration)
         {
-            configuration = configuration with { SaveFormat = saveFormat, SavePolicy = savePolicy, SaveInterval = saveInterval, };
+            configuration = configuration with { SaveFormat = saveFormat, SavePolicy = savePolicy, SaveInterval = saveInterval, FileConfiguration = fileConfiguration, };
         }
 
         this.crystalConfiguration = configuration;

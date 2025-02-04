@@ -11,6 +11,7 @@ global using ValueLink;
 using CrystalData.Storage;
 using CrystalData.UserInterface;
 using Microsoft.Extensions.DependencyInjection;
+using static CrystalData.CrystalControl;
 
 namespace CrystalData;
 
@@ -60,6 +61,12 @@ public class CrystalControl
         {
             base.Configure(@delegate);
             return this;
+        }
+
+        public override Builder SetupOptions<TOptions>(Action<IUnitSetupContext, TOptions> @delegate)
+            where TOptions : class
+        {
+            return (Builder)base.SetupOptions(@delegate);
         }
 
         public Builder ConfigureCrystal(Action<ICrystalUnitContext> @delegate)

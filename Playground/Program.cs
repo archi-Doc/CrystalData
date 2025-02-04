@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.ComponentModel;
+using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
@@ -32,6 +33,14 @@ internal class Program
             {
                 // context.AddTransient<FirstData>();
             })
+            .SetupOptions<CrystalizerOptions>((context, options) =>
+            {
+                context.GetOptions<UnitOptions>(out var unitOptions);
+                if (unitOptions is not null)
+                {
+                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.RootDirectory, "Global"));
+                }
+            })
             .ConfigureCrystal(context =>
             {
                 // Register FirstData configuration.
@@ -42,7 +51,8 @@ internal class Program
                         SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
-                        FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
+                        // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
+                        FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                     });
             });
 

@@ -8,6 +8,19 @@ using Tinyhand.IO;
 public static class CrystalExtensions
 {
     /// <summary>
+    /// Converts the <see cref="SaveFormat"/> to its corresponding file extension.
+    /// </summary>
+    /// <param name="saveFormat">The save format to convert.</param>
+    /// <returns>The file extension corresponding to the save format.</returns>
+    public static string ToExtension(this SaveFormat saveFormat)
+        => saveFormat switch
+        {
+            SaveFormat.Binary => Crystalizer.BinaryExtension,
+            SaveFormat.Utf8 => Crystalizer.Utf8Extension,
+            _ => Crystalizer.BinaryExtension,
+        };
+
+    /// <summary>
     /// Retrieve the data managed by CrystalData via <see cref="IServiceProvider"/>.
     /// </summary>
     /// <typeparam name="TData">The type of data.</typeparam>
@@ -19,6 +32,12 @@ public static class CrystalExtensions
         return ((ICrystal<TData>)provider.GetRequiredService(typeof(ICrystal<TData>))).Data;
     }
 
+    /// <summary>
+    /// Tries to get a <see cref="TinyhandWriter"/> for the journal.
+    /// </summary>
+    /// <param name="obj">The structural object.</param>
+    /// <param name="writer">The <see cref="TinyhandWriter"/> to be retrieved.</param>
+    /// <returns><c>true</c> if the writer was successfully retrieved; otherwise, <c>false</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGetJournalWriter(this IStructualObject obj, out TinyhandWriter writer)
     {
@@ -33,23 +52,36 @@ public static class CrystalExtensions
         }
     }
 
+    /// <summary>
+    /// Determines whether the <see cref="CrystalResult"/> is a success.
+    /// </summary>
+    /// <param name="result">The result to check.</param>
+    /// <returns><c>true</c> if the result is <see cref="CrystalResult.Success"/>; otherwise, <c>false</c>.</returns>
     public static bool IsSuccess(this CrystalResult result)
         => result == CrystalResult.Success;
 
+    /// <summary>
+    /// Determines whether the <see cref="CrystalResult"/> is a failure.
+    /// </summary>
+    /// <param name="result">The result to check.</param>
+    /// <returns><c>true</c> if the result is not <see cref="CrystalResult.Success"/>; otherwise, <c>false</c>.</returns>
     public static bool IsFailure(this CrystalResult result)
         => result != CrystalResult.Success;
 
+    /// <summary>
+    /// Determines whether the <see cref="UnloadMode"/> indicates an unload.
+    /// </summary>
+    /// <param name="unloadMode">The unload mode to check.</param>
+    /// <returns><c>true</c> if the unload mode is not <see cref="UnloadMode.NoUnload"/>; otherwise, <c>false</c>.</returns>
     public static bool IsUnload(this UnloadMode unloadMode)
         => unloadMode != UnloadMode.NoUnload;
 
     /// <summary>
     /// Compares this value with a specified <see langword="ulong"/> value in a situation where the variables are cyclical (i.e., they reset to zero after reaching their maximum value).
     /// </summary>
-    /// <param name="value1">value1.</param>
-    /// <param name="value2">value2.</param>
-    /// <returns>-1: <paramref name="value1"/> is less than <paramref name="value2"/>.<br/>
-    /// 0: <paramref name="value1"/> and <paramref name="value2"/> are equal.<br/>
-    /// -1: <paramref name="value1"/> is greater than <paramref name="value2"/>.</returns>
+    /// <param name="value1">The first value to compare.</param>
+    /// <param name="value2">The second value to compare.</param>
+    /// <returns>-1 if <paramref name="value1"/> is less than <paramref name="value2"/>; 0 if they are equal; 1 if <paramref name="value1"/> is greater than <paramref name="value2"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CircularCompareTo(this ulong value1, ulong value2)
     {
@@ -71,11 +103,9 @@ public static class CrystalExtensions
     /// <summary>
     /// Compares this value with a specified <see langword="uint"/> value in a situation where the variables are cyclical (i.e., they reset to zero after reaching their maximum value).
     /// </summary>
-    /// <param name="value1">value1.</param>
-    /// <param name="value2">value2.</param>
-    /// <returns>-1: <paramref name="value1"/> is less than <paramref name="value2"/>.<br/>
-    /// 0: <paramref name="value1"/> and <paramref name="value2"/> are equal.<br/>
-    /// -1: <paramref name="value1"/> is greater than <paramref name="value2"/>.</returns>
+    /// <param name="value1">The first value to compare.</param>
+    /// <param name="value2">The second value to compare.</param>
+    /// <returns>-1 if <paramref name="value1"/> is less than <paramref name="value2"/>; 0 if they are equal; 1 if <paramref name="value1"/> is greater than <paramref name="value2"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CircularCompareTo(this uint value1, uint value2)
     {
