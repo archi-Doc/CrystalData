@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
 using CrystalData.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Tinyhand.IO;
 
 namespace CrystalData;
@@ -66,7 +67,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                     return this.data;
                 }
 
-                if (this.data != null)
+                if (this.data is not null)
                 {
                     return this.data;
                 }
@@ -412,7 +413,7 @@ Exit:
                 }
 
                 // Deserialize
-                (var currentObject, var currentFormat) = SerializeHelper.TryDeserialize<TData>(result.Data.Span, this.CrystalConfiguration.SaveFormat, true);
+                (var currentObject, var currentFormat) = SerializeHelper.TryDeserialize<TData>(result.Data.Span, this.CrystalConfiguration.SaveFormat, true, default);
                 if (currentObject is null)
                 {// Deserialization error
                     result.Return();
@@ -624,9 +625,11 @@ Exit:
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
-        else
+
+        TData? singletonData = default;
+        if (this.CrystalConfiguration.)
         {
-            this.data = this.Crystalizer.ServiceProvider.GetService(typeof(TData));
+            singletonData = this.Crystalizer.ServiceProvider.GetRequiredService<TData>();
         }
 
         var filer = Volatile.Read(ref this.crystalFiler);
@@ -637,7 +640,7 @@ Exit:
         (CrystalResult Result, TData? Data, Waypoint Waypoint) loadResult;
         try
         {
-            loadResult = await LoadAndDeserializeNotInternal(filer, param, configuration).ConfigureAwait(false);
+            loadResult = await LoadAndDeserializeNotInternal(filer, param, configuration, singletonData).ConfigureAwait(false);
         }
         finally
         {
@@ -703,13 +706,13 @@ Exit:
     }
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
-    private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration)
+    private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration, TData? singletonData)
 #pragma warning restore SA1204 // Static elements should appear before instance elements
     {
         param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)
-        var data = await filer.LoadLatest<TData>(param, configuration.SaveFormat).ConfigureAwait(false);
+        var data = await filer.LoadLatest<TData>(param, configuration.SaveFormat, singletonData).ConfigureAwait(false);
         if (data.Result.IsFailure)
         {
             if (!newlyRegistered &&

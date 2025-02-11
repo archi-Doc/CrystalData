@@ -35,7 +35,7 @@ internal class CrystalCheck
             this.filePath = filePath;
             var bytes = File.ReadAllBytes(filePath);
 
-            var result = SerializeHelper.TryDeserialize<CrystalCheckData>(bytes, Format, false);
+            var result = SerializeHelper.TryDeserialize<CrystalCheckData>(bytes, Format, false, default);
             if (result.Data != null)
             {
                 this.data = result.Data;

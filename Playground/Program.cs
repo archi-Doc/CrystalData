@@ -9,7 +9,7 @@ using Tinyhand;
 namespace Sandbox;
 
 // First, create a class to represent the data content.
-[TinyhandObject] // Annotate TinyhandObject attribute to make this class serializable.
+[TinyhandObject(UseServiceProvider = true)] // Annotate TinyhandObject attribute to make this class serializable.
 public partial class FirstData
 {
     public FirstData()

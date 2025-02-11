@@ -45,7 +45,8 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
                 foreach (var y in context.Services)
                 {
                     if (y.ServiceType == x.Key && y.Lifetime == ServiceLifetime.Singleton)
-                    {//Registered as singleton
+                    {// Registered as singleton
+                        x.Value.
                     }
                 }
 
