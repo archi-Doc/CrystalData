@@ -624,6 +624,10 @@ Exit:
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
+        else
+        {
+            this.data = this.Crystalizer.ServiceProvider.GetService(typeof(TData));
+        }
 
         var filer = Volatile.Read(ref this.crystalFiler);
         var configuration = this.CrystalConfiguration;

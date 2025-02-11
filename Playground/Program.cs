@@ -12,6 +12,10 @@ namespace Sandbox;
 [TinyhandObject] // Annotate TinyhandObject attribute to make this class serializable.
 public partial class FirstData
 {
+    public FirstData()
+    {
+    }
+
     [Key(0)] // The key attribute specifies the index at serialization
     public int Id { get; set; }
 
@@ -32,6 +36,7 @@ internal class Program
             .Configure(context =>
             {
                 // context.AddTransient<FirstData>();
+                context.AddSingleton<FirstData>();
             })
             .SetupOptions<CrystalizerOptions>((context, options) =>
             {

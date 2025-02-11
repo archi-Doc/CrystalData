@@ -86,7 +86,7 @@ public class Crystalizer
         foreach (var x in this.configuration.CrystalConfigurations)
         {
             // new CrystalImpl<TData>
-            var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new object[] { this, }, null)!;
+            var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, [this,], null)!;
             crystal.Configure(x.Value);
 
             this.typeToCrystal.TryAdd(x.Key, crystal);

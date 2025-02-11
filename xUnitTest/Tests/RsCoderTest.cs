@@ -14,7 +14,7 @@ public class RsCoderTest
     public void ComprehensiveTest()
     {
         // (int Data, int Check)[] nm = new[] { (4, 2), (4, 4), (4, 8), (8, 4), (8, 8), (8, 10), (16, 8), (16, 16), (5, 3), (5, 5), (13, 3), (13, 7), }; // Not supported
-        (int Data, int Check)[] nm = new[] { (4, 2), (4, 4), (8, 2), (8, 4), (16, 2), (16, 4), };
+        (int Data, int Check)[] nm = [(4, 2), (4, 4), (8, 2), (8, 4), (16, 2), (16, 4),];
 
         foreach (var x in nm)
         {
@@ -69,7 +69,7 @@ public class RsCoderTest
     [Fact]
     public void RandomTest()
     {
-        (int Data, int Check)[] nm = new[] { (4, 2), (4, 4), (8, 2), (8, 4), (16, 2), (16, 4), };
+        (int Data, int Check)[] nm = [(4, 2), (4, 4), (8, 2), (8, 4), (16, 2), (16, 4),];
         var sizes = new[] { 0, 4, 16, 256, 1000, 10_000 };
 
         var random = new Random(42);
