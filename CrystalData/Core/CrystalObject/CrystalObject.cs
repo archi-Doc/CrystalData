@@ -626,8 +626,9 @@ Exit:
             return CrystalResult.Success;
         }
 
-        TData? singletonData = default;
-        if (this.CrystalConfiguration.)
+        var singletonData = this.data;
+        if (singletonData is null &&
+            this.originalCrystalConfiguration.IsSingleton)
         {
             singletonData = this.Crystalizer.ServiceProvider.GetRequiredService<TData>();
         }

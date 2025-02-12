@@ -46,7 +46,8 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
                 {
                     if (y.ServiceType == x.Key && y.Lifetime == ServiceLifetime.Singleton)
                     {// Registered as singleton
-                        x.Value.
+                        // Although it is a Singleton, UseServiceProvider is not set to true (which is a code defect), so CrystalData will treat it as a Singleton.
+                        x.Value.IsSingleton = true;
                     }
                 }
 
