@@ -168,7 +168,7 @@ public class CrystalFiler
             return Task.WhenAll(tasks).ContinueWith(x => CrystalResult.Success);
         }
 
-        public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
+        public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint, TData? singletonData)
             where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
         {
             if (this.rawFiler == null)
@@ -184,7 +184,7 @@ public class CrystalFiler
                 if (result.IsSuccess)
                 {
                     var hash = FarmHash.Hash64(result.Data.Span);
-                    var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true);
+                    var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true, singletonData);
                     result.Return();
                     if (r.Data is not null)
                     {// Success
@@ -208,7 +208,7 @@ public class CrystalFiler
                 {// Read successful
                     if (FarmHash.Hash64(result.Data.Memory.Span) == x.Hash)
                     {
-                        var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true);
+                        var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true, singletonData);
                         result.Return();
                         if (r.Data is not null)
                         {
@@ -408,7 +408,7 @@ public class CrystalFiler
         return result;
     }
 
-    public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint)
+    public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint, TData? singletonData)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         if (this.main is null)
@@ -418,10 +418,10 @@ public class CrystalFiler
 
         if (!this.IsProtected)
         {// Not protected (no file history)
-            var result = await this.main.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
+            var result = await this.main.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
             if (result.Result.IsFailure && this.backup is not null)
             {// Load backup
-                result = await this.backup.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
+                result = await this.backup.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
                 if (result.Result.IsSuccess)
                 {// Backup restored
                     this.logger.TryGet(LogLevel.Warning)?.Log(string.Format(HashedString.Get(CrystalDataHashed.CrystalFiler.BackupLoaded), result.Path));
@@ -438,7 +438,7 @@ public class CrystalFiler
                 var backupLatest = this.backup.GetLatestWaypoint();
                 if (backupLatest > mainLatest)
                 {// Backup ahead
-                    var resultBackup = await this.backup.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
+                    var resultBackup = await this.backup.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
                     if (resultBackup.Result.IsSuccess)
                     {
                         if (await param.Query.LoadBackup(resultBackup.Path).ConfigureAwait(false) == UserInterface.YesOrNo.Yes)
@@ -449,7 +449,7 @@ public class CrystalFiler
                 }
             }
 
-            var result = await this.main.LoadLatest<TData>(param, formatHint).ConfigureAwait(false);
+            var result = await this.main.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
             return result;
         }
     }

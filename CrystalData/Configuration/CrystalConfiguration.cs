@@ -70,4 +70,7 @@ public sealed partial record CrystalConfiguration
     public bool RequiredForLoading { get; init; } = false;
 
     public bool HasFileHistories => this.NumberOfFileHistories > 0;
+
+    [IgnoreMember]
+    internal bool IsSingleton { get; set; }
 }

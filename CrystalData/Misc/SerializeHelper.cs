@@ -15,10 +15,10 @@ public static class SerializeHelper
 
     // public static TinyhandSerializerOptions SerializerOptions { get; } = TinyhandSerializerOptions.Standard;
 
-    public static (TData? Data, SaveFormat Format) TryDeserialize<TData>(ReadOnlySpan<byte> span, SaveFormat formatHint, bool reconstructIfEmpty)
+    public static (TData? Data, SaveFormat Format) TryDeserialize<TData>(ReadOnlySpan<byte> span, SaveFormat formatHint, bool reconstructIfEmpty, TData? singletonData)
         where TData : ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
-        TData? data = default;
+        TData? data = singletonData;
         SaveFormat format = SaveFormat.Binary;
 
         if (span.Length == 0)

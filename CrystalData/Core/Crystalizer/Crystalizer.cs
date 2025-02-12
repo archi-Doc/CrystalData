@@ -52,7 +52,7 @@ public class Crystalizer
         private Crystalizer crystalizer;
     }
 
-    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, ICrystalDataQuery query, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
+    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, ICrystalDataQuery query, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey, IServiceProvider serviceProvider)
     {
         this.configuration = configuration;
         this.GlobalDirectory = options.GlobalDirectory;
@@ -78,6 +78,7 @@ public class Crystalizer
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
         this.UnitLogger = unitLogger;
+        this.ServiceProvider = serviceProvider;
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
         this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
         this.Memory = new(this, this.CrystalCheck.MemoryStats);
@@ -86,7 +87,7 @@ public class Crystalizer
         foreach (var x in this.configuration.CrystalConfigurations)
         {
             // new CrystalImpl<TData>
-            var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new object[] { this, }, null)!;
+            var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, [this,], null)!;
             crystal.Configure(x.Value);
 
             this.typeToCrystal.TryAdd(x.Key, crystal);
@@ -137,6 +138,8 @@ public class Crystalizer
     internal ILogger Logger { get; }
 
     internal CrystalCheck CrystalCheck { get; }
+
+    internal IServiceProvider ServiceProvider { get; }
 
     private CrystalizerConfiguration configuration;
 

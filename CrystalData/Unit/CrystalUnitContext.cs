@@ -42,6 +42,15 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
             }
             else
             {// Singleton: T => Crystalizer.GetObject<T>()
+                foreach (var y in context.Services)
+                {
+                    if (y.ServiceType == x.Key && y.Lifetime == ServiceLifetime.Singleton)
+                    {// Registered as singleton
+                        // Although it is a Singleton, UseServiceProvider is not set to true (which is a code defect), so CrystalData will treat it as a Singleton.
+                        x.Value.IsSingleton = true;
+                    }
+                }
+
                 context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetObject(x.Key)));
             }
         }
