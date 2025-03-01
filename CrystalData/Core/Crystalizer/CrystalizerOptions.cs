@@ -15,7 +15,7 @@ public class CrystalizerOptions
 
     public bool EnableFilerLogger { get; set; } = false;
 
-    public string RootPath { get; set; } = string.Empty;
+    public string DataDirectory { get; set; } = string.Empty;
 
     public TimeSpan FilerTimeout { get; set; }
 

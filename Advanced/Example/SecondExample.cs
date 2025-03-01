@@ -89,12 +89,12 @@ public partial class Program
             .SetupOptions<CrystalizerOptions>((context, options) =>
             {
                 options.EnableFilerLogger = true; // Enable filer logger.
-                options.RootPath = Directory.GetCurrentDirectory();
+                options.DataDirectory = Directory.GetCurrentDirectory();
             })
             .SetupOptions<FileLoggerOptions>((context, options) =>
             {// FileLoggerOptions
                 var logfile = "Logs/Log.txt";
-                options.Path = Path.Combine(context.RootDirectory, logfile);
+                options.Path = Path.Combine(context.DataDirectory, logfile);
                 options.MaxLogCapacity = 2;
             });
 

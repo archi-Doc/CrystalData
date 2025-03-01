@@ -69,7 +69,7 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
         }
 
         var options = new CrystalizerOptions();
-        options.RootPath = context.RootDirectory;
+        options.DataDirectory = context.DataDirectory;
         context.SetOptions(options);
     }
 

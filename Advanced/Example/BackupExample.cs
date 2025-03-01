@@ -53,7 +53,7 @@ public partial class Program
                 if (unitOptions is not null)
                 {
                     // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
-                    options.DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitOptions.RootDirectory, "DefaultBackup"));
+                    options.DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitOptions.DataDirectory, "DefaultBackup"));
                 }
             });
 
