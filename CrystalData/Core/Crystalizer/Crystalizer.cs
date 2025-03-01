@@ -59,7 +59,7 @@ public class Crystalizer
         this.DefaultBackup = options.DefaultBackup;
         this.GlobalStorage = options.GlobalStorage;
         this.EnableFilerLogger = options.EnableFilerLogger;
-        this.RootDirectory = options.RootPath;
+        this.RootDirectory = options.DataDirectory;
         this.FilerTimeout = options.FilerTimeout;
         this.MemoryUsageLimit = options.MemoryUsageLimit;
         this.ConcurrentUnload = options.ConcurrentUnload;

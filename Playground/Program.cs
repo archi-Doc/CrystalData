@@ -43,7 +43,7 @@ internal class Program
                 context.GetOptions<UnitOptions>(out var unitOptions);
                 if (unitOptions is not null)
                 {
-                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.RootDirectory, "Global"));
+                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.DataDirectory, "Global"));
                 }
             })
             .ConfigureCrystal(context =>

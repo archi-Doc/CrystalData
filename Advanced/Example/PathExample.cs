@@ -20,7 +20,7 @@ public partial class Program
                 if (unitOptions is not null)
                 {
                     // options.RootPath = Path.Combine(unitOptions.RootDirectory, "Additional"); // Root directory
-                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.RootDirectory, "Global")); // Global directory
+                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.DataDirectory, "Global")); // Global directory
                 }
             });
 
@@ -57,7 +57,7 @@ public partial class Program
 
         // Unit root directory
         var unitOptions = unit.Context.ServiceProvider.GetRequiredService<UnitOptions>();
-        Console.WriteLine($"UnitOptions root directory: {unitOptions.RootDirectory}");
+        Console.WriteLine($"UnitOptions root directory: {unitOptions.DataDirectory}");
 
         // Crystalizer root directory
         Console.WriteLine($"Crystalizer root directory: {crystalizer.RootDirectory}");
