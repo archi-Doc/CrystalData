@@ -212,7 +212,7 @@ RepeatList:
                 var response = await worker.client.ListObjectsV2Async(request, worker.CancellationToken).ConfigureAwait(false);
                 foreach (var x in response.S3Objects)
                 {
-                    list.Add(new(x.Key, x.Size));
+                    list.Add(new(x.Key, x.Size ?? 0));
                 }
 
                 foreach (var x in response.CommonPrefixes)
@@ -220,7 +220,7 @@ RepeatList:
                     list.Add(new(x));
                 }
 
-                if (response.IsTruncated)
+                if (response.IsTruncated == true)
                 {
                     continuationToken = response.NextContinuationToken;
                     goto RepeatList;
