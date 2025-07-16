@@ -14,6 +14,21 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
     public static readonly StorageId Empty = new(1, 0, 0);
     public static readonly int LengthInBase32;
 
+    #region FieldAndProperty
+
+    [Key(0)]
+    public readonly ulong JournalPosition;
+
+    [Key(1)]
+    public readonly ulong FileId;
+
+    [Key(2)]
+    public readonly ulong Hash;
+
+    public bool IsValid => this.JournalPosition != 0;
+
+    #endregion
+
     static StorageId()
     {
         LengthInBase32 = Base32Sort.GetEncodedLength(Length);
@@ -58,17 +73,6 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         storageId = default;
         return false;
     }
-
-    [Key(0)]
-    public readonly ulong JournalPosition;
-
-    [Key(1)]
-    public readonly ulong FileId;
-
-    [Key(2)]
-    public readonly ulong Hash;
-
-    public bool IsValid => this.JournalPosition != 0;
 
     public byte[] ToByteArray()
     {
