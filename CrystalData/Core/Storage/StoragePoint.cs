@@ -5,13 +5,22 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+public enum StoragePointState
+{
+    OnStorage,
+    InMemory,
+    Locked,
+
+}
+
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is a key component of the data tree, responsible for loading and persisting partial data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStorageData
+public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint
+    where TData : class, IStructualObject, ITinyhandSerializable<TData>
 {
     public const int MaxHistories = 3; // 4
     private const uint MultiWriterBit = 1u << 31; // Bit for multi-writer
