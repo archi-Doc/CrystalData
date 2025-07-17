@@ -10,6 +10,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
+[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStorageData
 {
     public const int MaxHistories = 3; // 4
@@ -75,6 +76,8 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             {
             }
         }
+
+        return true;
     }
 
     private void DecrementLockCountInternal()
