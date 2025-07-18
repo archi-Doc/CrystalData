@@ -219,7 +219,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
         if (obj is IStructualObject structualObject)
         {
-            if (await structualObject.Save(unloadMode).ConfigureAwait(false) == false)
+            if (await structualObject.StoreData(unloadMode).ConfigureAwait(false) == false)
             {
                 return CrystalResult.DataIsLocked;
             }

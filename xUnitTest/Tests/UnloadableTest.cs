@@ -96,7 +96,7 @@ public class UnloadableTest
             w2.Commit();
         }
 
-        await r.Children.Save(UnloadMode.ForceUnload);
+        await r.Children.StoreData(UnloadMode.ForceUnload);
 
         r.Children.Erase();
 
