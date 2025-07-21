@@ -48,13 +48,15 @@ public enum StoragePointState
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData
-    where TData : class, IStructualObject, ITinyhandSerializable<TData>
 {
     public const int MaxHistories = 3; // 4
 
     private const uint InvalidBit = 1u << 31;
     private const uint UnloadingBit = 1u << 30;
     private const uint UnloadedBit = 1u << 29;
+    private const uint StateMask = 0xFFFF0000;
+    private const uint NegativeStateMask = 0xFF000000;
+    private const uint LockCountMask = 0x0000FFFF;
 
     #region FieldAndProperty
 
@@ -85,11 +87,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     [IgnoreMember]
     private uint state; // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
 
-    public bool IsActive => (this.state & 0xFF00_0000) == 0;
+    public bool IsActive => (this.state & NegativeStateMask) == 0;
 
     public bool IsInvalid => (this.state & InvalidBit) != 0;
 
-    public bool IsLocked => (this.state & 0x00FFFFFF) != 0;
+    public bool IsLocked => (this.state & LockCountMask) != 0;
 
     public bool IsUnloading => (this.state & UnloadingBit) != 0;
 
@@ -97,39 +99,16 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public bool CanUnload => this.LockCount == 0;
 
-    private uint LockCount => this.state & 0x00FFFFFF;
-
-    private bool TryIncrementLockCountInternal()
-    {
-        if (!this.IsActive)
-        {
-            return false;
-        }
-
-        /*f (this.IsMultiWriter)
-        {// Multi-writer
-            this.state = (this.state & 0xFF000000) | (this.LockCount + 1);
-        }*/
-
-        if (this.LockCount == 0)
-        {
-            this.state = (this.state & 0xFF000000) | 1;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
+    private uint LockCount => this.state & LockCountMask;
 
     private void IncrementLockCountInternal()
     {
-        this.state = (this.state & 0xFF000000) | (this.LockCount + 1);
+        this.state = (this.state & StateMask) | (this.LockCount + 1);
     }
 
     private void DecrementLockCountInternal()
     {
-        this.state = (this.state & 0xFF000000) | (this.LockCount - 1);
+        this.state = (this.state & StateMask) | (this.LockCount - 1);
     }
 
     #endregion
