@@ -24,16 +24,16 @@ public enum UnloadMode2
     /// Additionally, it sets the target StoragePoint to the unloaded state.<br/>
     /// This is intended for use during service or application shutdown.
     /// </summary>
-    All,
+    UnloadAll,
 }
 
 public enum ProbeMode
 {
     /// <summary>
-    /// For the unload process, attempts are made to lock all child elements.<br/>
-    /// If locking is successful, it returns true; if not, it returns false without changing the state.
+    /// Checks whether all child elements can be unloaded.<br/>
+    /// Returns true if all are unloadable (i.e., not locked); otherwise, returns false.
     /// </summary>
-    TryLockAll,
+    IsUnloadableAll,
 
     /// <summary>
     /// Checks whether all child elements are unloaded.<br/>
@@ -41,7 +41,15 @@ public enum ProbeMode
     /// </summary>
     IsUnloadedAll,
 
-    IsLockableAll,
+    /// <summary>
+    /// Lock all child elements.
+    /// </summary>
+    LockAll,
+
+    /// <summary>
+    /// Unlock all child elements.
+    /// </summary>
+    UnlockAll,
 }
 
 /// <summary>
@@ -60,6 +68,15 @@ public interface IStoragePoint
     /// </returns>
     Task<bool> Save(UnloadMode2 unloadMode);
 
+    /// <summary>
+    /// Probes the storage point and its child elements using the specified probe mode.
+    /// </summary>
+    /// <param name="probeMode">
+    /// The <see cref="ProbeMode"/> that determines the type of probe operation to perform, such as checking unloadability, lock state, or unloaded state.
+    /// </param>
+    /// <returns>
+    /// <c>true</c> if the probe operation succeeds according to the specified mode; otherwise, <c>false</c>.
+    /// </returns>
     bool Probe(ProbeMode probeMode);
 
     /// <summary>

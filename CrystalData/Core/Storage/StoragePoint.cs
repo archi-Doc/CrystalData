@@ -87,13 +87,15 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public bool IsActive => (this.state & 0xFF00_0000) == 0;
 
-    public bool IsLockable => this.state 
-
     public bool IsInvalid => (this.state & InvalidBit) != 0;
+
+    public bool IsLocked => (this.state & 0x00FFFFFF) != 0;
 
     public bool IsUnloading => (this.state & UnloadingBit) != 0;
 
     public bool IsUnloaded => (this.state & UnloadedBit) != 0;
+
+    public bool CanUnload => this.LockCount == 0;
 
     private uint LockCount => this.state & 0x00FFFFFF;
 
@@ -118,6 +120,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         {
             return false;
         }
+    }
+
+    private void IncrementLockCountInternal()
+    {
+        this.state = (this.state & 0xFF000000) | (this.LockCount + 1);
     }
 
     private void DecrementLockCountInternal()
@@ -253,6 +260,34 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public async Task<bool> Save(UnloadMode2 mode)
     {
         return false;
+    }
+
+    public bool Probe(ProbeMode probeMode)
+    {
+        if (probeMode == ProbeMode.IsUnloadableAll)
+        {
+            if (this.IsLocked)
+            {// Locked (not unloadable)
+                return false;
+            }
+        }
+        else if (probeMode == ProbeMode.IsUnloadedAll)
+        {
+            if (!this.IsUnloaded && !this.IsInvalid)
+            {// Not unloaded and not invalid
+                return false;
+            }
+        }
+        else if (probeMode == ProbeMode.LockAll)
+        {
+            this.IncrementLockCountInternal();
+        }
+        else if (probeMode == ProbeMode.UnlockAll)
+        {
+            this.DecrementLockCountInternal();
+        }
+
+        return
     }
 
     public async Task<bool> Save(UnloadMode unloadMode)
