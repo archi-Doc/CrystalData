@@ -54,6 +54,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     private const uint InvalidBit = 1u << 31;
     private const uint UnloadingBit = 1u << 30;
     private const uint UnloadedBit = 1u << 29;
+    private const uint UnloadingAndUnloadedBit = UnloadingBit | UnloadedBit;
     private const uint StateMask = 0xFFFF0000;
     private const uint NegativeStateMask = 0xFF000000;
     private const uint LockCountMask = 0x0000FFFF;
@@ -61,16 +62,16 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     #region FieldAndProperty
 
     [IgnoreMember]
-    private TData? data;
+    private TData? data; // SemaphoreLock
 
     [Key(0)]
-    private StorageId storageId0;
+    private StorageId storageId0; // SemaphoreLock
 
     [Key(1)]
-    private StorageId storageId1;
+    private StorageId storageId1; // SemaphoreLock
 
     [Key(2)]
-    private StorageId storageId2;
+    private StorageId storageId2; // SemaphoreLock
 
     // [Key(3)]
     // private StorageId storageId3;
@@ -84,8 +85,9 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     [IgnoreMember]
     int IStructualObject.StructualKey { get; set; }
 
+    // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
     [IgnoreMember]
-    private uint state; // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
+    private uint state; // SemaphoreLock
 
     public bool IsActive => (this.state & NegativeStateMask) == 0;
 
@@ -97,19 +99,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public bool IsUnloaded => (this.state & UnloadedBit) != 0;
 
+    public bool IsUnloadingOrUnloaded => (this.state & UnloadingAndUnloadedBit) != 0;
+
     public bool CanUnload => this.LockCount == 0;
 
     private uint LockCount => this.state & LockCountMask;
-
-    private void IncrementLockCountInternal()
-    {
-        this.state = (this.state & StateMask) | (this.LockCount + 1);
-    }
-
-    private void DecrementLockCountInternal()
-    {
-        this.state = (this.state & StateMask) | (this.LockCount - 1);
-    }
 
     #endregion
 
@@ -150,22 +144,21 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         await this.EnterAsync().ConfigureAwait(false);
         try
         {
+            if (this.IsUnloadingOrUnloaded)
+            {
+                return default;
+            }
+
             if (this.data is null)
             {// PrepareAndLoad
-                if (!this.IsUnloaded)
-                {
-                    await this.PrepareAndLoadInternal().ConfigureAwait(false);
-                    // this.PrepareData() is called from PrepareAndLoadInternal().
-                }
+                await this.PrepareAndLoadInternal().ConfigureAwait(false);
+                // this.PrepareData() is called from PrepareAndLoadInternal().
             }
 
             if (this.data is null)
             {// Reconstruct
-                if (!this.IsUnloaded)
-                {
-                    this.data = TinyhandSerializer.Reconstruct<TData>();
-                    this.PrepareData(0);
-                }
+                this.data = TinyhandSerializer.Reconstruct<TData>();
+                this.PrepareData(0);
             }
 
             return this.data;
@@ -569,5 +562,15 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         {
             structualObject.Erase();
         }
+    }
+
+    private void IncrementLockCountInternal()
+    {
+        this.state = (this.state & StateMask) | (this.LockCount + 1);
+    }
+
+    private void DecrementLockCountInternal()
+    {
+        this.state = (this.state & StateMask) | (this.LockCount - 1);
     }
 }
