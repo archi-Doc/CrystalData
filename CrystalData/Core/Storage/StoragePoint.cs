@@ -87,6 +87,8 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public bool IsActive => (this.state & 0xFF00_0000) == 0;
 
+    public bool IsLockable => this.state 
+
     public bool IsInvalid => (this.state & InvalidBit) != 0;
 
     public bool IsUnloading => (this.state & UnloadingBit) != 0;

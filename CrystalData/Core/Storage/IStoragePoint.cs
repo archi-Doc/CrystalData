@@ -35,8 +35,13 @@ public enum ProbeMode
     /// </summary>
     TryLockAll,
 
-
+    /// <summary>
+    /// Checks whether all child elements are unloaded.<br/>
+    /// Returns true if all are unloaded (or InvalidStorage); otherwise, returns false.
+    /// </summary>
     IsUnloadedAll,
+
+    IsLockableAll,
 }
 
 /// <summary>
