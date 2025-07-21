@@ -13,7 +13,7 @@ public enum StoragePointState
     /// <summary>
     /// The function of <see cref="StoragePoint{TData}" /> is invalid, and the process is bypassed as is.
     /// </summary>
-    NoStorage,
+    InvalidStorage,
 
     /// <summary>
     /// The data is stored on storage and is not loaded into memory.
@@ -51,9 +51,10 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     where TData : class, IStructualObject, ITinyhandSerializable<TData>
 {
     public const int MaxHistories = 3; // 4
-    private const uint MultiWriterBit = 1u << 31; // Bit for multi-writer
-    private const uint PassThroughBit = 1u << 30; // Bit for pass-through
-    private const uint UnloadedBit = 1u << 30; // Bit for unloaded
+
+    private const uint InvalidBit = 1u << 31;
+    private const uint UnloadingBit = 1u << 30;
+    private const uint UnloadedBit = 1u << 29;
 
     #region FieldAndProperty
 
@@ -82,11 +83,13 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     int IStructualObject.StructualKey { get; set; }
 
     [IgnoreMember]
-    private uint state; // 31bit:Multi-writer, 30bit:Pass through, 29bit:Unload, 23-0bit:Lock count.
+    private uint state; // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
 
-    public bool IsMultiWriter => (this.state & MultiWriterBit) != 0;
+    public bool IsActive => (this.state & 0xFF00_0000) == 0;
 
-    public bool IsPassThrough => (this.state & PassThroughBit) != 0;
+    public bool IsInvalid => (this.state & InvalidBit) != 0;
+
+    public bool IsUnloading => (this.state & UnloadingBit) != 0;
 
     public bool IsUnloaded => (this.state & UnloadedBit) != 0;
 
@@ -94,27 +97,25 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     private bool TryIncrementLockCountInternal()
     {
-        if (this.IsUnloaded)
+        if (!this.IsActive)
         {
             return false;
         }
 
-        if (this.IsMultiWriter)
+        /*f (this.IsMultiWriter)
         {// Multi-writer
             this.state = (this.state & 0xFF000000) | (this.LockCount + 1);
+        }*/
+
+        if (this.LockCount == 0)
+        {
+            this.state = (this.state & 0xFF000000) | 1;
+            return true;
         }
         else
-        {// Single-writer
-            if (this.LockCount == 0)
-            {
-                this.state = (this.state & 0xFF000000) | 1;
-            }
-            else
-            {
-            }
+        {
+            return false;
         }
-
-        return true;
     }
 
     private void DecrementLockCountInternal()
@@ -128,48 +129,28 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     {
     }
 
-    public StoragePoint(bool multiWriter = false, bool passThrough = false)
+    public StoragePoint(bool invalidStorage = false)
     {
-        if (multiWriter)
+        if (invalidStorage)
         {
-            this.state |= MultiWriterBit;
-        }
-
-        if (passThrough)
-        {
-            this.state |= PassThroughBit;
+            this.state |= InvalidBit;
         }
     }
 
-    public void SetMultiWriter(bool multiWriter)
+    /*public void InvalidateStorage(bool invalidStorage)
     {
         using (this.Lock())
         {
-            if (multiWriter)
+            if (invalidStorage)
             {
-                this.state |= MultiWriterBit;
+                this.state |= InvalidBit;
             }
             else
             {
-                this.state &= ~MultiWriterBit;
+                this.state &= ~InvalidBit;
             }
         }
-    }
-
-    public void SetPassThrough(bool passThrough)
-    {
-        using (this.Lock())
-        {
-            if (passThrough)
-            {
-                this.state |= PassThroughBit;
-            }
-            else
-            {
-                this.state &= ~PassThroughBit;
-            }
-        }
-    }
+    }*/
 
     public async ValueTask<TData?> TryGet()
     {
@@ -217,19 +198,12 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
                 return default;
             }
 
-            if (this.IsMultiWriter)
-            {// Multi-writer
-                this.state = (this.state & 0xFF000000) | (this.LockCount + 1);
+            if (this.LockCount == 0)
+            {
+                this.state = (this.state & 0xFF000000) | 1;
             }
             else
-            {// Single-writer
-                if (this.LockCount == 0)
-                {
-                    this.state = (this.state & 0xFF000000) | 1;
-                }
-                else
-                {
-                }
+            {
             }
 
             if (this.data is null)

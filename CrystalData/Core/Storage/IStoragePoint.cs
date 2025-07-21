@@ -27,12 +27,38 @@ public enum UnloadMode2
     All,
 }
 
+public enum ProbeMode
+{
+    /// <summary>
+    /// For the unload process, attempts are made to lock all child elements.<br/>
+    /// If locking is successful, it returns true; if not, it returns false without changing the state.
+    /// </summary>
+    TryLockAll,
+
+
+    IsUnloadedAll,
+}
+
 /// <summary>
 /// <see cref="IStoragePoint"/> is a inteface of <see cref="StoragePoint{TData}" /> responsible for loading and persisting partial data.
 /// </summary>
 public interface IStoragePoint
 {
+    /// <summary>
+    /// Saves the data associated with the storage point using the specified unload mode.
+    /// </summary>
+    /// <param name="unloadMode">
+    /// Specifies the unload behavior for persisting and releasing resources.
+    /// </param>
+    /// <returns>
+    /// A <see cref="Task{Boolean}"/> representing the asynchronous save operation. Returns <c>true</c> if the save was successful; otherwise, <c>false</c>.
+    /// </returns>
     Task<bool> Save(UnloadMode2 unloadMode);
 
+    bool Probe(ProbeMode probeMode);
+
+    /// <summary>
+    /// Gets the <see cref="Type"/> of the data managed by this storage point.
+    /// </summary>
     Type DataType { get; }
 }
