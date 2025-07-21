@@ -64,7 +64,7 @@ public partial class MemoryControl
                     continue;
                 }
 
-                if (await storageData.StoreData(UnloadMode.TryUnload))
+                if (await storageData.Save(UnloadMode.TryUnload))
                 {// Success (deletion will be done via ReportUnload() from StorageData)
                 }
                 else

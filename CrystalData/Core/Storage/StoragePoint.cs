@@ -245,12 +245,12 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public Type DataType
         => typeof(TData);
 
-    public async Task<bool> StoreData(StoreDataMode mode)
+    public async Task<bool> Save(UnloadMode2 mode)
     {
         return false;
     }
 
-    public async Task<bool> StoreData(UnloadMode unloadMode)
+    public async Task<bool> Save(UnloadMode unloadMode)
     {
         if (this.data is null)
         {// No data

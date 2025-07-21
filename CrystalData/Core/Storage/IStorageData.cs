@@ -4,7 +4,7 @@ namespace CrystalData;
 
 public interface IStorageData
 {
-    Task<bool> StoreData(UnloadMode unloadMode);
+    Task<bool> Save(UnloadMode unloadMode);
 
     Type DataType { get; }
 }
