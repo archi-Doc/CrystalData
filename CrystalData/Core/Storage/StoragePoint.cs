@@ -10,7 +10,6 @@ public enum StoragePointState
     OnStorage,
     InMemory,
     Locked,
-
 }
 
 /// <summary>
@@ -19,7 +18,7 @@ public enum StoragePointState
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint
+public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData
     where TData : class, IStructualObject, ITinyhandSerializable<TData>
 {
     public const int MaxHistories = 3; // 4
@@ -246,6 +245,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public Type DataType
         => typeof(TData);
 
+    public async Task<bool> StoreData(StoreDataMode mode)
+    {
+        return false;
+    }
+
     public async Task<bool> StoreData(UnloadMode unloadMode)
     {
         if (this.data is null)
@@ -269,7 +273,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             // Save children
             if (this.data is IStructualObject structualObject)
             {
-                var result = await structualObject.StoreData(unloadMode).ConfigureAwait(false);
+                var result = await structualObject.Save(unloadMode).ConfigureAwait(false);
                 if (!result)
                 {
                     return false;
