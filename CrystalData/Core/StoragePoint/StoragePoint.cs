@@ -6,6 +6,27 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+[TinyhandObject]
+public partial record struct StoragePoint2<TData>
+{
+    // [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
+    [Key(0)]
+    public ulong PointId { get; private set; }
+}
+
+[TinyhandObject(Structual = true)]
+public partial record class TestClass
+{
+    // [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
+    [Key(0)]
+    public StoragePoint<TestClass> TestStorage { get; set; } = new();
+
+    public void Test()
+    {
+        ((IStructualObject)this).StructualRoot
+    }
+}
+
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting partial data.
 /// </summary>
@@ -26,20 +47,19 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     #region FieldAndProperty
 
+    [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
+    public ulong PointId { get; private set; }
+
     private TData? data; // SemaphoreLock
-    private ulong pointId;
     private StorageId storageId0;
     private StorageId storageId1;
     private StorageId storageId2;
     // private StorageId storageId3;
 
-    [IgnoreMember]
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
 
-    [IgnoreMember]
     IStructualObject? IStructualObject.StructualParent { get; set; }
 
-    [IgnoreMember]
     int IStructualObject.StructualKey { get; set; }
 
     // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
@@ -73,7 +93,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
         else
         {
-            writer.Write(v.pointId);
+            writer.Write(v.PointId);
         }
     }
 
@@ -85,7 +105,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
 
         v ??= new CrystalData.StoragePoint<TData>();
-        v.pointId = reader.ReadUInt64();
+        v.PointId = reader.ReadUInt64();
     }
 
     static void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
@@ -102,13 +122,14 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         else
         {
             var value = new CrystalData.StoragePoint<TData>();
-            value.pointId = v.pointId;
+            value.PointId = v.PointId;
             return value;
         }
     }
 
     #endregion
 
+    [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
     public StoragePoint()
     {
     }
