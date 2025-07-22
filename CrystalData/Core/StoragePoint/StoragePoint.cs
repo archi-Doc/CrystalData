@@ -6,27 +6,6 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-[TinyhandObject]
-public partial record struct StoragePoint2<TData>
-{
-    // [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    [Key(0)]
-    public ulong PointId { get; private set; }
-}
-
-[TinyhandObject(Structual = true)]
-public partial record class TestClass
-{
-    // [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    [Key(0)]
-    public StoragePoint<TestClass> TestStorage { get; set; } = new();
-
-    public void Test()
-    {
-        ((IStructualObject)this).StructualRoot
-    }
-}
-
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting partial data.
 /// </summary>
@@ -48,13 +27,13 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     #region FieldAndProperty
 
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    public ulong PointId { get; private set; }
+    public ulong PointId { get; private set; } // Key:0
 
     private TData? data; // SemaphoreLock
-    private StorageId storageId0;
-    private StorageId storageId1;
-    private StorageId storageId2;
-    // private StorageId storageId3;
+    private uint typeId; // Key:1
+    private StorageId storageId0; // Key:2
+    private StorageId storageId1; // Key:3
+    private StorageId storageId2; // Key:4
 
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
 
@@ -90,6 +69,23 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         if (v == null)
         {
             writer.WriteNil();
+            return;
+        }
+
+        if (options.IsCustomMode)
+        {
+            writer.WriteArrayHeader(5);
+
+            writer.Write(v.PointId);
+            writer.Write(v.typeId);
+            TinyhandSerializer.SerializeObject(ref writer, v.storageId0, options);
+            TinyhandSerializer.SerializeObject(ref writer, v.storageId1, options);
+            TinyhandSerializer.SerializeObject(ref writer, v.storageId2, options);
+        }
+        else if (options.IsSignatureMode)
+        {
+            writer.Write(0x8bc0a639u);
+            writer.Write(v.PointId);
         }
         else
         {
@@ -105,7 +101,68 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
 
         v ??= new CrystalData.StoragePoint<TData>();
-        v.PointId = reader.ReadUInt64();
+        if (!options.IsCustomMode)
+        {
+            v.PointId = reader.ReadUInt64();
+            return;
+        }
+
+        var numberOfData = reader.ReadArrayHeader();
+        options.Security.DepthStep(ref reader);
+        try
+        {
+            if (numberOfData-- > 0 && !reader.TryReadNil())
+            {
+                v.PointId = reader.ReadUInt64();
+            }
+
+            if (numberOfData-- > 0 && !reader.TryReadNil())
+            {
+                v.typeId = reader.ReadUInt32();
+            }
+
+            if (numberOfData-- > 0 && !reader.TryReadNil())
+            {
+                CrystalData.StorageId vd = v.storageId0!;
+                TinyhandSerializer.DeserializeObject(ref reader, ref vd!, options);
+                v.storageId0 = vd;
+            }
+            else
+            {
+                v.storageId0 = default;
+            }
+
+            if (numberOfData-- > 0 && !reader.TryReadNil())
+            {
+                CrystalData.StorageId vd = v.storageId1!;
+                TinyhandSerializer.DeserializeObject(ref reader, ref vd!, options);
+                v.storageId1 = vd;
+            }
+            else
+            {
+                v.storageId1 = default;
+            }
+
+            if (numberOfData-- > 0 && !reader.TryReadNil())
+            {
+                CrystalData.StorageId vd = v.storageId2!;
+                TinyhandSerializer.DeserializeObject(ref reader, ref vd!, options);
+                v.storageId2 = vd;
+            }
+            else
+            {
+                v.storageId2 = default;
+            }
+
+            while (numberOfData-- > 0)
+            {
+                reader.Skip();
+            }
+        }
+        finally
+        {
+            reader.Depth--;
+        }
     }
 
     static void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
@@ -119,12 +176,10 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         {
             return null;
         }
-        else
-        {
-            var value = new CrystalData.StoragePoint<TData>();
-            value.PointId = v.PointId;
-            return value;
-        }
+
+        var value = new CrystalData.StoragePoint<TData>();
+        value.PointId = v.PointId;
+        return value;
     }
 
     #endregion
