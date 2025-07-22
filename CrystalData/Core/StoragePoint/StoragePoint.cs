@@ -1,53 +1,18 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
 
 namespace CrystalData;
 
 /// <summary>
-/// Represents the state of a <see cref="StoragePoint{TData}"/>.
-/// </summary>
-public enum StoragePointState
-{
-    /// <summary>
-    /// The function of <see cref="StoragePoint{TData}" /> is invalid, and the process is bypassed as is.
-    /// </summary>
-    InvalidStorage,
-
-    /// <summary>
-    /// The data is stored on storage and is not loaded into memory.
-    /// </summary>
-    OnStorage,
-
-    /// <summary>
-    /// The data is loaded in memory.
-    /// </summary>
-    InMemory,
-
-    /// <summary>
-    /// The data is loaded in memory and exclusively locked.
-    /// </summary>
-    Locked,
-
-    /// <summary>
-    /// The unloading process is in progress, and operations on the data are disabled.
-    /// </summary>
-    UnloadingInProgress,
-
-    /// <summary>
-    /// The data is unloaded, and operations on the data are disabled.
-    /// </summary>
-    Unloaded,
-}
-
-/// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting partial data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
-[TinyhandObject(ExplicitKeyOnly = true)]
+[TinyhandObject]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData
+public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData, ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>
 {
     public const int MaxHistories = 3; // 4
 
@@ -61,19 +26,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     #region FieldAndProperty
 
-    [IgnoreMember]
     private TData? data; // SemaphoreLock
-
-    [Key(0)]
-    private StorageId storageId0; // SemaphoreLock
-
-    [Key(1)]
-    private StorageId storageId1; // SemaphoreLock
-
-    [Key(2)]
-    private StorageId storageId2; // SemaphoreLock
-
-    // [Key(3)]
+    private ulong pointId;
+    private StorageId storageId0;
+    private StorageId storageId1;
+    private StorageId storageId2;
     // private StorageId storageId3;
 
     [IgnoreMember]
@@ -86,7 +43,6 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     int IStructualObject.StructualKey { get; set; }
 
     // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
-    [IgnoreMember]
     private uint state; // SemaphoreLock
 
     public bool IsActive => (this.state & NegativeStateMask) == 0;
@@ -104,6 +60,52 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public bool CanUnload => this.LockCount == 0;
 
     private uint LockCount => this.state & LockCountMask;
+
+    #endregion
+
+    #region Tinyhand
+
+    static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    {
+        if (v == null)
+        {
+            writer.WriteNil();
+        }
+        else
+        {
+            writer.Write(v.pointId);
+        }
+    }
+
+    static void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    {
+        if (reader.TryReadNil())
+        {
+            return;
+        }
+
+        v ??= new CrystalData.StoragePoint<TData>();
+        v.pointId = reader.ReadUInt64();
+    }
+
+    static void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    {
+        v ??= new CrystalData.StoragePoint<TData>();
+    }
+
+    static StoragePoint<TData>? ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    {
+        if (v == null)
+        {
+            return null;
+        }
+        else
+        {
+            var value = new CrystalData.StoragePoint<TData>();
+            value.pointId = v.pointId;
+            return value;
+        }
+    }
 
     #endregion
 
