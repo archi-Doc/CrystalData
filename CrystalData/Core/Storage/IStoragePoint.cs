@@ -50,6 +50,8 @@ public enum ProbeMode
     /// Unlock all child elements.
     /// </summary>
     UnlockAll,
+
+    Remove,
 }
 
 /// <summary>
