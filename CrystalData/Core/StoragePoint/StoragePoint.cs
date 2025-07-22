@@ -26,7 +26,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     #region FieldAndProperty
 
-    [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
+    [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
     public ulong PointId { get; private set; } // Key:0
 
     private TData? data; // SemaphoreLock
@@ -69,6 +69,12 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         if (v == null)
         {
             writer.WriteNil();
+            return;
+        }
+
+        if (v.IsInvalid)
+        {
+            TinyhandSerializer.Serialize(ref writer, v.data, options);
             return;
         }
 
