@@ -42,7 +42,7 @@ public enum StoragePointState
 }
 
 /// <summary>
-/// <see cref="StoragePoint{TData}"/> is a key component of the data tree, responsible for loading and persisting partial data.
+/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting partial data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
@@ -259,7 +259,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             this.DecrementLockCountInternal();
         }
 
-        return
+        return false;
     }
 
     public async Task<bool> Save(UnloadMode unloadMode)
