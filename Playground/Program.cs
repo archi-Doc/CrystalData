@@ -9,7 +9,7 @@ using Tinyhand;
 namespace Sandbox;
 
 // First, create a class to represent the data content.
-[TinyhandObject] // Annotate TinyhandObject attribute to make this class serializable.
+[TinyhandObject(Structual = true)] // Annotate TinyhandObject attribute to make this class serializable.
 public partial class FirstData
 {
     public FirstData()
@@ -22,6 +22,9 @@ public partial class FirstData
     [Key(1)]
     [DefaultValue("Hoge")] // The default value for the name property.
     public string Name { get; set; } = string.Empty;
+
+    [Key(2)]
+    public StoragePoint<int> IntStorage { get; set; } = new();
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";

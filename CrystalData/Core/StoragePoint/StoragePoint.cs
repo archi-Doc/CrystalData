@@ -30,7 +30,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public ulong PointId { get; private set; } // Key:0
 
     private TData? data; // SemaphoreLock
-    private uint typeId; // Key:1
+    private uint typeIdentifier; // Key:1
     private StorageId storageId0; // Key:2
     private StorageId storageId1; // Key:3
     private StorageId storageId2; // Key:4
@@ -83,7 +83,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             writer.WriteArrayHeader(5);
 
             writer.Write(v.PointId);
-            writer.Write(v.typeId);
+            writer.Write(v.typeIdentifier);
             TinyhandSerializer.SerializeObject(ref writer, v.storageId0, options);
             TinyhandSerializer.SerializeObject(ref writer, v.storageId1, options);
             TinyhandSerializer.SerializeObject(ref writer, v.storageId2, options);
@@ -124,7 +124,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
             if (numberOfData-- > 0 && !reader.TryReadNil())
             {
-                v.typeId = reader.ReadUInt32();
+                v.typeIdentifier = reader.ReadUInt32();
             }
 
             if (numberOfData-- > 0 && !reader.TryReadNil())

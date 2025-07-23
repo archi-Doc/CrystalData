@@ -10,4 +10,8 @@
     <ProjectReference Include="..\CrystalData\CrystalData.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Generated\*" />
+  </ItemGroup>
+
 </Project>
