@@ -78,7 +78,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             return;
         }
 
-        if (options.IsCustomMode)
+        if (options.IsSpecialMode)
         {
             writer.WriteArrayHeader(5);
 
@@ -107,7 +107,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
 
         v ??= new CrystalData.StoragePoint<TData>();
-        if (!options.IsCustomMode)
+        if (!options.IsSpecialMode)
         {
             // If the type is UInt64, it is treated as PointId; otherwise, deserialization is attempted as TData (since cases where TData is ulong are rare, this should generally work without issue).
             if (reader.NextCode == (byte)MessagePackCode.UInt64)
