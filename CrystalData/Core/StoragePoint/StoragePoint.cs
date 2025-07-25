@@ -30,10 +30,10 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public ulong PointId { get; private set; } // Key:0
 
     private TData? data; // SemaphoreLock
-    private uint typeIdentifier; // Key(Custom):1
-    private StorageId storageId0; // Key:2
-    private StorageId storageId1; // Key:3
-    private StorageId storageId2; // Key:4
+    private uint typeIdentifier; // Key(Special):1
+    private StorageId storageId0; // Key(Special):2
+    private StorageId storageId1; // Key(Special):3
+    private StorageId storageId2; // Key(Special):4
 
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
 

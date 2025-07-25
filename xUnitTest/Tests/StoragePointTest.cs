@@ -55,7 +55,7 @@ public class StoragePointTest
 
         var customOptions = TinyhandSerializerOptions.Standard with
         {
-            SerializationMode = TinyhandSerializerOptions.Mode.Custom,
+            SerializationMode = TinyhandSerializerOptions.Mode.Special,
         };
 
         bin = TinyhandSerializer.Serialize(tc, customOptions);
