@@ -212,20 +212,21 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
     }
 
-    /*public void InvalidateStorage(bool invalidStorage)
+    public void Invalidate()
     {
         using (this.Lock())
         {
-            if (invalidStorage)
-            {
-                this.state |= InvalidBit;
-            }
-            else
-            {
-                this.state &= ~InvalidBit;
-            }
+            this.state |= InvalidBit;
         }
-    }*/
+    }
+
+    public void Validate()
+    {
+        using (this.Lock())
+        {
+            this.state &= ~InvalidBit;
+        }
+    }
 
     public async ValueTask<TData?> TryGet()
     {

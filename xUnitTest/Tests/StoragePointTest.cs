@@ -8,14 +8,13 @@ using Xunit;
 namespace xUnitTest.CrystalDataTest;
 
 [TinyhandObject(Structual = true)]
-[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public partial record StoragePointClass : IEquatableObject<StoragePointClass>, IEquatable<StoragePointClass>
+public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass>, IEquatable<NoStoragePointClass>
 {
-    public StoragePointClass(int id, string name, int number)
+    public NoStoragePointClass(int id, string name, string descrption)
     {
         this.id = id;
         this.name = name;
-        this.IntStorage.Set(2);
+        this.Description = descrption;
     }
 
     [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
@@ -27,12 +26,50 @@ public partial record StoragePointClass : IEquatableObject<StoragePointClass>, I
     private string name = string.Empty;
 
     [Key(2)]
-    public StoragePoint<int> IntStorage { get; set; } = new();
+    public string Description { get; set; } = string.Empty;
+
+    bool IEquatableObject<NoStoragePointClass>.ObjectEquals(NoStoragePointClass other)
+        => ((IEquatable<NoStoragePointClass>)this).Equals(other);
+
+    bool IEquatable<NoStoragePointClass>.Equals(NoStoragePointClass? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.id == other.id &&
+            this.name == other.name &&
+            this.Description == other.Description;
+    }
+}
+
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
+public sealed partial record StoragePointClass : IEquatableObject<StoragePointClass>, IEquatable<StoragePointClass>
+{
+    public StoragePointClass(int id, string name, string descrption)
+    {
+        this.id = id;
+        this.name = name;
+        this.StringStorage.Set(descrption);
+    }
+
+    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    private int id;
+
+    [Key(1, AddProperty = "Name")]
+    [Link(Type = ChainType.Ordered)]
+    private string name = string.Empty;
+
+    [Key(2)]
+    public StoragePoint<string> StringStorage { get; set; } = new();
 
     bool IEquatableObject<StoragePointClass>.ObjectEquals(StoragePointClass other)
         => ((IEquatable<StoragePointClass>)this).Equals(other);
 
-    bool IEquatable<StoragePointClass>.Equals(StoragePointClass? other)
+    public bool Equals(StoragePointClass? other)
     {
         if (other is null)
         {
@@ -42,6 +79,18 @@ public partial record StoragePointClass : IEquatableObject<StoragePointClass>, I
         return this.id == other.id &&
             this.name == other.name;
     }
+
+    public bool Equals(NoStoragePointClass? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.id == other.Id &&
+            this.name == other.Name &&
+            this.StringStorage.TryGet().Result == other.Description;
+    }
 }
 
 public class StoragePointTest
@@ -49,11 +98,19 @@ public class StoragePointTest
     [Fact]
     public async Task Test0()
     {
-        var tc = new StoragePointClass(1, "test", 22);
+        var tc = new StoragePointClass(1, "test", "22");
         var bin = TinyhandSerializer.Serialize(tc);
         var tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
 
         bin = TinyhandSerializer.Serialize(tc, TinyhandSerializerOptions.Special);
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin, TinyhandSerializerOptions.Special);
+
+        tc.StringStorage.Invalidate();
+        bin = TinyhandSerializer.Serialize(tc);
+        tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
+        tc.Equals(tc2).IsTrue();
+
+        var td = TinyhandSerializer.Deserialize<NoStoragePointClass>(bin);
+        tc.Equals(td).IsTrue();
     }
 }
