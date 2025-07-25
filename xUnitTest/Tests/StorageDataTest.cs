@@ -10,9 +10,9 @@ namespace xUnitTest.CrystalDataTest;
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public partial record UnloadableClass : IEquatableObject<UnloadableClass>, IEquatable<UnloadableClass>
+public partial record StorageDataClass : IEquatableObject<StorageDataClass>, IEquatable<StorageDataClass>
 {
-    public UnloadableClass()
+    public StorageDataClass()
     {
     }
 
@@ -25,18 +25,18 @@ public partial record UnloadableClass : IEquatableObject<UnloadableClass>, IEqua
     private string name = string.Empty;
 
     [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<UnloadableClass> child = new();
+    private StorageData<StorageDataClass> child = new();
 
     [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<UnloadableClass.GoshujinClass> children = new();
+    private StorageData<StorageDataClass.GoshujinClass> children = new();
 
     [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StorageData<byte[]> byteArray = new();
 
-    bool IEquatableObject<UnloadableClass>.ObjectEquals(UnloadableClass other)
-        => ((IEquatable<UnloadableClass>)this).Equals(other);
+    bool IEquatableObject<StorageDataClass>.ObjectEquals(StorageDataClass other)
+        => ((IEquatable<StorageDataClass>)this).Equals(other);
 
-    bool IEquatable<UnloadableClass>.Equals(UnloadableClass? other)
+    bool IEquatable<StorageDataClass>.Equals(StorageDataClass? other)
     {
         if (other is null)
         {
@@ -51,12 +51,12 @@ public partial record UnloadableClass : IEquatableObject<UnloadableClass>, IEqua
     }
 }
 
-public class UnloadableTest
+public class StorageDataTest
 {
     [Fact]
     public async Task Test1()
     {
-        var crystal = await TestHelper.CreateAndStartCrystal<UnloadableClass.GoshujinClass>(true);
+        var crystal = await TestHelper.CreateAndStartCrystal<StorageDataClass.GoshujinClass>(true);
 
         var g = crystal.Data;
         await crystal.Save(UnloadMode.ForceUnload);
