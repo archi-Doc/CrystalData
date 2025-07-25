@@ -30,7 +30,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     public ulong PointId { get; private set; } // Key:0
 
     private TData? data; // SemaphoreLock
-    private uint typeIdentifier; // Key:1
+    private uint typeIdentifier; // Key(Custom):1
     private StorageId storageId0; // Key:2
     private StorageId storageId1; // Key:3
     private StorageId storageId2; // Key:4
@@ -95,7 +95,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
         else
         {
-            writer.Write(v.PointId);
+            writer.WriteUInt64(v.PointId);
         }
     }
 
@@ -109,7 +109,16 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         v ??= new CrystalData.StoragePoint<TData>();
         if (!options.IsCustomMode)
         {
-            v.PointId = reader.ReadUInt64();
+            // If the type is UInt64, it is treated as PointId; otherwise, deserialization is attempted as TData (since cases where TData is ulong are rare, this should generally work without issue).
+            if (reader.NextCode == (byte)MessagePackCode.UInt64)
+            {
+                v.PointId = reader.ReadUInt64();
+            }
+            else
+            {
+                v.data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
+            }
+
             return;
         }
 
