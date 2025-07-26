@@ -16,7 +16,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 {
     public const int MaxHistories = 3; // 4
 
-    private const uint InvalidBit = 1u << 31;
+    private const uint DisableBit = 1u << 31;
     private const uint UnloadingBit = 1u << 30;
     private const uint UnloadedBit = 1u << 29;
     private const uint UnloadingAndUnloadedBit = UnloadingBit | UnloadedBit;
@@ -47,7 +47,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     // public bool IsActive => (this.state & NegativeStateMask) == 0;
 
-    public bool IsInvalid => (this.state & InvalidBit) != 0;
+    public bool IsDisabled => (this.state & DisableBit) != 0;
 
     public bool IsLocked => (this.state & LockedBit) != 0;
 
@@ -73,7 +73,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             return;
         }
 
-        if (v.IsInvalid)
+        if (v.IsDisabled)
         {
             TinyhandSerializer.Serialize(ref writer, v.data, options);
             return;
@@ -205,28 +205,28 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     {
     }
 
-    public StoragePoint(bool invalidStorage = false)
+    public StoragePoint(bool disableStorage = false)
     {
-        if (invalidStorage)
+        if (disableStorage)
         {
-            this.state |= InvalidBit;
+            this.state |= DisableBit;
         }
     }
 
-    public void Invalidate()
+    public void Configure(bool disableStorage = false)
     {
-        using (this.Lock())
-        {
-            this.state |= InvalidBit;
-        }
-    }
+        this.Enter(); // using (this.Lock())
 
-    public void Validate()
-    {
-        using (this.Lock())
+        if (disableStorage)
         {
-            this.state &= ~InvalidBit;
+            this.state |= DisableBit;
         }
+        else
+        {
+            this.state &= ~DisableBit;
+        }
+
+        this.Exit();
     }
 
     public async ValueTask<TData?> TryGet()
@@ -337,8 +337,8 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
         else if (probeMode == ProbeMode.IsUnloadedAll)
         {
-            if (!this.IsUnloaded && !this.IsInvalid)
-            {// Not unloaded and not invalid
+            if (!this.IsUnloaded && !this.IsDisabled)
+            {// Not unloaded and not disabled
                 return false;
             }
         }
