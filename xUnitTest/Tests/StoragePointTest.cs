@@ -77,7 +77,8 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
         }
 
         return this.id == other.id &&
-            this.name == other.name;
+            this.name == other.name &&
+            this.StringStorage.DataEquals(other.StringStorage);
     }
 
     public bool Equals(NoStoragePointClass? other)
@@ -91,6 +92,9 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
             this.name == other.Name &&
             this.StringStorage.TryGet().Result == other.Description;
     }
+
+    public override int GetHashCode()
+        => HashCode.Combine(this.id, this.name, this.StringStorage.TryGet().Result);
 }
 
 public class StoragePointTest

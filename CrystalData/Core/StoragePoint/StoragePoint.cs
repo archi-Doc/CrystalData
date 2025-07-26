@@ -20,9 +20,10 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     private const uint UnloadingBit = 1u << 30;
     private const uint UnloadedBit = 1u << 29;
     private const uint UnloadingAndUnloadedBit = UnloadingBit | UnloadedBit;
-    private const uint StateMask = 0xFFFF0000;
-    private const uint NegativeStateMask = 0xFF000000;
-    private const uint LockCountMask = 0x0000FFFF;
+    private const uint LockedBit = 1u << 0;
+    // private const uint StateMask = 0xFFFF0000;
+    // private const uint NegativeStateMask = 0xFF000000;
+    // private const uint LockCountMask = 0x0000FFFF;
 
     #region FieldAndProperty
 
@@ -44,11 +45,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
     private uint state; // SemaphoreLock
 
-    public bool IsActive => (this.state & NegativeStateMask) == 0;
+    // public bool IsActive => (this.state & NegativeStateMask) == 0;
 
     public bool IsInvalid => (this.state & InvalidBit) != 0;
 
-    public bool IsLocked => (this.state & LockCountMask) != 0;
+    public bool IsLocked => (this.state & LockedBit) != 0;
 
     public bool IsUnloading => (this.state & UnloadingBit) != 0;
 
@@ -56,9 +57,9 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public bool IsUnloadingOrUnloaded => (this.state & UnloadingAndUnloadedBit) != 0;
 
-    public bool CanUnload => this.LockCount == 0;
+    public bool CanUnload => !this.IsLocked;
 
-    private uint LockCount => this.state & LockCountMask;
+    // private uint LockCount => this.state & LockCountMask;
 
     #endregion
 
@@ -273,12 +274,9 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
                 return default;
             }
 
-            if (this.LockCount == 0)
+            if (!this.TryLockInternal())
             {
-                this.state = (this.state & 0xFF000000) | 1;
-            }
-            else
-            {
+                return default;
             }
 
             if (this.data is null)
@@ -346,11 +344,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
         else if (probeMode == ProbeMode.LockAll)
         {
-            this.IncrementLockCountInternal();
+            this.TryLockInternal();
         }
         else if (probeMode == ProbeMode.UnlockAll)
         {
-            this.DecrementLockCountInternal();
+            this.UnlockInternal();
         }
 
         return false;
@@ -441,6 +439,38 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     {
         this.EraseInternal();
         ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
+    }
+
+    public bool DataEquals(StoragePoint<TData>? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        var data = this.TryGet().Result;
+        var otherData = other.TryGet().Result;
+        if (data is null)
+        {
+            return otherData is null;
+        }
+        else
+        {
+            return data.Equals(otherData);
+        }
+    }
+
+    public bool DataEquals(TData? otherData)
+    {
+        var data = this.TryGet().Result;
+        if (data is null)
+        {
+            return otherData is null;
+        }
+        else
+        {
+            return data.Equals(otherData);
+        }
     }
 
     #region Journal
@@ -658,7 +688,25 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
     }
 
-    private void IncrementLockCountInternal()
+    private bool TryLockInternal()
+    {
+        if (this.IsLocked)
+        {
+            return false;
+        }
+        else
+        {
+            this.state |= LockedBit;
+            return true;
+        }
+    }
+
+    private void UnlockInternal()
+    {
+        this.state &= ~LockedBit;
+    }
+
+    /*private void IncrementLockCountInternal()
     {
         this.state = (this.state & StateMask) | (this.LockCount + 1);
     }
@@ -666,5 +714,5 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     private void DecrementLockCountInternal()
     {
         this.state = (this.state & StateMask) | (this.LockCount - 1);
-    }
+    }*/
 }
