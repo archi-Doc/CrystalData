@@ -2,12 +2,13 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Tinyhand;
 using Tinyhand.IO;
 
 namespace CrystalData;
 
 /// <summary>
-/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting partial data.
+/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject]
@@ -16,11 +17,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 {
     public const int MaxHistories = 3; // 4
 
-    private const uint DisableBit = 1u << 31;
-    private const uint UnloadingBit = 1u << 30;
-    private const uint UnloadedBit = 1u << 29;
-    private const uint UnloadingAndUnloadedBit = UnloadingBit | UnloadedBit;
-    private const uint LockedBit = 1u << 0;
+    private const uint DisabledStateBit = 1u << 31;
+    private const uint UnloadingStateBit = 1u << 30;
+    private const uint UnloadedStateBit = 1u << 29;
+    private const uint UnloadingAndUnloadedStateBit = UnloadingStateBit | UnloadedStateBit;
+    private const uint LockedStateBit = 1u << 0;
     // private const uint StateMask = 0xFFFF0000;
     // private const uint NegativeStateMask = 0xFF000000;
     // private const uint LockCountMask = 0x0000FFFF;
@@ -28,34 +29,36 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     #region FieldAndProperty
 
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
-    public ulong PointId { get; private set; } // Key:0
+    public ulong PointId { get; private set; } // Lock:StorageControl, Key:0
 
-    private TData? data; // SemaphoreLock
-    private uint typeIdentifier; // Key(Special):1
-    private StorageId storageId0; // Key(Special):2
-    private StorageId storageId1; // Key(Special):3
-    private StorageId storageId2; // Key(Special):4
+    private TData? data; // Lock:this
+    private uint typeIdentifier; // Lock:this, Key(Special):1
+    private StorageId storageId0; // Lock:this, Key(Special):2
+    private StorageId storageId1; // Lock:this, Key(Special):3
+    private StorageId storageId2; // Lock:this, Key(Special):4
 
-    IStructualRoot? IStructualObject.StructualRoot { get; set; }
+    IStructualRoot? IStructualObject.StructualRoot { get; set; } // Lock:
 
-    IStructualObject? IStructualObject.StructualParent { get; set; }
+    IStructualObject? IStructualObject.StructualParent { get; set; } // Lock:
 
-    int IStructualObject.StructualKey { get; set; }
+    int IStructualObject.StructualKey { get; set; } // Lock:
 
-    // 31bit:Invalid storage, 30bit:Unloading, 29bit:Unload, 23-0bit:Lock count.
-    private uint state; // SemaphoreLock
+    private uint state; // Lock:this
 
-    // public bool IsActive => (this.state & NegativeStateMask) == 0;
+    // Chain Lock:StorageControl
 
-    public bool IsDisabled => (this.state & DisableBit) != 0;
+    /// <summary>
+    /// Gets a value indicating whether storage is disabled, and data is serialized directly.
+    /// </summary>
+    public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
-    public bool IsLocked => (this.state & LockedBit) != 0;
+    public new bool IsLocked => (this.state & LockedStateBit) != 0;
 
-    public bool IsUnloading => (this.state & UnloadingBit) != 0;
+    public bool IsUnloading => (this.state & UnloadingStateBit) != 0;
 
-    public bool IsUnloaded => (this.state & UnloadedBit) != 0;
+    public bool IsUnloaded => (this.state & UnloadedStateBit) != 0;
 
-    public bool IsUnloadingOrUnloaded => (this.state & UnloadingAndUnloadedBit) != 0;
+    public bool IsUnloadingOrUnloaded => (this.state & UnloadingAndUnloadedStateBit) != 0;
 
     public bool CanUnload => !this.IsLocked;
 
@@ -74,13 +77,13 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
 
         if (v.IsDisabled)
-        {
+        {// Storage disabled
             TinyhandSerializer.Serialize(ref writer, v.data, options);
             return;
         }
 
         if (options.IsSpecialMode)
-        {
+        {// StorageControl
             writer.WriteArrayHeader(5);
 
             writer.Write(v.PointId);
@@ -90,12 +93,12 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             TinyhandSerializer.SerializeObject(ref writer, v.storageId2, options);
         }
         else if (options.IsSignatureMode)
-        {
+        {// Signature
             writer.Write(0x8bc0a639u);
             writer.Write(v.PointId);
         }
         else
-        {
+        {// In-class
             writer.WriteUInt64(v.PointId);
         }
     }
@@ -110,10 +113,10 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         v ??= new CrystalData.StoragePoint<TData>();
         if (!options.IsSpecialMode)
         {
-            // If the type is UInt64, it is treated as PointId; otherwise, deserialization is attempted as TData (since cases where TData is ulong are rare, this should generally work without issue).
-            if (reader.NextCode == (byte)MessagePackCode.UInt64)
+            // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
+            if (reader.TryReadUInt64(out var pointId))
             {
-                v.PointId = reader.ReadUInt64();
+                v.PointId = pointId;
             }
             else
             {
@@ -123,6 +126,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
             return;
         }
 
+        // StorageControl
         var numberOfData = reader.ReadArrayHeader();
         options.Security.DepthStep(ref reader);
         try
@@ -207,29 +211,17 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public StoragePoint(bool disableStorage = false)
     {
-        if (disableStorage)
-        {
-            this.state |= DisableBit;
-        }
+        this.ConfigureStorage(disableStorage);
     }
 
     public void Configure(bool disableStorage = false)
     {
         this.Enter(); // using (this.Lock())
-
-        if (disableStorage)
-        {
-            this.state |= DisableBit;
-        }
-        else
-        {
-            this.state &= ~DisableBit;
-        }
-
+        this.ConfigureStorage(disableStorage);
         this.Exit();
     }
 
-    public async ValueTask<TData?> TryGet()
+    public async ValueTask<TData?> TryGet(bool createIfNotExists = true)
     {
         if (this.data is { } data)
         {
@@ -240,7 +232,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         try
         {
             if (this.IsUnloadingOrUnloaded)
-            {
+            {// Unloading or unloaded
                 return default;
             }
 
@@ -250,7 +242,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
                 // this.PrepareData() is called from PrepareAndLoadInternal().
             }
 
-            if (this.data is null)
+            if (this.data is null && createIfNotExists)
             {// Reconstruct
                 this.data = TinyhandSerializer.Reconstruct<TData>();
                 this.PrepareData(0);
@@ -264,7 +256,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
     }
 
-    public async ValueTask<TData?> TryLock()
+    public async ValueTask<TData?> TryLock(bool createIfNotExists = true)
     {
         await this.EnterAsync().ConfigureAwait(false);
         try
@@ -437,7 +429,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     public void Erase()
     {
-        this.EraseInternal();
+        this.EraseStorage();
         ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
     }
 
@@ -473,7 +465,12 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
     }
 
-    #region Journal
+    #region IStructualObject
+
+    void IStructualObject.SetParent(IStructualObject? parent, int key)
+    {
+        ((IStructualObject)this).SetParentActual(parent, key);
+    }
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
@@ -484,7 +481,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
         if (record == JournalRecord.EraseStorage)
         {// Erase storage
-            this.EraseInternal();
+            this.EraseStorage();
             return true;
         }
         else if (record == JournalRecord.AddStorage)
@@ -502,7 +499,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
         if (this.data is null)
         {
-            this.data = this.TryGet().Result;
+            this.data = this.TryGet(false).Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -633,7 +630,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }*/
     }
 
-    private void EraseInternal()
+    private void EraseStorage()
     {
         IStructualObject? structualObject;
         ulong id0;
@@ -696,23 +693,26 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
         else
         {
-            this.state |= LockedBit;
+            this.state |= LockedStateBit;
             return true;
         }
     }
 
     private void UnlockInternal()
     {
-        this.state &= ~LockedBit;
+        this.state &= ~LockedStateBit;
     }
 
-    /*private void IncrementLockCountInternal()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ConfigureStorage(bool disableStorage)
     {
-        this.state = (this.state & StateMask) | (this.LockCount + 1);
+        if (disableStorage)
+        {
+            this.state |= DisabledStateBit;
+        }
+        else
+        {
+            this.state &= ~DisabledStateBit;
+        }
     }
-
-    private void DecrementLockCountInternal()
-    {
-        this.state = (this.state & StateMask) | (this.LockCount - 1);
-    }*/
 }
