@@ -99,7 +99,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
         else
         {// In-class
-            writer.WriteUInt64(v.PointId);
+            writer.Write(v.PointId);
         }
     }
 
