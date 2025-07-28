@@ -8,8 +8,12 @@ namespace CrystalData;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
+/// <summary>
+/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.
+/// </summary>
+/// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StoragePointStruct<TData>>, ITinyhandReconstructable<StoragePointStruct<TData>>, ITinyhandCloneable<StoragePointStruct<TData>>, IStructualObject
+public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
 {
     #region FiendAndProperty
 
@@ -18,9 +22,9 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
     private ulong pointId;
 
-    private StoragePoint<TData>? underlyingStoragePoint;
+    private StoragePointClass<TData>? underlyingStoragePoint;
 
-    private StoragePoint<TData> StoragePoint
+    private StoragePointClass<TData> UnderlyingStoragePoint
     {
         get
         {
@@ -31,7 +35,7 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
             if (((IStructualObject)this).StructualRoot is ICrystal crystal)
             {
-                this.underlyingStoragePoint = (StoragePoint<TData>)crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId);
+                this.underlyingStoragePoint = (StoragePointClass<TData>)crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId);
                 return this.underlyingStoragePoint;
             }
 
@@ -42,16 +46,16 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
     #endregion
 
-    public StoragePointStruct()
+    public StoragePoint()
     {
     }
 
-    public StoragePointStruct(ulong pointId)
+    public StoragePoint(ulong pointId)
     {
         this.pointId = pointId;
     }
 
-    public void Set(TData data) => this.StoragePoint.Set(data);
+    public void Set(TData data) => this.UnderlyingStoragePoint.Set(data);
 
     #region IStructualObject
 
@@ -98,34 +102,30 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
     #endregion
 
-    static void ITinyhandSerializable<StoragePointStruct<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
         writer.Write(v.pointId);
     }
 
-    static unsafe void ITinyhandSerializable<StoragePointStruct<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    static unsafe void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
         v.pointId = reader.ReadUInt64();
     }
 
-    static unsafe void ITinyhandReconstructable<StoragePointStruct<TData>>.Reconstruct([NotNull] scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    static unsafe void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
         v = default;
     }
 
-    static unsafe StoragePointStruct<TData> ITinyhandCloneable<StoragePointStruct<TData>>.Clone(scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    static unsafe StoragePoint<TData> ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
         return new(v.pointId);
     }
 }
 
-/// <summary>
-/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.
-/// </summary>
-/// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData, ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>
+public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData, ITinyhandSerializable<StoragePointClass<TData>>, ITinyhandReconstructable<StoragePointClass<TData>>, ITinyhandCloneable<StoragePointClass<TData>>
 {
     public const int MaxHistories = 3; // 4
 
@@ -180,7 +180,7 @@ public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, ISto
 
     #region Tinyhand
 
-    static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<StoragePointClass<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
     {
         if (v == null)
         {
@@ -215,14 +215,14 @@ public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, ISto
         }
     }
 
-    static void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<StoragePointClass<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
     {
         if (reader.TryReadNil())
         {
             return;
         }
 
-        v ??= new CrystalData.StoragePoint<TData>();
+        v ??= new CrystalData.StoragePointClass<TData>();
         if (!options.IsSpecialMode)
         {
             // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
@@ -297,19 +297,19 @@ public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, ISto
         }
     }
 
-    static void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    static void ITinyhandReconstructable<StoragePointClass<TData>>.Reconstruct([NotNull] scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
     {
-        v ??= new CrystalData.StoragePoint<TData>();
+        v ??= new CrystalData.StoragePointClass<TData>();
     }
 
-    static StoragePoint<TData>? ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
+    static StoragePointClass<TData>? ITinyhandCloneable<StoragePointClass<TData>>.Clone(scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
     {
         if (v == null)
         {
             return null;
         }
 
-        var value = new CrystalData.StoragePoint<TData>();
+        var value = new CrystalData.StoragePointClass<TData>();
         value.PointId = v.PointId;
         return value;
     }
@@ -317,11 +317,11 @@ public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, ISto
     #endregion
 
     [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
-    public StoragePoint()
+    public StoragePointClass()
     {
     }
 
-    public StoragePoint(bool disableStorage = false)
+    public StoragePointClass(bool disableStorage = false)
     {
         this.ConfigureStorage(disableStorage);
     }
@@ -545,7 +545,7 @@ public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, ISto
         ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
     }
 
-    public bool DataEquals(StoragePoint<TData>? other)
+    public bool DataEquals(StoragePointClass<TData>? other)
     {
         if (other is null)
         {
