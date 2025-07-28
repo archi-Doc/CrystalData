@@ -64,7 +64,7 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
     private string name = string.Empty;
 
     [Key(2)]
-    public StoragePointClass<string> StringStorage { get; set; } = new();
+    public StoragePoint<string> StringStorage { get; set; } = new();
 
     // [Key(3)]
     // public StoragePointStruct<string> StringStorage2 { get; set; }
