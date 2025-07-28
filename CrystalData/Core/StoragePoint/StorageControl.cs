@@ -6,7 +6,18 @@ namespace CrystalData;
 
 public partial class StorageControl
 {
+    #region FiendAndProperty
+
+    // private readonly StoragePoint
+
+    #endregion
+
     internal StorageControl(Crystalizer crystalizer)
     {
+    }
+
+    public object? GetOrCreate(ref ulong pointId)
+    {
+        return default;
     }
 }

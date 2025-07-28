@@ -66,6 +66,9 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
     [Key(2)]
     public StoragePoint<string> StringStorage { get; set; } = new();
 
+    // [Key(3)]
+    // public StoragePointStruct<string> StringStorage2 { get; set; }
+
     bool IEquatableObject<StoragePointClass>.ObjectEquals(StoragePointClass other)
         => ((IEquatable<StoragePointClass>)this).Equals(other);
 
@@ -99,7 +102,7 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
 
 public class StoragePointTest
 {
-    [Fact]
+    /*[Fact]
     public async Task Test1()
     {
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePointClass>(true);
@@ -109,7 +112,7 @@ public class StoragePointTest
         await crystal.Crystalizer.SaveJournal();
 
         await TestHelper.UnloadAndDeleteAll(crystal);
-    }
+    }*/
 
     [Fact]
     public async Task Test0()

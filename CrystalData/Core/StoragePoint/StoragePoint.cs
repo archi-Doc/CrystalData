@@ -13,9 +13,32 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 {
     #region FiendAndProperty
 
-    public ulong PointId;
+    public Type DataType
+        => typeof(TData);
+
+    private ulong pointId;
 
     private StoragePoint<TData>? underlyingStoragePoint;
+
+    private StoragePoint<TData> StoragePoint
+    {
+        get
+        {
+            if (this.underlyingStoragePoint is not null)
+            {
+                return this.underlyingStoragePoint;
+            }
+
+            if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+            {
+                this.underlyingStoragePoint = (StoragePoint<TData>)crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId);
+                return this.underlyingStoragePoint;
+            }
+
+            this.underlyingStoragePoint = new();
+            return this.underlyingStoragePoint;
+        }
+    }
 
     #endregion
 
@@ -25,8 +48,10 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
     public StoragePointStruct(ulong pointId)
     {
-        this.PointId = pointId;
+        this.pointId = pointId;
     }
+
+    public void Set(TData data) => this.StoragePoint.Set(data);
 
     #region IStructualObject
 
@@ -75,12 +100,12 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
     static void ITinyhandSerializable<StoragePointStruct<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
     {
-        writer.Write(v.PointId);
+        writer.Write(v.pointId);
     }
 
     static unsafe void ITinyhandSerializable<StoragePointStruct<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
     {
-        v.PointId = reader.ReadUInt64();
+        v.pointId = reader.ReadUInt64();
     }
 
     static unsafe void ITinyhandReconstructable<StoragePointStruct<TData>>.Reconstruct([NotNull] scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
@@ -90,7 +115,7 @@ public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StorageP
 
     static unsafe StoragePointStruct<TData> ITinyhandCloneable<StoragePointStruct<TData>>.Clone(scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
     {
-        return new(v.PointId);
+        return new(v.pointId);
     }
 }
 
