@@ -2,61 +2,76 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Tinyhand;
 using Tinyhand.IO;
 
 namespace CrystalData;
 
+#pragma warning disable SA1204 // Static elements should appear before instance elements
+
 [TinyhandObject(ExplicitKeyOnly = true)]
 public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StoragePointStruct<TData>>, ITinyhandReconstructable<StoragePointStruct<TData>>, ITinyhandCloneable<StoragePointStruct<TData>>, IStructualObject
 {
+    #region FiendAndProperty
+
     public ulong PointId;
 
-    private StoragePoint<TData>? storagePoint;
+    private StoragePoint<TData>? underlyingStoragePoint;
 
-    public StoragePoint<TData>? StoragePoint
-        => this.storagePoint ??= new StoragePoint<TData>();
+    #endregion
 
-    IStructualRoot? IStructualObject.StructualRoot
+    public StoragePointStruct()
     {
-        get => this.storagePoint?.StructualRoot;
-        set
-        {
-            if (this.storagePoint is not null)
-            {
-                this.storagePoint.StructualRoot = value;
-            }
-        }
-    }
-
-    IStructualObject? IStructualObject.StructualParent
-    {
-        get => this.storagePoint?.StructualParent;
-        set
-        {
-            if (this.storagePoint is not null)
-            {
-                this.storagePoint.StructualParent = value;
-            }
-        }
-    }
-
-    int IStructualObject.StructualKey
-    {
-        get => this.storagePoint is null ? 0 : this.storagePoint.StructualKey;
-        set
-        {
-            if (this.storagePoint is not null)
-            {
-                this.storagePoint.StructualKey = value;
-            }
-        }
     }
 
     public StoragePointStruct(ulong pointId)
     {
         this.PointId = pointId;
     }
+
+    #region IStructualObject
+
+    IStructualRoot? IStructualObject.StructualRoot
+    {
+        get => this.underlyingStoragePoint?.StructualRoot;
+        set
+        {
+            if (this.underlyingStoragePoint is not null)
+            {
+                this.underlyingStoragePoint.StructualRoot = value;
+            }
+        }
+    }
+
+    IStructualObject? IStructualObject.StructualParent
+    {
+        get => this.underlyingStoragePoint?.StructualParent;
+        set
+        {
+            if (this.underlyingStoragePoint is not null)
+            {
+                this.underlyingStoragePoint.StructualParent = value;
+            }
+        }
+    }
+
+    int IStructualObject.StructualKey
+    {
+        get => this.underlyingStoragePoint is null ? 0 : this.underlyingStoragePoint.StructualKey;
+        set
+        {
+            if (this.underlyingStoragePoint is not null)
+            {
+                this.underlyingStoragePoint.StructualKey = value;
+            }
+        }
+    }
+
+    void IStructualObject.SetupStructure(IStructualObject? parent, int key)
+    {//
+        ((IStructualObject)this).SetParentAndKey(parent, key);
+    }
+
+    #endregion
 
     static void ITinyhandSerializable<StoragePointStruct<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
     {
