@@ -6,9 +6,11 @@ using Tinyhand.IO;
 
 namespace CrystalData.Internal;
 
+#pragma warning disable SA1202 // Elements should be ordered by access
+
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyhandSerializable<StoragePointClass>, ITinyhandReconstructable<StoragePointClass>, ITinyhandCloneable<StoragePointClass>
+public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITinyhandSerializable<StoragePointClass>, ITinyhandReconstructable<StoragePointClass>, ITinyhandCloneable<StoragePointClass>
 {
     public const int MaxHistories = 3; // 4
 
@@ -17,19 +19,25 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
     private const uint UnloadedStateBit = 1u << 29;
     private const uint UnloadingAndUnloadedStateBit = UnloadingStateBit | UnloadedStateBit;
     private const uint LockedStateBit = 1u << 0;
-    // private const uint StateMask = 0xFFFF0000;
-    // private const uint NegativeStateMask = 0xFF000000;
-    // private const uint LockCountMask = 0x0000FFFF;
 
     #region FieldAndProperty
 
+    [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
     public ulong PointId { get; private set; } // Lock:StorageControl, Key:0
 
     private object? data; // Lock:this
+
+    [Key(1)]
     private uint typeIdentifier; // Lock:this, Key(Special):1
+
+    [Key(2)]
     private StorageId storageId0; // Lock:this, Key(Special):2
+
+    [Key(3)]
     private StorageId storageId1; // Lock:this, Key(Special):3
+
+    [Key(4)]
     private StorageId storageId2; // Lock:this, Key(Special):4
 
     public IStructualRoot? StructualRoot { get; set; } // Lock:
@@ -39,8 +47,6 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
     public int StructualKey { get; set; } // Lock:
 
     private uint state; // Lock:this
-
-    // Chain Lock:StorageControl
 
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
@@ -63,7 +69,26 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
 
     #region Tinyhand
 
-    static void ITinyhandSerializable<StoragePointClass>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
+    internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
+    {
+        if (options.IsSignatureMode)
+        {// Signature
+            writer.Write(0x8bc0a639u);
+            writer.Write(this.PointId);
+            return;
+        }
+
+        if (this.IsDisabled)
+        {// Storage disabled
+            TinyhandTypeIdentifier.TrySerialize(ref writer, this.typeIdentifier, this.data, options);
+        }
+        else
+        {// In-class
+            writer.Write(this.PointId);
+        }
+    }
+
+    /*static void ITinyhandSerializable<StoragePointClass>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
         if (v == null)
         {
@@ -96,9 +121,9 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         {// In-class
             writer.Write(v.PointId);
         }
-    }
+    }*/
 
-    static void ITinyhandSerializable<StoragePointClass>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
+    /*static void ITinyhandSerializable<StoragePointClass>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
         if (reader.TryReadNil())
         {
@@ -108,16 +133,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         v ??= new(0, 0);//
         if (!options.IsSpecialMode)
         {
-            // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
-            if (reader.TryReadUInt64(out var pointId))
-            {
-                v.PointId = pointId;
-            }
-            else
-            {
-                v.data = TinyhandSerializer.Deserialize(ref reader, options);
-            }
-
+            v.data = TinyhandSerializer.Deserialize(ref reader, options);
             return;
         }
 
@@ -178,9 +194,9 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         {
             reader.Depth--;
         }
-    }
+    }*/
 
-    static void ITinyhandReconstructable<StoragePointClass>.Reconstruct([NotNull] scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
+    /*static void ITinyhandReconstructable<StoragePointClass>.Reconstruct([NotNull] scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
         v ??= new StoragePointClass(0, 0);
     }
@@ -198,7 +214,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         value.storageId2 = v.storageId2;
         value.state = v.state;
         return value;
-    }
+    }*/
 
     #endregion
 
@@ -209,14 +225,14 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         this.typeIdentifier = typeIdentifier;
     }
 
-    public void Configure(bool disableStorage = false)
+    internal void Configure(bool disableStorage = false)
     {
         this.Enter(); // using (this.Lock())
         this.ConfigureStorage(disableStorage);
         this.Exit();
     }
 
-    public async ValueTask<object?> TryGet(bool createIfNotExists = true)
+    internal async ValueTask<object?> TryGet(bool createIfNotExists = true)
     {
         if (this.data is { } data)
         {
@@ -239,7 +255,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
 
             if (this.data is null && createIfNotExists)
             {// Reconstruct
-                this.data = TinyhandSerializer.Reconstruct<TData>();
+                this.data = TinyhandTypeIdentifier.TryReconstruct(this.typeIdentifier);
                 this.PrepareData(0);
             }
 
@@ -251,7 +267,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         }
     }
 
-    public async ValueTask<object?> TryLock(bool createIfNotExists = true)
+    internal async ValueTask<object?> TryLock(bool createIfNotExists = true)
     {
         await this.EnterAsync().ConfigureAwait(false);
         try
@@ -279,7 +295,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
             {// Reconstruct
                 if (!this.IsUnloaded)
                 {
-                    this.data = TinyhandSerializer.Reconstruct<TData>();
+                    this.data = TinyhandTypeIdentifier.TryReconstruct(this.typeIdentifier);
                     this.PrepareData(0);
                 }
             }
@@ -292,7 +308,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         }
     }
 
-    public void Set(object data, int sizeHint = 0)
+    internal void Set(object data, int sizeHint = 0)
     {// Journaling is not supported.
         using (this.Lock())
         {
@@ -305,12 +321,12 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         }*/
     }
 
-    public async Task<bool> Save(UnloadMode2 mode)
+    internal async Task<bool> Save(UnloadMode2 mode)
     {
         return false;
     }
 
-    public bool Probe(ProbeMode probeMode)
+    internal bool Probe(ProbeMode probeMode)
     {
         if (probeMode == ProbeMode.IsUnloadableAll)
         {
@@ -338,7 +354,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         return false;
     }
 
-    public async Task<bool> Save(UnloadMode unloadMode)
+    internal async Task<bool> Save(UnloadMode unloadMode)
     {
         if (this.data is null)
         {// No data
@@ -419,7 +435,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyh
         return true;
     }
 
-    public void Erase()
+    internal void Erase()
     {
         this.EraseStorage();
         ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);

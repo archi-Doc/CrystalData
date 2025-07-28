@@ -109,13 +109,24 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
 
     static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
-        TinyhandSerializer.SerializeObject(ref writer, v.UnderlyingStoragePoint, options);
         // writer.Write(v.pointId);
+        v.UnderlyingStoragePoint.SerializeStoragePoint(ref writer, options);
     }
 
     static unsafe void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
-        v.pointId = reader.ReadUInt64();
+        // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
+        if (reader.TryReadUInt64(out var pointId))
+        {
+            v.pointId = pointId;
+        }
+        else
+        {
+            var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
+            v.underlyingStoragePoint = new(0, TinyhandTypeIdentifier.GetTypeIdentifier<TData>());
+            // v.underlyingStoragePoint.data = data;
+            v.underlyingStoragePoint.Set(data);
+        }
     }
 
     static unsafe void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
@@ -134,13 +145,8 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
         return (TData?)data;
     }
 
-    public bool DataEquals(StoragePoint<TData>? other)
+    public bool DataEquals(StoragePoint<TData> other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-
         var data = this.TryGet().Result;
         var otherData = other.TryGet().Result;
         if (data is null)
