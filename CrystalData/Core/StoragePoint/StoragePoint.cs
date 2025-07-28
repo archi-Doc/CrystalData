@@ -7,13 +7,85 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+[TinyhandObject(ExplicitKeyOnly = true)]
+public partial struct StoragePointStruct<TData> : ITinyhandSerializable<StoragePointStruct<TData>>, ITinyhandReconstructable<StoragePointStruct<TData>>, ITinyhandCloneable<StoragePointStruct<TData>>, IStructualObject
+{
+    public ulong PointId;
+
+    private StoragePoint<TData>? storagePoint;
+
+    public StoragePoint<TData>? StoragePoint
+        => this.storagePoint ??= new StoragePoint<TData>();
+
+    IStructualRoot? IStructualObject.StructualRoot
+    {
+        get => this.storagePoint?.StructualRoot;
+        set
+        {
+            if (this.storagePoint is not null)
+            {
+                this.storagePoint.StructualRoot = value;
+            }
+        }
+    }
+
+    IStructualObject? IStructualObject.StructualParent
+    {
+        get => this.storagePoint?.StructualParent;
+        set
+        {
+            if (this.storagePoint is not null)
+            {
+                this.storagePoint.StructualParent = value;
+            }
+        }
+    }
+
+    int IStructualObject.StructualKey
+    {
+        get => this.storagePoint is null ? 0 : this.storagePoint.StructualKey;
+        set
+        {
+            if (this.storagePoint is not null)
+            {
+                this.storagePoint.StructualKey = value;
+            }
+        }
+    }
+
+    public StoragePointStruct(ulong pointId)
+    {
+        this.PointId = pointId;
+    }
+
+    static void ITinyhandSerializable<StoragePointStruct<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    {
+        writer.Write(v.PointId);
+    }
+
+    static unsafe void ITinyhandSerializable<StoragePointStruct<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    {
+        v.PointId = reader.ReadUInt64();
+    }
+
+    static unsafe void ITinyhandReconstructable<StoragePointStruct<TData>>.Reconstruct([NotNull] scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    {
+        v = default;
+    }
+
+    static unsafe StoragePointStruct<TData> ITinyhandCloneable<StoragePointStruct<TData>>.Clone(scoped ref StoragePointStruct<TData> v, TinyhandSerializerOptions options)
+    {
+        return new(v.PointId);
+    }
+}
+
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData, ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>
+public partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData, ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>
 {
     public const int MaxHistories = 3; // 4
 
@@ -37,11 +109,11 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     private StorageId storageId1; // Lock:this, Key(Special):3
     private StorageId storageId2; // Lock:this, Key(Special):4
 
-    IStructualRoot? IStructualObject.StructualRoot { get; set; } // Lock:
+    public IStructualRoot? StructualRoot { get; set; } // Lock:
 
-    IStructualObject? IStructualObject.StructualParent { get; set; } // Lock:
+    public IStructualObject? StructualParent { get; set; } // Lock:
 
-    int IStructualObject.StructualKey { get; set; } // Lock:
+    public int StructualKey { get; set; } // Lock:
 
     private uint state; // Lock:this
 
@@ -467,9 +539,9 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
 
     #region IStructualObject
 
-    void IStructualObject.SetParent(IStructualObject? parent, int key)
+    void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
-        ((IStructualObject)this).SetParentActual(parent, key);
+        ((IStructualObject)this).SetParentAndKey(parent, key);
     }
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
@@ -572,7 +644,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     {
         if (this.data is IStructualObject structualObject)
         {
-            structualObject.SetParent(this);
+            structualObject.SetupStructure(this);
         }
 
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)

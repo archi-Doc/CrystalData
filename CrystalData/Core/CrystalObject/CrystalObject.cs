@@ -424,7 +424,7 @@ Exit:
 
                 if (currentObject is IStructualObject structualObject)
                 {
-                    structualObject.SetParent(this);
+                    structualObject.SetupStructure(this);
                 }
 
                 if (previousObject is not null)
@@ -807,7 +807,7 @@ Exit:
         if (this.data is IStructualObject journalObject)
         {
             // journalObject.Journal = this;
-            journalObject.SetParent(this);
+            journalObject.SetupStructure(this);
         }
     }
 

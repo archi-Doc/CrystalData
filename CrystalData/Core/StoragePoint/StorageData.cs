@@ -289,7 +289,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
     {
         if (this.data is IStructualObject structualObject)
         {
-            structualObject.SetParent(this);
+            structualObject.SetupStructure(this);
         }
 
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
