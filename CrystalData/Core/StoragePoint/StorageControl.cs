@@ -2,6 +2,8 @@
 
 #pragma warning disable SA1202
 
+using CrystalData.Internal;
+
 namespace CrystalData;
 
 public partial class StorageControl
@@ -16,7 +18,7 @@ public partial class StorageControl
     {
     }
 
-    public object? GetOrCreate(ref ulong pointId)
+    public StoragePointClass GetOrCreate(ref ulong pointId)
     {
         return default;
     }

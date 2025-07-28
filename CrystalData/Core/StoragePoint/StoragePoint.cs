@@ -13,18 +13,21 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
+public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IStoragePoint
 {
     #region FiendAndProperty
 
     public Type DataType
         => typeof(TData);
 
+    public uint TypeIdentifier
+        => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+
     private ulong pointId;
 
-    private StoragePointClass<TData>? underlyingStoragePoint;
+    private StoragePointClass? underlyingStoragePoint;
 
-    private StoragePointClass<TData> UnderlyingStoragePoint
+    private StoragePointClass UnderlyingStoragePoint
     {
         get
         {
@@ -35,11 +38,11 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
 
             if (((IStructualObject)this).StructualRoot is ICrystal crystal)
             {
-                this.underlyingStoragePoint = (StoragePointClass<TData>)crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId);
+                this.underlyingStoragePoint = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId);
                 return this.underlyingStoragePoint;
             }
 
-            this.underlyingStoragePoint = new();
+            this.underlyingStoragePoint = new(0, 0);
             return this.underlyingStoragePoint;
         }
     }
@@ -95,6 +98,8 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
         }
     }
 
+    Type IStoragePoint.DataType => throw new NotImplementedException();
+
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {//
         ((IStructualObject)this).SetParentAndKey(parent, key);
@@ -104,7 +109,8 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
 
     static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
-        writer.Write(v.pointId);
+        TinyhandSerializer.SerializeObject(ref writer, v.UnderlyingStoragePoint, options);
+        // writer.Write(v.pointId);
     }
 
     static unsafe void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
@@ -120,5 +126,53 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
     static unsafe StoragePoint<TData> ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
     {
         return new(v.pointId);
+    }
+
+    public async ValueTask<TData?> TryGet()
+    {
+        var data = await this.UnderlyingStoragePoint.TryGet().ConfigureAwait(false);
+        return (TData?)data;
+    }
+
+    public bool DataEquals(StoragePoint<TData>? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        var data = this.TryGet().Result;
+        var otherData = other.TryGet().Result;
+        if (data is null)
+        {
+            return otherData is null;
+        }
+        else
+        {
+            return data.Equals(otherData);
+        }
+    }
+
+    public bool DataEquals(TData? otherData)
+    {
+        var data = this.TryGet().Result;
+        if (data is null)
+        {
+            return otherData is null;
+        }
+        else
+        {
+            return data.Equals(otherData);
+        }
+    }
+
+    Task<bool> IStoragePoint.Save(UnloadMode2 unloadMode)
+    {
+        throw new NotImplementedException();
+    }
+
+    bool IStoragePoint.Probe(ProbeMode probeMode)
+    {
+        throw new NotImplementedException();
     }
 }

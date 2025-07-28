@@ -6,9 +6,9 @@ using Tinyhand.IO;
 
 namespace CrystalData.Internal;
 
-[TinyhandObject]
+[TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject, IStoragePoint, IStorageData, ITinyhandSerializable<StoragePointClass<TData>>, ITinyhandReconstructable<StoragePointClass<TData>>, ITinyhandCloneable<StoragePointClass<TData>>
+public partial class StoragePointClass : SemaphoreLock, IStructualObject, ITinyhandSerializable<StoragePointClass>, ITinyhandReconstructable<StoragePointClass>, ITinyhandCloneable<StoragePointClass>
 {
     public const int MaxHistories = 3; // 4
 
@@ -26,7 +26,7 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
     public ulong PointId { get; private set; } // Lock:StorageControl, Key:0
 
-    private TData? data; // Lock:this
+    private object? data; // Lock:this
     private uint typeIdentifier; // Lock:this, Key(Special):1
     private StorageId storageId0; // Lock:this, Key(Special):2
     private StorageId storageId1; // Lock:this, Key(Special):3
@@ -63,7 +63,7 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
 
     #region Tinyhand
 
-    static void ITinyhandSerializable<StoragePointClass<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<StoragePointClass>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
         if (v == null)
         {
@@ -98,14 +98,14 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         }
     }
 
-    static void ITinyhandSerializable<StoragePointClass<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<StoragePointClass>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
         if (reader.TryReadNil())
         {
             return;
         }
 
-        v ??= new StoragePointClass<TData>();
+        v ??= new(0, 0);//
         if (!options.IsSpecialMode)
         {
             // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
@@ -115,7 +115,7 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
             }
             else
             {
-                v.data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
+                v.data = TinyhandSerializer.Deserialize(ref reader, options);
             }
 
             return;
@@ -180,33 +180,33 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         }
     }
 
-    static void ITinyhandReconstructable<StoragePointClass<TData>>.Reconstruct([NotNull] scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
+    static void ITinyhandReconstructable<StoragePointClass>.Reconstruct([NotNull] scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
-        v ??= new StoragePointClass<TData>();
+        v ??= new StoragePointClass(0, 0);
     }
 
-    static StoragePointClass<TData>? ITinyhandCloneable<StoragePointClass<TData>>.Clone(scoped ref StoragePointClass<TData>? v, TinyhandSerializerOptions options)
+    static StoragePointClass? ITinyhandCloneable<StoragePointClass>.Clone(scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
     {
         if (v == null)
         {
             return null;
         }
 
-        var value = new StoragePointClass<TData>();
-        value.PointId = v.PointId;
+        var value = new StoragePointClass(v.PointId, v.typeIdentifier);
+        value.storageId0 = v.storageId0;
+        value.storageId1 = v.storageId1;
+        value.storageId2 = v.storageId2;
+        value.state = v.state;
         return value;
     }
 
     #endregion
 
     [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
-    public StoragePointClass()
+    public StoragePointClass(ulong pointId, uint typeIdentifier)
     {
-    }
-
-    public StoragePointClass(bool disableStorage = false)
-    {
-        this.ConfigureStorage(disableStorage);
+        this.PointId = pointId;
+        this.typeIdentifier = typeIdentifier;
     }
 
     public void Configure(bool disableStorage = false)
@@ -216,7 +216,7 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         this.Exit();
     }
 
-    public async ValueTask<TData?> TryGet(bool createIfNotExists = true)
+    public async ValueTask<object?> TryGet(bool createIfNotExists = true)
     {
         if (this.data is { } data)
         {
@@ -251,7 +251,7 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         }
     }
 
-    public async ValueTask<TData?> TryLock(bool createIfNotExists = true)
+    public async ValueTask<object?> TryLock(bool createIfNotExists = true)
     {
         await this.EnterAsync().ConfigureAwait(false);
         try
@@ -292,21 +292,18 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         }
     }
 
-    public void Set(TData data, int sizeHint = 0)
+    public void Set(object data, int sizeHint = 0)
     {// Journaling is not supported.
         using (this.Lock())
         {
             this.data = data;
         }
 
-        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        /*if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
             crystal.Crystalizer.Memory.Register(this, sizeHint);
-        }
+        }*/
     }
-
-    public Type DataType
-        => typeof(TData);
 
     public async Task<bool> Save(UnloadMode2 mode)
     {
@@ -428,38 +425,6 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
     }
 
-    public bool DataEquals(StoragePointClass<TData>? other)
-    {
-        if (other is null)
-        {
-            return false;
-        }
-
-        var data = this.TryGet().Result;
-        var otherData = other.TryGet().Result;
-        if (data is null)
-        {
-            return otherData is null;
-        }
-        else
-        {
-            return data.Equals(otherData);
-        }
-    }
-
-    public bool DataEquals(TData? otherData)
-    {
-        var data = this.TryGet().Result;
-        if (data is null)
-        {
-            return otherData is null;
-        }
-        else
-        {
-            return data.Equals(otherData);
-        }
-    }
-
     #region IStructualObject
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
@@ -550,11 +515,11 @@ public partial class StoragePointClass<TData> : SemaphoreLock, IStructualObject,
         // Deserialize
         try
         {
-            this.data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
-            this.PrepareData(result.Data.Span.Length);
-        }
-        catch
-        {
+            this.data = TinyhandTypeIdentifier.TryDeserialize(this.typeIdentifier, result.Data.Span);
+            if (this.data is not null)
+            {
+                this.PrepareData(result.Data.Span.Length);
+            }
         }
         finally
         {
