@@ -225,6 +225,12 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
         this.typeIdentifier = typeIdentifier;
     }
 
+    internal StoragePointClass(uint typeIdentifier)
+    {
+        this.typeIdentifier = typeIdentifier;
+        this.state |= DisabledStateBit;
+    }
+
     internal async ValueTask<object?> TryGet(bool createIfNotExists = true)
     {
         if (this.data is { } data)
@@ -301,7 +307,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
         }
     }
 
-    internal void Set(object data, int sizeHint = 0)
+    internal void Set(object? data, int sizeHint = 0)
     {// Journaling is not supported.
         using (this.Lock())
         {

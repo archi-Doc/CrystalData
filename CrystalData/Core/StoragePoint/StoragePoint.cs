@@ -17,15 +17,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 {
     #region FiendAndProperty
 
+    private ulong pointId;
+
+    private StoragePointClass? underlyingStoragePoint;
+
     public Type DataType
         => typeof(TData);
 
     public uint TypeIdentifier
         => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
-
-    private ulong pointId;
-
-    private StoragePointClass? underlyingStoragePoint;
 
     private StoragePointClass UnderlyingStoragePoint
     {
@@ -38,11 +38,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
             if (((IStructualObject)this).StructualRoot is ICrystal crystal)
             {
-                this.underlyingStoragePoint = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId);
+                this.underlyingStoragePoint = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
                 return this.underlyingStoragePoint;
             }
 
-            this.underlyingStoragePoint = new(0, 0);
+            this.underlyingStoragePoint = new(this.TypeIdentifier);
             return this.underlyingStoragePoint;
         }
     }
@@ -51,11 +51,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public StoragePoint()
     {
-    }
-
-    public StoragePoint(ulong pointId)
-    {
-        this.pointId = pointId;
     }
 
     public void DisableStorage()
@@ -113,36 +108,58 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
-    static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
+    static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
     {
-        // writer.Write(v.pointId);
-        v.UnderlyingStoragePoint.SerializeStoragePoint(ref writer, options);
+        if (v is null)
+        {
+            writer.WriteNil();
+        }
+        else
+        {
+            // writer.Write(v.pointId);
+            v.UnderlyingStoragePoint.SerializeStoragePoint(ref writer, options);
+        }
     }
 
-    static unsafe void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
+    static unsafe void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
     {
-        // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
+        if (reader.TryReadNil())
+        {
+            v = default;
+            return;
+        }
+
+        v ??= new();
         if (reader.TryReadUInt64(out var pointId))
         {
+            // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
             v.pointId = pointId;
         }
         else
         {
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
-            v.underlyingStoragePoint = new(0, TinyhandTypeIdentifier.GetTypeIdentifier<TData>());
-            // v.underlyingStoragePoint.data = data;
+            v.underlyingStoragePoint = new(TinyhandTypeIdentifier.GetTypeIdentifier<TData>());
             v.underlyingStoragePoint.Set(data);
         }
     }
 
-    static unsafe void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
+    static unsafe void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
     {
-        v = default;
+        v ??= new();
     }
 
-    static unsafe StoragePoint<TData> ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData> v, TinyhandSerializerOptions options)
+    static unsafe StoragePoint<TData>? ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
     {
-        return new(v.pointId);
+        if (v is null)
+        {
+            return null;
+        }
+        else
+        {
+            var obj = new StoragePoint<TData>();
+            obj.pointId = v.pointId;
+            return obj;
+        }
     }
 
     public async ValueTask<TData?> TryGet()

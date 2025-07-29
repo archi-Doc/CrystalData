@@ -10,7 +10,7 @@ public partial class StorageControl
 {
     #region FiendAndProperty
 
-    // private readonly StoragePoint
+    private readonly StoragePointClass.GoshujinClass storagePoints = new();
 
     #endregion
 
@@ -18,8 +18,27 @@ public partial class StorageControl
     {
     }
 
-    public StoragePointClass GetOrCreate(ref ulong pointId)
+    public StoragePointClass GetOrCreate(ref ulong pointId, uint typeIdentifier)
     {
-        return default;
+        using (this.storagePoints.LockObject.EnterScope())
+        {
+            if (pointId != 0 &&
+                this.storagePoints.PointIdChain.TryGetValue(pointId, out var obj))
+            {// Found existing StoragePoint.
+                return obj;
+            }
+
+            while (true)
+            {
+                pointId = RandomVault.Default.NextUInt64();
+                if (!this.storagePoints.PointIdChain.ContainsKey(pointId))
+                {
+                    break;
+                }
+            }
+
+            obj = new StoragePointClass(pointId, typeIdentifier);
+            return obj;
+        }
     }
 }
