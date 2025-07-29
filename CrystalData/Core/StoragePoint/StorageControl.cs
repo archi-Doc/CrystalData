@@ -62,6 +62,7 @@ public partial class StorageControl
             }
 
             obj = new StorageObject(pointId, typeIdentifier);
+            obj.Goshujin = this.storagePoints;
             return obj;
         }
     }

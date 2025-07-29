@@ -17,7 +17,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 {
     #region FiendAndProperty
 
-    private ulong pointId;
+    private ulong pointId; // Lock:StorageControl
     private StorageObject? underlyingStorageObject;
 
     public Type DataType
@@ -220,11 +220,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.underlyingStorageObject;
         }
 
-        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        /*if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
             this.underlyingStorageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
             return this.underlyingStorageObject;
-        }
+        }*/
 
         this.underlyingStorageObject = new(this.TypeIdentifier);
         return this.underlyingStorageObject;
