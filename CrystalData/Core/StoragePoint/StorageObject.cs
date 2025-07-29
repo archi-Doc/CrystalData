@@ -23,12 +23,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
-    public ulong PointId { get; private set; } // Lock:StorageControl, Key:0
-
-    private object? data; // Lock:this
+    private ulong pointId; // Lock:StorageControl, Key:0
 
     [Key(1)]
-    public uint TypeIdentifier { get; private set; } // Lock:this, Key(Special):1
+    private uint typeIdentifier; // Lock:this, Key(Special):1
 
     [Key(2)]
     private StorageId storageId0; // Lock:this, Key(Special):2
@@ -39,13 +37,18 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     [Key(4)]
     private StorageId storageId2; // Lock:this, Key(Special):4
 
+    private object? data; // Lock:this
+    private uint state; // Lock:this
+
     public IStructualRoot? StructualRoot { get; set; } // Lock:
 
     public IStructualObject? StructualParent { get; set; } // Lock:
 
     public int StructualKey { get; set; } // Lock:
 
-    private uint state; // Lock:this
+    public ulong PointId => this.pointId;
+
+    public uint TypeIdentifier => this.typeIdentifier;
 
     private StorageControl? storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : null;
 
@@ -64,20 +67,18 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public bool CanUnload => !this.IsLocked;
 
-    // private uint LockCount => this.state & LockCountMask;
-
     #endregion
 
     [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
     public StorageObject(ulong pointId, uint typeIdentifier)
     {
-        this.PointId = pointId;
-        this.TypeIdentifier = typeIdentifier;
+        this.pointId = pointId;
+        this.typeIdentifier = typeIdentifier;
     }
 
     internal StorageObject(uint typeIdentifier)
     {
-        this.TypeIdentifier = typeIdentifier;
+        this.typeIdentifier = typeIdentifier;
         this.state |= DisabledStateBit;
     }
 
@@ -86,17 +87,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         if (options.IsSignatureMode)
         {// Signature
             writer.Write(0x8bc0a639u);
-            writer.Write(this.PointId);
+            writer.Write(this.pointId);
             return;
         }
 
         if (this.IsDisabled && this.data is not null)
         {// Storage disabled
-            TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.TypeIdentifier, this.data, options);
+            TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
         else
         {// In-class
-            writer.Write(this.PointId);
+            writer.Write(this.pointId);
         }
     }
 
@@ -104,7 +105,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl?.Update(this.PointId);
+            this.storageControl?.Update(this.pointId);
             return (TData)data;
         }
 
@@ -124,8 +125,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.data is null && createIfNotExists)
             {// Reconstruct
-                this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
+                this.data = TinyhandSerializer.Reconstruct<TData>();
                 this.PrepareData(0);
+            }
+
+            if (this.data is not null)
+            {
+                this.typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
             }
 
             return (TData?)this.data;
@@ -164,7 +170,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             {// Reconstruct
                 if (!this.IsUnloaded)
                 {
-                    this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
+                    this.data = TinyhandTypeIdentifier.TryReconstruct(this.typeIdentifier);
                     this.PrepareData(0);
                 }
             }
@@ -177,11 +183,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal void Set(object? data, int sizeHint = 0)
+    internal void Set<TData>(TData data)
     {// Journaling is not supported.
         using (this.Lock())
         {
             this.data = data;
+            this.typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+            this.storageControl?.GetOrCreate(ref this.pointId, this.typeIdentifier);
         }
 
         /*if (((IStructualObject)this).StructualRoot is ICrystal crystal)
@@ -400,7 +408,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         // Deserialize
         try
         {
-            this.data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+            this.data = TinyhandTypeIdentifier.TryDeserialize(this.typeIdentifier, result.Data.Span);
             if (this.data is not null)
             {
                 this.PrepareData(result.Data.Span.Length);
