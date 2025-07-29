@@ -58,6 +58,12 @@ public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<T
         this.pointId = pointId;
     }
 
+    public void DisableStorage()
+        => this.UnderlyingStoragePoint.ConfigureStorage(true);
+
+    public void EnableStorage()
+        => this.UnderlyingStoragePoint.ConfigureStorage(false);
+
     public void Set(TData data) => this.UnderlyingStoragePoint.Set(data);
 
     #region IStructualObject

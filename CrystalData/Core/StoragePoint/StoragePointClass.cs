@@ -78,9 +78,9 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
             return;
         }
 
-        if (this.IsDisabled)
+        if (this.IsDisabled && this.data is not null)
         {// Storage disabled
-            TinyhandTypeIdentifier.TrySerialize(ref writer, this.typeIdentifier, this.data, options);
+            TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
         else
         {// In-class
@@ -223,13 +223,6 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
     {
         this.PointId = pointId;
         this.typeIdentifier = typeIdentifier;
-    }
-
-    internal void Configure(bool disableStorage = false)
-    {
-        this.Enter(); // using (this.Lock())
-        this.ConfigureStorage(disableStorage);
-        this.Exit();
     }
 
     internal async ValueTask<object?> TryGet(bool createIfNotExists = true)
@@ -423,7 +416,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
 
             if (unloadMode.IsUnload())
             {// Unload
-                crystal.Crystalizer.Memory.ReportUnloaded(this, dataSize);
+                //crystal.Crystalizer.Memory.ReportUnloaded(this, dataSize);
                 this.data = default;
             }
         }
@@ -553,7 +546,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
 
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
-            crystal.Crystalizer.Memory.Register(this, dataSize);
+            //crystal.Crystalizer.Memory.Register(this, dataSize);
         }
     }
 
@@ -680,8 +673,10 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ConfigureStorage(bool disableStorage)
+    internal void ConfigureStorage(bool disableStorage)
     {
+        this.Enter(); // using (this.Lock())
+
         if (disableStorage)
         {
             this.state |= DisabledStateBit;
@@ -690,5 +685,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
         {
             this.state &= ~DisabledStateBit;
         }
+
+        this.Exit();
     }
 }
