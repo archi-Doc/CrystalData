@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
 
@@ -10,7 +9,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public partial class StoragePointClass : SemaphoreLock, IStructualObject
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 {
     public const int MaxHistories = 3; // 4
 
@@ -29,7 +28,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
     private object? data; // Lock:this
 
     [Key(1)]
-    private uint typeIdentifier; // Lock:this, Key(Special):1
+    public uint TypeIdentifier { get; private set; } // Lock:this, Key(Special):1
 
     [Key(2)]
     private StorageId storageId0; // Lock:this, Key(Special):2
@@ -47,6 +46,8 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
     public int StructualKey { get; set; } // Lock:
 
     private uint state; // Lock:this
+
+    private StorageControl? storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : null;
 
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
@@ -68,15 +69,15 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
     #endregion
 
     [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
-    public StoragePointClass(ulong pointId, uint typeIdentifier)
+    public StorageObject(ulong pointId, uint typeIdentifier)
     {
         this.PointId = pointId;
-        this.typeIdentifier = typeIdentifier;
+        this.TypeIdentifier = typeIdentifier;
     }
 
-    internal StoragePointClass(uint typeIdentifier)
+    internal StorageObject(uint typeIdentifier)
     {
-        this.typeIdentifier = typeIdentifier;
+        this.TypeIdentifier = typeIdentifier;
         this.state |= DisabledStateBit;
     }
 
@@ -91,7 +92,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
 
         if (this.IsDisabled && this.data is not null)
         {// Storage disabled
-            TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
+            TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.TypeIdentifier, this.data, options);
         }
         else
         {// In-class
@@ -99,11 +100,12 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<object?> TryGet(bool createIfNotExists = true)
+    internal async ValueTask<TData?> TryGet<TData>(bool createIfNotExists = true)
     {
         if (this.data is { } data)
         {
-            return data;
+            this.storageControl?.Update(this.PointId);
+            return (TData)data;
         }
 
         await this.EnterAsync().ConfigureAwait(false);
@@ -122,11 +124,11 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
 
             if (this.data is null && createIfNotExists)
             {// Reconstruct
-                this.data = TinyhandTypeIdentifier.TryReconstruct(this.typeIdentifier);
+                this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
                 this.PrepareData(0);
             }
 
-            return this.data;
+            return (TData?)this.data;
         }
         finally
         {
@@ -162,7 +164,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
             {// Reconstruct
                 if (!this.IsUnloaded)
                 {
-                    this.data = TinyhandTypeIdentifier.TryReconstruct(this.typeIdentifier);
+                    this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
                     this.PrepareData(0);
                 }
             }
@@ -274,10 +276,10 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
                 {
                     if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
                     {
-                        if (this is ITinyhandCustomJournal tinyhandCustomJournal)
+                        /*if (this is ITinyhandCustomJournal tinyhandCustomJournal)
                         {
                             tinyhandCustomJournal.WriteCustomLocator(ref writer);
-                        }
+                        }*/
 
                         writer.Write(JournalRecord.AddStorage);
                         TinyhandSerializer.SerializeObject(ref writer, storageId);
@@ -342,7 +344,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {
-            this.data = this.TryGet(false).Result;
+            this.data = this.TryGet<object>(false).Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -398,7 +400,7 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject
         // Deserialize
         try
         {
-            this.data = TinyhandTypeIdentifier.TryDeserialize(this.typeIdentifier, result.Data.Span);
+            this.data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
             if (this.data is not null)
             {
                 this.PrepareData(result.Data.Span.Length);
