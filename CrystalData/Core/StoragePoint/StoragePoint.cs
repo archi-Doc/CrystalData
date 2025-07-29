@@ -18,7 +18,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     #region FiendAndProperty
 
     private ulong pointId;
-
     private StorageObject? underlyingStorageObject;
 
     public Type DataType
@@ -27,22 +26,20 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public uint TypeIdentifier
         => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
-    private StorageObject GetOrCreate()
-    {
-        if (this.underlyingStorageObject is not null)
-        {
-            return this.underlyingStorageObject;
-        }
+    /// <summary>
+    /// Gets a value indicating whether storage is disabled, and data is serialized directly.
+    /// </summary>
+    public bool IsDisabled => this.GetOrCreate().IsDisabled;
 
-        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
-        {
-            this.underlyingStorageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
-            return this.underlyingStorageObject;
-        }
+    public bool IsLocked => this.GetOrCreate().IsLocked;
 
-        this.underlyingStorageObject = new(this.TypeIdentifier);
-        return this.underlyingStorageObject;
-    }
+    public bool IsUnloading => this.GetOrCreate().IsUnloading;
+
+    public bool IsUnloaded => this.GetOrCreate().IsUnloaded;
+
+    public bool IsUnloadingOrUnloaded => this.GetOrCreate().IsUnloadingOrUnloaded;
+
+    public bool CanUnload => this.GetOrCreate().CanUnload;
 
     #endregion
 
@@ -57,6 +54,36 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         => this.GetOrCreate().ConfigureStorage(false);
 
     public void Set(TData data) => this.GetOrCreate().Set(data);
+
+    public ValueTask<TData?> TryGet()
+        => this.GetOrCreate().TryGet<TData>();
+
+    public bool DataEquals(StoragePoint<TData> other)
+    {
+        var data = this.TryGet().Result;
+        var otherData = other.TryGet().Result;
+        if (data is null)
+        {
+            return otherData is null;
+        }
+        else
+        {
+            return data.Equals(otherData);
+        }
+    }
+
+    public bool DataEquals(TData? otherData)
+    {
+        var data = this.TryGet().Result;
+        if (data is null)
+        {
+            return otherData is null;
+        }
+        else
+        {
+            return data.Equals(otherData);
+        }
+    }
 
     #region IStructualObject
 
@@ -109,6 +136,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     }
 
     #endregion
+
+    #region Tinyhand
 
     static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
     {
@@ -172,35 +201,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }
 
-    public ValueTask<TData?> TryGet()
-        => this.GetOrCreate().TryGet<TData>();
-
-    public bool DataEquals(StoragePoint<TData> other)
-    {
-        var data = this.TryGet().Result;
-        var otherData = other.TryGet().Result;
-        if (data is null)
-        {
-            return otherData is null;
-        }
-        else
-        {
-            return data.Equals(otherData);
-        }
-    }
-
-    public bool DataEquals(TData? otherData)
-    {
-        var data = this.TryGet().Result;
-        if (data is null)
-        {
-            return otherData is null;
-        }
-        else
-        {
-            return data.Equals(otherData);
-        }
-    }
+    #endregion
 
     Task<bool> IStoragePoint.Save(UnloadMode2 unloadMode)
     {
@@ -210,5 +211,22 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     bool IStoragePoint.Probe(ProbeMode probeMode)
     {
         throw new NotImplementedException();
+    }
+
+    private StorageObject GetOrCreate()
+    {
+        if (this.underlyingStorageObject is not null)
+        {
+            return this.underlyingStorageObject;
+        }
+
+        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        {
+            this.underlyingStorageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
+            return this.underlyingStorageObject;
+        }
+
+        this.underlyingStorageObject = new(this.TypeIdentifier);
+        return this.underlyingStorageObject;
     }
 }

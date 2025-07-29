@@ -7,7 +7,7 @@ using Xunit;
 
 namespace xUnitTest.CrystalDataTest;
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structual = false)]
 public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass>, IEquatable<NoStoragePointClass>
 {
     public NoStoragePointClass(int id, string name, string descrption)
@@ -122,6 +122,9 @@ public class StoragePointTest
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin, TinyhandSerializerOptions.Special);
 
         tc.StringStorage.DisableStorage();
+        tc.StringStorage.IsDisabled.IsTrue();
+        tc.StringStorage.EnableStorage();
+        tc.StringStorage.IsDisabled.IsTrue();
         bin = TinyhandSerializer.Serialize(tc);
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
         tc.Equals(tc2).IsTrue();

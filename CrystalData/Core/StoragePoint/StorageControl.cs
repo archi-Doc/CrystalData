@@ -11,6 +11,9 @@ public partial class StorageControl
     #region FiendAndProperty
 
     private readonly StorageObject.GoshujinClass storagePoints = new();
+    private long memoryUsage;
+
+    public long MemoryUsage => this.memoryUsage;
 
     #endregion
 
@@ -32,6 +35,11 @@ public partial class StorageControl
                 this.storagePoints.LastAccessedChain.AddFirst(obj);
             }
         }
+    }
+
+    public void UpdateMemoryUsage(int size)
+    {
+        Interlocked.Add(ref this.memoryUsage, size);
     }
 
     public StorageObject GetOrCreate(ref ulong pointId, uint typeIdentifier)
