@@ -18,7 +18,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     #region FiendAndProperty
 
     private ulong pointId; // Lock:StorageControl
-    private StorageObject? underlyingStorageObject;
+    private StorageObject storageObject; // Lock:StorageControl
 
     public Type DataType
         => typeof(TData);
@@ -29,34 +29,35 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
     /// </summary>
-    public bool IsDisabled => this.GetOrCreate().IsDisabled;
+    public bool IsDisabled => this.storageObject.IsDisabled;
 
-    public bool IsLocked => this.GetOrCreate().IsLocked;
+    public bool IsLocked => this.storageObject.IsLocked;
 
-    public bool IsUnloading => this.GetOrCreate().IsUnloading;
+    public bool IsUnloading => this.storageObject.IsUnloading;
 
-    public bool IsUnloaded => this.GetOrCreate().IsUnloaded;
+    public bool IsUnloaded => this.storageObject.IsUnloaded;
 
-    public bool IsUnloadingOrUnloaded => this.GetOrCreate().IsUnloadingOrUnloaded;
+    public bool IsUnloadingOrUnloaded => this.storageObject.IsUnloadingOrUnloaded;
 
-    public bool CanUnload => this.GetOrCreate().CanUnload;
+    public bool CanUnload => this.storageObject.CanUnload;
 
     #endregion
 
     public StoragePoint()
     {
+        this.storageObject = new(this.TypeIdentifier);
     }
 
     public void DisableStorage()
-        => this.GetOrCreate().ConfigureStorage(true);
+        => this.storageObject.ConfigureStorage(true);
 
     public void EnableStorage()
-        => this.GetOrCreate().ConfigureStorage(false);
+        => this.storageObject.ConfigureStorage(false);
 
-    public void Set(TData data) => this.GetOrCreate().Set(data);
+    public void Set(TData data) => this.storageObject.Set(data);
 
     public ValueTask<TData?> TryGet()
-        => this.GetOrCreate().TryGet<TData>();
+        => this.storageObject.TryGet<TData>();
 
     public bool DataEquals(StoragePoint<TData> other)
     {
@@ -89,36 +90,36 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     IStructualRoot? IStructualObject.StructualRoot
     {// Delegate properties to the underlying StorageObject.
-        get => this.underlyingStorageObject?.StructualRoot;
+        get => this.storageObject?.StructualRoot;
         set
         {
-            if (this.underlyingStorageObject is not null)
+            if (this.storageObject is not null)
             {
-                this.underlyingStorageObject.StructualRoot = value;
+                this.storageObject.StructualRoot = value;
             }
         }
     }
 
     IStructualObject? IStructualObject.StructualParent
     {// Delegate properties to the underlying StorageObject.
-        get => this.underlyingStorageObject?.StructualParent;
+        get => this.storageObject?.StructualParent;
         set
         {
-            if (this.underlyingStorageObject is not null)
+            if (this.storageObject is not null)
             {
-                this.underlyingStorageObject.StructualParent = value;
+                this.storageObject.StructualParent = value;
             }
         }
     }
 
     int IStructualObject.StructualKey
     {// Delegate properties to the underlying StorageObject.
-        get => this.underlyingStorageObject is null ? 0 : this.underlyingStorageObject.StructualKey;
+        get => this.storageObject is null ? 0 : this.storageObject.StructualKey;
         set
         {
-            if (this.underlyingStorageObject is not null)
+            if (this.storageObject is not null)
             {
-                this.underlyingStorageObject.StructualKey = value;
+                this.storageObject.StructualKey = value;
             }
         }
     }
@@ -127,11 +128,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
-        if (this.underlyingStorageObject is null &&
+        if (this.storageObject is null &&
             parent?.StructualRoot is ICrystal crystal)
         {
-            this.underlyingStorageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
-            ((IStructualObject)this.underlyingStorageObject).SetParentAndKey(parent, key);
+            this.storageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
+            ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
         }
     }
 
@@ -145,13 +146,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             writer.WriteNil();
         }
-        else if (v.underlyingStorageObject is null)
-        {// In-class
-            writer.Write(v.pointId);
-        }
         else
         {// StorageObject
-            v.underlyingStorageObject.SerializeStoragePoint(ref writer, options);
+            v.storageObject.SerializeStoragePoint(ref writer, options);
         }
     }
 
@@ -165,7 +162,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
         v ??= new();
         if (reader.TryReadUInt64(out var pointId))
-        {
+        {//
             // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
             v.pointId = pointId;
         }
@@ -173,12 +170,12 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
             var typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
-            if (v.underlyingStorageObject is null || v.underlyingStorageObject.TypeIdentifier != typeIdentifier)
+            if (v.storageObject is null || v.storageObject.TypeIdentifier != typeIdentifier)
             {
-                v.underlyingStorageObject = new(typeIdentifier);
+                v.storageObject = new(typeIdentifier);
             }
 
-            v.underlyingStorageObject.Set(data);
+            v.storageObject.Set(data);
         }
     }
 
@@ -211,22 +208,5 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     bool IStoragePoint.Probe(ProbeMode probeMode)
     {
         throw new NotImplementedException();
-    }
-
-    private StorageObject GetOrCreate()
-    {
-        if (this.underlyingStorageObject is not null)
-        {
-            return this.underlyingStorageObject;
-        }
-
-        /*if (((IStructualObject)this).StructualRoot is ICrystal crystal)
-        {
-            this.underlyingStorageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
-            return this.underlyingStorageObject;
-        }*/
-
-        this.underlyingStorageObject = new(this.TypeIdentifier);
-        return this.underlyingStorageObject;
     }
 }

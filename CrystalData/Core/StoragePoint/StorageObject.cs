@@ -79,7 +79,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     internal StorageObject(uint typeIdentifier)
     {
         this.typeIdentifier = typeIdentifier;
-        this.state |= DisabledStateBit;
+        // this.state |= DisabledStateBit;
     }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
@@ -91,7 +91,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if (this.IsDisabled && this.data is not null)
+        if ((this.storageControl is null || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
