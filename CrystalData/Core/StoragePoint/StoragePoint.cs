@@ -13,7 +13,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial struct StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IStoragePoint
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IStoragePoint
 {
     #region FiendAndProperty
 
