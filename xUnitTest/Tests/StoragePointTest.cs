@@ -102,7 +102,7 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
 
 public class StoragePointTest
 {
-    /*[Fact]
+    [Fact]
     public async Task Test1()
     {
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePointClass>(true);
@@ -112,7 +112,7 @@ public class StoragePointTest
         await crystal.Crystalizer.SaveJournal();
 
         await TestHelper.UnloadAndDeleteAll(crystal);
-    }*/
+    }
 
     [Fact]
     public async Task Test0()

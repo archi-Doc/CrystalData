@@ -103,6 +103,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {//
+        var x = this.UnderlyingStoragePoint;
         ((IStructualObject)this).SetParentAndKey(parent, key);
     }
 
