@@ -10,7 +10,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITinyhandSerializable<StoragePointClass>, ITinyhandReconstructable<StoragePointClass>, ITinyhandCloneable<StoragePointClass>
+public partial class StoragePointClass : SemaphoreLock, IStructualObject
 {
     public const int MaxHistories = 3; // 4
 
@@ -67,7 +67,18 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
 
     #endregion
 
-    #region Tinyhand
+    [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
+    public StoragePointClass(ulong pointId, uint typeIdentifier)
+    {
+        this.PointId = pointId;
+        this.typeIdentifier = typeIdentifier;
+    }
+
+    internal StoragePointClass(uint typeIdentifier)
+    {
+        this.typeIdentifier = typeIdentifier;
+        this.state |= DisabledStateBit;
+    }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
     {
@@ -86,149 +97,6 @@ public partial class StoragePointClass : SemaphoreLock, IStructualObject//, ITin
         {// In-class
             writer.Write(this.PointId);
         }
-    }
-
-    /*static void ITinyhandSerializable<StoragePointClass>.Serialize(ref TinyhandWriter writer, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
-    {
-        if (v == null)
-        {
-            writer.WriteNil();
-            return;
-        }
-
-        if (v.IsDisabled)
-        {// Storage disabled
-            TinyhandSerializer.Serialize(ref writer, v.data, options);
-            return;
-        }
-
-        if (options.IsSpecialMode)
-        {// StorageControl
-            writer.WriteArrayHeader(5);
-
-            writer.Write(v.PointId);
-            writer.Write(v.typeIdentifier);
-            TinyhandSerializer.SerializeObject(ref writer, v.storageId0, options);
-            TinyhandSerializer.SerializeObject(ref writer, v.storageId1, options);
-            TinyhandSerializer.SerializeObject(ref writer, v.storageId2, options);
-        }
-        else if (options.IsSignatureMode)
-        {// Signature
-            writer.Write(0x8bc0a639u);
-            writer.Write(v.PointId);
-        }
-        else
-        {// In-class
-            writer.Write(v.PointId);
-        }
-    }*/
-
-    /*static void ITinyhandSerializable<StoragePointClass>.Deserialize(ref TinyhandReader reader, scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
-    {
-        if (reader.TryReadNil())
-        {
-            return;
-        }
-
-        v ??= new(0, 0);//
-        if (!options.IsSpecialMode)
-        {
-            v.data = TinyhandSerializer.Deserialize(ref reader, options);
-            return;
-        }
-
-        // StorageControl
-        var numberOfData = reader.ReadArrayHeader();
-        options.Security.DepthStep(ref reader);
-        try
-        {
-            if (numberOfData-- > 0 && !reader.TryReadNil())
-            {
-                v.PointId = reader.ReadUInt64();
-            }
-
-            if (numberOfData-- > 0 && !reader.TryReadNil())
-            {
-                v.typeIdentifier = reader.ReadUInt32();
-            }
-
-            if (numberOfData-- > 0 && !reader.TryReadNil())
-            {
-                CrystalData.StorageId vd = v.storageId0!;
-                TinyhandSerializer.DeserializeObject(ref reader, ref vd!, options);
-                v.storageId0 = vd;
-            }
-            else
-            {
-                v.storageId0 = default;
-            }
-
-            if (numberOfData-- > 0 && !reader.TryReadNil())
-            {
-                CrystalData.StorageId vd = v.storageId1!;
-                TinyhandSerializer.DeserializeObject(ref reader, ref vd!, options);
-                v.storageId1 = vd;
-            }
-            else
-            {
-                v.storageId1 = default;
-            }
-
-            if (numberOfData-- > 0 && !reader.TryReadNil())
-            {
-                CrystalData.StorageId vd = v.storageId2!;
-                TinyhandSerializer.DeserializeObject(ref reader, ref vd!, options);
-                v.storageId2 = vd;
-            }
-            else
-            {
-                v.storageId2 = default;
-            }
-
-            while (numberOfData-- > 0)
-            {
-                reader.Skip();
-            }
-        }
-        finally
-        {
-            reader.Depth--;
-        }
-    }*/
-
-    /*static void ITinyhandReconstructable<StoragePointClass>.Reconstruct([NotNull] scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
-    {
-        v ??= new StoragePointClass(0, 0);
-    }
-
-    static StoragePointClass? ITinyhandCloneable<StoragePointClass>.Clone(scoped ref StoragePointClass? v, TinyhandSerializerOptions options)
-    {
-        if (v == null)
-        {
-            return null;
-        }
-
-        var value = new StoragePointClass(v.PointId, v.typeIdentifier);
-        value.storageId0 = v.storageId0;
-        value.storageId1 = v.storageId1;
-        value.storageId2 = v.storageId2;
-        value.state = v.state;
-        return value;
-    }*/
-
-    #endregion
-
-    [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
-    public StoragePointClass(ulong pointId, uint typeIdentifier)
-    {
-        this.PointId = pointId;
-        this.typeIdentifier = typeIdentifier;
-    }
-
-    internal StoragePointClass(uint typeIdentifier)
-    {
-        this.typeIdentifier = typeIdentifier;
-        this.state |= DisabledStateBit;
     }
 
     internal async ValueTask<object?> TryGet(bool createIfNotExists = true)

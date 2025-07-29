@@ -103,22 +103,26 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {//
-        var x = this.UnderlyingStoragePoint;
-        ((IStructualObject)this).SetParentAndKey(parent, key);
+        if (this.underlyingStoragePoint is null &&
+            parent?.StructualRoot is ICrystal crystal)
+        {
+            this.underlyingStoragePoint = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
+            ((IStructualObject)this).SetParentAndKey(parent, key);
+        }
     }
 
     #endregion
 
     static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
     {
-        if (v is null)
+        if (v?.underlyingStoragePoint is null)
         {
             writer.WriteNil();
         }
         else
         {
             // writer.Write(v.pointId);
-            v.UnderlyingStoragePoint.SerializeStoragePoint(ref writer, options);
+            v.underlyingStoragePoint.SerializeStoragePoint(ref writer, options);
         }
     }
 
