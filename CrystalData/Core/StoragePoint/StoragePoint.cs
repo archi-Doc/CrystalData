@@ -19,7 +19,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     #region FiendAndProperty
 
     private ulong pointId; // Lock:StorageControl
-    private StorageObject? storageObject;
+    private StorageObject? storageObject; // Lock:StorageControl
 
     public Type DataType
         => typeof(TData);
@@ -131,7 +131,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         if (this.storageObject is null &&
             parent?.StructualRoot is ICrystal crystal)
         {
-            crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier, out this.storageObject);
+            crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier, ref this.storageObject);
             ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
         }
     }
@@ -173,10 +173,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         else
         {
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
+            v.storageObject.Remove();
             var typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
             if (v.storageObject is null || v.storageObject.TypeIdentifier != typeIdentifier)
             {
-                v.storageObject = new(typeIdentifier);
+                StorageControl.Default.GetOrCreate(ref v.pointId, typeIdentifier, ref v.storageObject);
             }
 
             v.storageObject.Set(data);
@@ -219,13 +220,14 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        /*if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        StorageControl? storageControl;
+        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
-            this.underlyingStorageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
-            return this.underlyingStorageObject;
-        }*/
+            storageControl = crystal.Crystalizer.StorageControl;
+        }
 
-        this.storageObject = new(this.TypeIdentifier);
+        storageControl ??= default;
+        storageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier, out this.storageObject);
         return this.storageObject;
     }
 }

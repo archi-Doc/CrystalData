@@ -2,12 +2,15 @@
 
 #pragma warning disable SA1202
 
+using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 
 namespace CrystalData;
 
 public partial class StorageControl
 {
+    public static readonly StorageControl Default = new();
+
     #region FiendAndProperty
 
     private readonly StorageObject.GoshujinClass storagePoints = new();
@@ -17,7 +20,7 @@ public partial class StorageControl
 
     #endregion
 
-    internal StorageControl(Crystalizer crystalizer)
+    internal StorageControl()
     {
     }
 
@@ -78,10 +81,15 @@ public partial class StorageControl
         return true;
     }
 
-    public void GetOrCreate(ref ulong pointId, uint typeIdentifier, out StorageObject storageObject)
+    public void GetOrCreate(ref ulong pointId, uint typeIdentifier, [NotNull] ref StorageObject? storageObject)
     {
         using (this.storagePoints.LockObject.EnterScope())
         {
+            if (storageObject is not null)
+            {
+                return;
+            }
+
             var id = pointId;
             if (id != 0 &&
                 this.storagePoints.PointIdChain.TryGetValue(id, out storageObject!))
