@@ -53,7 +53,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    private StorageControl? storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : null;
+    private StorageControl storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : StorageControl.Invalid;
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
@@ -91,7 +91,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if ((this.storageControl is null || this.IsDisabled) && this.data is not null)
+        if ((this.storageControl.IsInvalid || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
@@ -105,7 +105,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl?.Update(this.pointId);
+            this.storageControl.Update(this.pointId);
             return (TData)data;
         }
 
@@ -176,6 +176,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             this.SetDataInternal(data);
         }
+    }
+
+    internal bool TryRemove()
+    {
+        return this.storageControl.TryRemove(this);
     }
 
     internal async Task<bool> Save(UnloadMode2 mode)
@@ -398,7 +403,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     internal void SetDataInternal<TData>(TData data)
     {// this.Lock() required
         BytePool.RentMemory rentMemory = default;
-        var storageControl = this.storageControl;
 
         this.data = data;
         if (this.data is IStructualObject structualObject)
@@ -406,11 +410,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             structualObject.SetupStructure(this);
         }
 
-        if (storageControl is not null)
+        if (this.storageControl.IsValid)
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
             // storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
-            storageControl.UpdateMemoryUsage(rentMemory.Length - this.size);
+            this.storageControl.UpdateMemoryUsage(rentMemory.Length - this.size);
             this.size = rentMemory.Length;
         }
 
@@ -555,7 +559,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
         else
         {// Enable storage
-            if (this.storageControl is not null)
+            if (this.storageControl.IsValid)
             {
                 this.state &= ~DisabledStateBit;
             }

@@ -9,23 +9,34 @@ namespace CrystalData;
 
 public partial class StorageControl
 {
-    public static readonly StorageControl Default = new();
+    public static readonly StorageControl Invalid = new(true);
 
     #region FiendAndProperty
 
+    private readonly bool invalidStorageControl;
     private readonly StorageObject.GoshujinClass storagePoints = new();
     private long memoryUsage;
+
+    public bool IsValid => !this.invalidStorageControl;
+
+    public bool IsInvalid => this.invalidStorageControl;
 
     public long MemoryUsage => this.memoryUsage;
 
     #endregion
 
-    internal StorageControl()
+    internal StorageControl(bool invalid)
     {
+        this.invalidStorageControl = invalid;
     }
 
     public void Update(ulong pointId)
     {
+        if (this.IsInvalid)
+        {
+            return;
+        }
+
         if (pointId == 0)
         {
             return;
@@ -42,11 +53,21 @@ public partial class StorageControl
 
     public void UpdateMemoryUsage(int size)
     {
+        if (this.IsInvalid)
+        {
+            return;
+        }
+
         Interlocked.Add(ref this.memoryUsage, size);
     }
 
     public bool TryRemove(StorageObject storageObject)
     {
+        if (this.IsInvalid)
+        {
+            return true;
+        }
+
         using (this.storagePoints.LockObject.EnterScope())
         {
             if (storageObject.Goshujin != this.storagePoints)
@@ -61,32 +82,20 @@ public partial class StorageControl
         return true;
     }
 
-    public bool TryAdd(StorageObject storageObject)
-    {
-        using (this.storagePoints.LockObject.EnterScope())
-        {
-            var goshujin = storageObject.Goshujin;
-            if (goshujin == this.storagePoints)
-            {// Already added.
-                return true;
-            }
-            else if (goshujin is not null)
-            {
-                return false;
-            }
-
-            storageObject.Goshujin = this.storagePoints;
-        }
-
-        return true;
-    }
-
-    public void GetOrCreate(ref ulong pointId, uint typeIdentifier, [NotNull] ref StorageObject? storageObject)
+    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject)
     {
         using (this.storagePoints.LockObject.EnterScope())
         {
             if (storageObject is not null)
             {
+                return;
+            }
+
+            if (this.IsInvalid)
+            {
+                var typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+                storageObject = new StorageObject(typeIdentifier);
+                pointId = 0;
                 return;
             }
 
@@ -106,7 +115,8 @@ public partial class StorageControl
                 }
             }
 
-            storageObject = new StorageObject(id, typeIdentifier);
+            var typeIdentifier2 = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+            storageObject = new StorageObject(id, typeIdentifier2);
             storageObject.Goshujin = this.storagePoints;
             pointId = id;
         }

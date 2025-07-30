@@ -82,7 +82,7 @@ public class Crystalizer
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
         this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
         this.Memory = new(this, this.CrystalCheck.MemoryStats);
-        this.StorageControl = new(this);
+        this.StorageControl = new(false);
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)

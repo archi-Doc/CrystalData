@@ -131,7 +131,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         if (this.storageObject is null &&
             parent?.StructualRoot is ICrystal crystal)
         {
-            crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier, ref this.storageObject);
+            crystal.Crystalizer.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
             ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
         }
     }
@@ -172,14 +172,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
         else
         {
-            var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
-            v.storageObject.Remove();
-            var typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
-            if (v.storageObject is null || v.storageObject.TypeIdentifier != typeIdentifier)
-            {
-                StorageControl.Default.GetOrCreate(ref v.pointId, typeIdentifier, ref v.storageObject);
-            }
+            v.storageObject?.TryRemove();
+            v.storageObject = default;
 
+            var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
+            StorageControl.Invalid.GetOrCreate<TData>(ref v.pointId, ref v.storageObject);
             v.storageObject.Set(data);
         }
     }
@@ -220,14 +217,14 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        StorageControl? storageControl;
+        StorageControl? storageControl = default;
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
             storageControl = crystal.Crystalizer.StorageControl;
         }
 
-        storageControl ??= default;
-        storageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier, out this.storageObject);
+        storageControl ??= StorageControl.Invalid;
+        storageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
         return this.storageObject;
     }
 }
