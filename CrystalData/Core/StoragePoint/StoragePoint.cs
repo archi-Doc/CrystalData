@@ -124,16 +124,19 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }
 
-    Type IStoragePoint.DataType => throw new NotImplementedException();
-
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
-        if (this.storageObject is null &&
+        if (this.storageObject is not null)
+        {
+            ((IStructualObject)this.storageObject).SetupStructure(parent, key);
+        }
+
+        /*if (this.storageObject is null &&
             parent?.StructualRoot is ICrystal crystal)
         {
             crystal.Crystalizer.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
             ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
-        }
+        }*/
     }
 
     #endregion
@@ -172,8 +175,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
         else
         {
-            v.storageObject?.TryRemove();
-            v.storageObject = default;
+            if (v.storageObject is not null)
+            {
+                v.storageObject.TryRemove();
+                v.storageObject = default;
+            }
 
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
             StorageControl.Invalid.GetOrCreate<TData>(ref v.pointId, ref v.storageObject);
