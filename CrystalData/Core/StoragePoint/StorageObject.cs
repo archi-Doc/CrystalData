@@ -91,7 +91,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if (this.IsDisabled && this.data is not null)
+        if ((this.storageControl is null || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
