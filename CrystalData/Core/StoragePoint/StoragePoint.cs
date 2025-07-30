@@ -9,7 +9,8 @@ namespace CrystalData;
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
 /// <summary>
-/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.
+/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
+/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
