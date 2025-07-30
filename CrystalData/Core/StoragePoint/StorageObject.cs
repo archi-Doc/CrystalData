@@ -53,7 +53,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    private StorageControl storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : StorageControl.Invalid;
+    private StorageControlObsolete storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : StorageControlObsolete.Invalid;
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 

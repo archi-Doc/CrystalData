@@ -1,46 +1,44 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
-using CrystalData.Internal;
+using System.Runtime.CompilerServices;
 using Tinyhand.IO;
 
 namespace CrystalData;
 
-#pragma warning disable SA1204 // Static elements should appear before instance elements
-
 /// <summary>
-/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
-/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
+/// <see cref="StoragePoint{TData}"/> is a subset of <see cref="CrystalObject{TData}"/>, allowing for the persistence of partial data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IStoragePoint
+public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStorageData
 {
-    #region FiendAndProperty
+    public const int MaxHistories = 3; // 4
 
-    private ulong pointId; // Lock:StorageControl
-    private StorageObject? storageObject; // Lock:StorageControl
+    #region FieldAndProperty
 
-    public Type DataType
-        => typeof(TData);
+    [IgnoreMember]
+    private TData? data;
 
-    public uint TypeIdentifier
-        => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+    [Key(0)]
+    private StorageId storageId0;
 
-    /// <summary>
-    /// Gets a value indicating whether storage is disabled, and data is serialized directly.
-    /// </summary>
-    public bool IsDisabled => this.GetOrCreate().IsDisabled;
+    [Key(1)]
+    private StorageId storageId1;
 
-    public bool IsLocked => this.GetOrCreate().IsLocked;
+    [Key(2)]
+    private StorageId storageId2;
 
-    public bool IsUnloading => this.GetOrCreate().IsUnloading;
+    // [Key(3)]
+    // private StorageId storageId3;
 
-    public bool IsUnloaded => this.GetOrCreate().IsUnloaded;
+    [IgnoreMember]
+    IStructualRoot? IStructualObject.StructualRoot { get; set; }
 
-    public bool IsUnloadingOrUnloaded => this.GetOrCreate().IsUnloadingOrUnloaded;
+    [IgnoreMember]
+    IStructualObject? IStructualObject.StructualParent { get; set; }
 
-    public bool CanUnload => this.GetOrCreate().CanUnload;
+    [IgnoreMember]
+    int IStructualObject.StructualKey { get; set; }
 
     #endregion
 
@@ -48,190 +46,359 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     {
     }
 
-    public void DisableStorage()
-        => this.GetOrCreate().ConfigureStorage(true);
-
-    public void EnableStorage()
-        => this.GetOrCreate().ConfigureStorage(false);
-
-    public void Set(TData data)
-        => this.GetOrCreate().Set(data);
-
-    public ValueTask<TData?> TryGet()
-        => this.GetOrCreate().TryGet<TData>();
-
-    public bool DataEquals(StoragePoint<TData> other)
+    public async ValueTask<TData> Get()
     {
-        var data = this.TryGet().Result;
-        var otherData = other.TryGet().Result;
-        if (data is null)
+        if (this.data is { } data)
         {
-            return otherData is null;
+            return data;
+        }
+
+        await this.EnterAsync().ConfigureAwait(false); // using (this.Lock())
+        try
+        {
+            if (this.data is null)
+            {// PrepareAndLoad
+                await this.PrepareAndLoadInternal().ConfigureAwait(false);
+                // this.PrepareData() is called from PrepareAndLoadInternal().
+            }
+
+            if (this.data is null)
+            {// Reconstruct
+                this.data = TinyhandSerializer.Reconstruct<TData>();
+                this.PrepareData(0);
+            }
+
+            return this.data;
+        }
+        finally
+        {
+            this.Exit();
+        }
+    }
+
+    public void Set(TData data, int sizeHint = 0)
+    {// Journaling is not supported.
+        using (this.Lock())
+        {
+            this.data = data;
+        }
+
+        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        {
+            crystal.Crystalizer.Memory.Register(this, sizeHint);
+        }
+    }
+
+    /*public void SetStorageConfiguration(StorageConfiguration storageConfiguration)
+    {
+        using (this.Lock())
+        {
+            this.storageConfiguration = storageConfiguration;
+        }
+    }*/
+
+    public Type DataType
+        => typeof(TData);
+
+    public async Task<bool> Save(UnloadMode unloadMode)
+    {
+        if (this.data is null)
+        {// No data
+            return true;
+        }
+
+        await this.EnterAsync().ConfigureAwait(false); // using (this.Lock())
+        try
+        {
+            if (this.data is null)
+            {// No data
+                return true;
+            }
+
+            if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
+            {// No crystal
+                return true;
+            }
+
+            // Save children
+            if (this.data is IStructualObject structualObject)
+            {
+                var result = await structualObject.Save(unloadMode).ConfigureAwait(false);
+                if (!result)
+                {
+                    return false;
+                }
+            }
+
+            var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
+
+            // Serialize and get hash.
+            var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
+            var dataSize = rentMemory.Span.Length;
+            var hash = FarmHash.Hash64(rentMemory.Span);
+
+            if (hash != this.storageId0.Hash)
+            {// Different data
+                // Put
+                ulong fileId = 0;
+                crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+                var storageId = new StorageId(currentPosition, fileId, hash);
+
+                // Update histories
+                this.AddInternal(crystal, storageId);
+
+                // Journal
+                AddJournal();
+                void AddJournal()
+                {
+                    if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+                    {
+                        if (this is ITinyhandCustomJournal tinyhandCustomJournal)
+                        {
+                            tinyhandCustomJournal.WriteCustomLocator(ref writer);
+                        }
+
+                        writer.Write(JournalRecord.AddStorage);
+                        TinyhandSerializer.SerializeObject(ref writer, storageId);
+                        root.AddJournal(ref writer);
+                    }
+                }
+            }
+
+            rentMemory.Return();
+
+            if (unloadMode.IsUnload())
+            {// Unload
+                crystal.Crystalizer.Memory.ReportUnloaded(this, dataSize);
+                this.data = default;
+            }
+        }
+        finally
+        {
+            this.Exit();
+        }
+
+        return true;
+    }
+
+    public void Erase()
+    {
+        this.EraseInternal();
+        ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
+    }
+
+    #region Journal
+
+    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    {
+        if (!reader.TryPeek(out JournalRecord record))
+        {
+            return false;
+        }
+
+        if (record == JournalRecord.EraseStorage)
+        {// Erase storage
+            this.EraseInternal();
+            return true;
+        }
+        else if (record == JournalRecord.AddStorage)
+        {
+            if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
+            {// No crystal
+                return true;
+            }
+
+            reader.TryRead(out record);
+            var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
+            this.AddInternal(crystal, storageId);
+            return true;
+        }
+
+        if (this.data is null)
+        {
+            this.data = this.Get().Result;
+        }
+
+        if (this.data is IStructualObject structualObject)
+        {
+            return structualObject.ReadRecord(ref reader);
         }
         else
         {
-            return data.Equals(otherData);
+            return false;
         }
     }
 
-    public bool DataEquals(TData? otherData)
+    void IStructualObject.WriteLocator(ref TinyhandWriter writer)
     {
-        var data = this.TryGet().Result;
-        if (data is null)
-        {
-            return otherData is null;
-        }
-        else
-        {
-            return data.Equals(otherData);
-        }
-    }
-
-    #region IStructualObject
-
-    IStructualRoot? IStructualObject.StructualRoot
-    {// Delegate properties to the underlying StorageObject.
-        get => this.storageObject?.StructualRoot;
-        set
-        {
-            if (this.storageObject is not null)
-            {
-                this.storageObject.StructualRoot = value;
-            }
-        }
-    }
-
-    IStructualObject? IStructualObject.StructualParent
-    {// Delegate properties to the underlying StorageObject.
-        get => this.storageObject?.StructualParent;
-        set
-        {
-            if (this.storageObject is not null)
-            {
-                this.storageObject.StructualParent = value;
-            }
-        }
-    }
-
-    int IStructualObject.StructualKey
-    {// Delegate properties to the underlying StorageObject.
-        get => this.storageObject is null ? 0 : this.storageObject.StructualKey;
-        set
-        {
-            if (this.storageObject is not null)
-            {
-                this.storageObject.StructualKey = value;
-            }
-        }
-    }
-
-    void IStructualObject.SetupStructure(IStructualObject? parent, int key)
-    {
-        if (this.storageObject is not null)
-        {
-            ((IStructualObject)this.storageObject).SetupStructure(parent, key);
-        }
-
-        /*if (this.storageObject is null &&
-            parent?.StructualRoot is ICrystal crystal)
-        {
-            crystal.Crystalizer.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
-            ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
-        }*/
     }
 
     #endregion
 
-    #region Tinyhand
-
-    static void ITinyhandSerializable<StoragePoint<TData>>.Serialize(ref TinyhandWriter writer, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
-    {
-        if (v is null)
+    private async Task PrepareAndLoadInternal()
+    {// using (this.Lock())
+        if (this.data is not null)
         {
-            writer.WriteNil();
-        }
-        else if (v.storageObject is null)
-        {// In-class
-            writer.Write(v.pointId);
-        }
-        else
-        {// StorageObject
-            v.storageObject.SerializeStoragePoint(ref writer, options);
-        }
-    }
-
-    static unsafe void ITinyhandSerializable<StoragePoint<TData>>.Deserialize(ref TinyhandReader reader, scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
-    {
-        if (reader.TryReadNil())
-        {
-            v = default;
             return;
         }
 
-        v ??= new();
-        if (reader.TryReadUInt64(out var pointId))
+        if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
+        {// No crystal
+            return;
+        }
+
+        var storage = crystal.Storage;
+        ulong fileId = 0;
+        CrystalMemoryOwnerResult result = new(CrystalResult.NotFound);
+        while (this.storageId0.IsValid)
         {
-            // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
-            v.pointId = pointId;
+            fileId = this.storageId0.FileId;
+            result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
+            if (result.IsSuccess)
+            {
+                break;
+            }
+
+            this.storageId0 = this.storageId1;
+            this.storageId1 = this.storageId2;
+            this.storageId2 = default;
+        }
+
+        if (result.IsFailure)
+        {
+            return;
+        }
+
+        // Deserialize
+        try
+        {
+            this.data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+            this.PrepareData(result.Data.Span.Length);
+        }
+        catch
+        {
+        }
+        finally
+        {
+            result.Return();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void PrepareData(int dataSize)
+    {
+        if (this.data is IStructualObject structualObject)
+        {
+            structualObject.SetupStructure(this);
+        }
+
+        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        {
+            crystal.Crystalizer.Memory.Register(this, dataSize);
+        }
+    }
+
+    private void AddInternal(ICrystal crystal, StorageId storageId)
+    {
+        var numberOfHistories = crystal.CrystalConfiguration.NumberOfFileHistories;
+        ulong fileId;
+        var storage = crystal.Storage;
+
+        if (numberOfHistories <= 1)
+        {
+            this.storageId0 = storageId;
+        }
+        else if (numberOfHistories == 2)
+        {
+            if (this.storageId1.IsValid)
+            {
+                fileId = this.storageId1.FileId;
+                storage.DeleteAndForget(ref fileId);
+            }
+
+            this.storageId1 = this.storageId0;
+            this.storageId0 = storageId;
         }
         else
         {
-            if (v.storageObject is not null)
+            if (this.storageId2.IsValid)
             {
-                v.storageObject.TryRemove();
-                v.storageObject = default;
+                fileId = this.storageId2.FileId;
+                storage.DeleteAndForget(ref fileId);
             }
 
-            var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
-            StorageControl.Invalid.GetOrCreate<TData>(ref v.pointId, ref v.storageObject);
-            v.storageObject.Set(data);
+            this.storageId2 = this.storageId1;
+            this.storageId1 = this.storageId0;
+            this.storageId0 = storageId;
         }
-    }
 
-    static unsafe void ITinyhandReconstructable<StoragePoint<TData>>.Reconstruct([NotNull] scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
-    {
-        v ??= new();
-    }
-
-    static unsafe StoragePoint<TData>? ITinyhandCloneable<StoragePoint<TData>>.Clone(scoped ref StoragePoint<TData>? v, TinyhandSerializerOptions options)
-    {
-        if (v is null)
+        /*else
         {
-            return null;
-        }
+            if (this.storageId3.IsValid)
+            {
+                fileId = this.storageId3.FileId;
+                storage.DeleteAndForget(ref fileId);
+            }
 
-        var obj = new StoragePoint<TData>();
-        obj.pointId = v.pointId;
-        return obj;
+            this.storageId3 = this.storageId2;
+            this.storageId2 = this.storageId1;
+            this.storageId1 = this.storageId0;
+            this.storageId0 = storageId;
+        }*/
     }
 
-    #endregion
-
-    Task<bool> IStoragePoint.Save(UnloadMode2 unloadMode)
+    private void EraseInternal()
     {
-        throw new NotImplementedException();
-    }
+        IStructualObject? structualObject;
+        ulong id0;
+        ulong id1;
+        ulong id2;
+        // ulong id3;
 
-    bool IStoragePoint.Probe(ProbeMode probeMode)
-    {
-        throw new NotImplementedException();
-    }
-
-    private StorageObject GetOrCreate()
-    {
-        if (this.storageObject is not null)
+        using (this.Lock())
         {
-            return this.storageObject;
+            structualObject = this.data as IStructualObject;
+
+            id0 = this.storageId0.FileId;
+            id1 = this.storageId1.FileId;
+            id2 = this.storageId2.FileId;
+            // id3 = this.storageId3.FileId;
+
+            this.data = default;
+            this.storageId0 = default;
+            this.storageId1 = default;
+            this.storageId2 = default;
+            // this.storageId3 = default;
         }
 
-        StorageControl? storageControl = default;
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
-        {
-            storageControl = crystal.Crystalizer.StorageControl;
+        {// Delete storage
+            var storage = crystal.Storage;
+
+            if (id0 != 0)
+            {
+                storage.DeleteAndForget(ref id0);
+            }
+
+            if (id1 != 0)
+            {
+                storage.DeleteAndForget(ref id1);
+            }
+
+            if (id2 != 0)
+            {
+                storage.DeleteAndForget(ref id2);
+            }
+
+            /*if (id3 != 0)
+            {
+                storage.DeleteAndForget(ref id3);
+            }*/
         }
 
-        storageControl ??= StorageControl.Invalid;
-        storageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
-        return this.storageObject;
+        if (structualObject is not null)
+        {
+            structualObject.Erase();
+        }
     }
 }

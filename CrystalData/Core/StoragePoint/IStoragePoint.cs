@@ -55,7 +55,7 @@ public enum ProbeMode
 }
 
 /// <summary>
-/// <see cref="IStoragePoint"/> is a inteface of <see cref="StoragePoint{TData}" /> responsible for loading and persisting partial data.
+/// <see cref="IStoragePoint"/> is a inteface of <see cref="StoragePointObsolete{TData}" /> responsible for loading and persisting partial data.
 /// </summary>
 public interface IStoragePoint
 {
