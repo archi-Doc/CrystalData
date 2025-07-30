@@ -131,7 +131,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         if (this.storageObject is null &&
             parent?.StructualRoot is ICrystal crystal)
         {
-            this.storageObject = crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier);
+            crystal.Crystalizer.StorageControl.GetOrCreate(ref this.pointId, this.TypeIdentifier, out this.storageObject);
             ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
         }
     }
@@ -194,12 +194,10 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             return null;
         }
-        else
-        {
-            var obj = new StoragePoint<TData>();
-            obj.pointId = v.pointId;
-            return obj;
-        }
+
+        var obj = new StoragePoint<TData>();
+        obj.pointId = v.pointId;
+        return obj;
     }
 
     #endregion

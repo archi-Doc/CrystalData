@@ -39,7 +39,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     private object? data; // Lock:this
     private uint state; // Lock:this
-    private int memoryUsage; // Lock:this
+    private int size; // Lock:this
 
     public IStructualRoot? StructualRoot { get; set; } // Lock:
 
@@ -51,7 +51,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public uint TypeIdentifier => this.typeIdentifier;
 
-    public int MemoryUsage => this.memoryUsage;
+    public int Size => this.size;
 
     private StorageControl? storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : null;
 
@@ -409,9 +409,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         if (storageControl is not null)
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
-            storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
-            storageControl.UpdateMemoryUsage(rentMemory.Length - this.memoryUsage);
-            this.memoryUsage = rentMemory.Length;
+            // storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
+            storageControl.UpdateMemoryUsage(rentMemory.Length - this.size);
+            this.size = rentMemory.Length;
         }
 
         if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)

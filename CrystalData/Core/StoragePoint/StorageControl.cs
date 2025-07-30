@@ -42,28 +42,65 @@ public partial class StorageControl
         Interlocked.Add(ref this.memoryUsage, size);
     }
 
-    public StorageObject GetOrCreate(ref ulong pointId, uint typeIdentifier)
+    public bool TryRemove(StorageObject storageObject)
     {
         using (this.storagePoints.LockObject.EnterScope())
         {
-            if (pointId != 0 &&
-                this.storagePoints.PointIdChain.TryGetValue(pointId, out var obj))
+            if (storageObject.Goshujin != this.storagePoints)
+            {
+                return false;
+            }
+
+            storageObject.Goshujin = default;
+            this.UpdateMemoryUsage(-storageObject.Size);
+        }
+
+        return true;
+    }
+
+    public bool TryAdd(StorageObject storageObject)
+    {
+        using (this.storagePoints.LockObject.EnterScope())
+        {
+            var goshujin = storageObject.Goshujin;
+            if (goshujin == this.storagePoints)
+            {// Already added.
+                return true;
+            }
+            else if (goshujin is not null)
+            {
+                return false;
+            }
+
+            storageObject.Goshujin = this.storagePoints;
+        }
+
+        return true;
+    }
+
+    public void GetOrCreate(ref ulong pointId, uint typeIdentifier, out StorageObject storageObject)
+    {
+        using (this.storagePoints.LockObject.EnterScope())
+        {
+            var id = pointId;
+            if (id != 0 &&
+                this.storagePoints.PointIdChain.TryGetValue(id, out storageObject!))
             {// Found existing StoragePoint.
-                return obj;
+                return;
             }
 
             while (true)
             {
-                pointId = RandomVault.Default.NextUInt64();
-                if (!this.storagePoints.PointIdChain.ContainsKey(pointId))
+                id = RandomVault.Default.NextUInt64();
+                if (!this.storagePoints.PointIdChain.ContainsKey(id))
                 {
                     break;
                 }
             }
 
-            obj = new StorageObject(pointId, typeIdentifier);
-            obj.Goshujin = this.storagePoints;
-            return obj;
+            storageObject = new StorageObject(id, typeIdentifier);
+            storageObject.Goshujin = this.storagePoints;
+            pointId = id;
         }
     }
 }
