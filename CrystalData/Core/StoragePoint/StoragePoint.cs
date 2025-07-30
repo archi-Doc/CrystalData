@@ -54,7 +54,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public void EnableStorage()
         => this.GetOrCreate().ConfigureStorage(false);
 
-    public void Set(TData data) => this.GetOrCreate().Set(data);
+    public void Set(TData data)
+        => this.GetOrCreate().Set(data);
 
     public ValueTask<TData?> TryGet()
         => this.GetOrCreate().TryGet<TData>();
