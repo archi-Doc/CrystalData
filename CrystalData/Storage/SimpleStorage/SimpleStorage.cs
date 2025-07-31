@@ -16,7 +16,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
     {
         this.crystalizer = crystalizer;
         this.timeout = TimeSpan.MinValue;
-        this.storageMap = this.crystalizer.StorageControl.InvalidMap; // 
+        this.storageMap = StorageMap.Invalid;
     }
 
     public override string ToString()
@@ -37,9 +37,9 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     public StorageMap StorageMap => this.storageMap;
 
-    public long StorageUsage => this.data == null ? 0 : this.data.StorageUsage;
+    public long StorageUsage => this.storageData == null ? 0 : this.storageData.StorageUsage;
 
-    private SimpleStorageData? data => this.storageCrystal?.Data;
+    private SimpleStorageData? storageData => this.storageCrystal?.Data;
 
     #endregion
 
@@ -96,7 +96,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
         }
 
         if (this.storageCrystal == null)
-        {
+        {// SimpleStorageData
             this.storageCrystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
             var mainConfiguration = directoryConfiguration.CombineFile(Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(Filename);
@@ -114,7 +114,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
         }
 
         if (this.mapCrystal == null)
-        {
+        {// StorageMap
             this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null, false);
             var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
@@ -132,6 +132,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             else
             {
                 this.storageMap = this.mapCrystal.Data;
+                this.storageMap.Initialize(this.crystalizer.StorageControl);
             }
         }
 
@@ -145,21 +146,26 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return;
         }
 
-        if (this.storageCrystal != null)
+        if (this.storageCrystal is not null)
         {
             await this.storageCrystal.Save().ConfigureAwait(false);
+        }
+
+        if (this.mapCrystal is not null)
+        {
+            await this.mapCrystal.Save().ConfigureAwait(false);
         }
     }
 
     CrystalResult IStorage.PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return CrystalResult.NotPrepared;
         }
 
         var file = FileIdToFile(fileId);
-        this.data.Put(ref file, dataToBeShared.Memory.Length);
+        this.storageData.Put(ref file, dataToBeShared.Memory.Length);
         fileId = FileToFileId(file);
 
         var path = this.FileToPath(FileIdToFile(fileId));
@@ -185,9 +191,9 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return CrystalResult.NotFound;
         }
 
-        if (this.data != null)
+        if (this.storageData != null)
         {
-            if (this.data.Remove(file))
+            if (this.storageData.Remove(file))
             {// Not found
                 fileId = 0;
                 return CrystalResult.NotFound;
@@ -210,14 +216,14 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     Task<CrystalMemoryOwnerResult> IStorage.GetAsync(ref ulong fileId)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.NotPrepared));
         }
 
         var file = FileIdToFile(fileId);
         int size;
-        if (!this.data.TryGetValue(file, out size))
+        if (!this.storageData.TryGetValue(file, out size))
         {// Not found
             fileId = 0;
             return Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.NotFound));
@@ -239,13 +245,13 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     Task<CrystalResult> IStorage.PutAsync(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return Task.FromResult(CrystalResult.NotPrepared);
         }
 
         var file = FileIdToFile(fileId);
-        this.data.Put(ref file, dataToBeShared.Memory.Length);
+        this.storageData.Put(ref file, dataToBeShared.Memory.Length);
         fileId = FileToFileId(file);
 
         var path = this.FileToPath(FileIdToFile(fileId));
@@ -260,7 +266,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     Task<CrystalResult> IStorage.DeleteAsync(ref ulong fileId)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return Task.FromResult(CrystalResult.NotPrepared);
         }
@@ -271,7 +277,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return Task.FromResult(CrystalResult.NotFound);
         }
 
-        this.data.Remove(file);
+        this.storageData.Remove(file);
 
         fileId = 0;
 
@@ -298,14 +304,19 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     async Task<bool> IStorageInternal.TestJournal()
     {
-        if (this.storageCrystal is ICrystalInternal crystalInternal)
+        if (this.storageCrystal is ICrystalInternal crystalInternal &&
+            await crystalInternal.TestJournal().ConfigureAwait(false) == false)
         {
-            return await crystalInternal.TestJournal().ConfigureAwait(false);
+            return false;
         }
-        else
+
+        if (this.mapCrystal is ICrystalInternal crystalInternal2 &&
+            await crystalInternal2.TestJournal().ConfigureAwait(false) == false)
         {
-            return true;
+            return false;
         }
+
+        return true;
     }
 
     #endregion

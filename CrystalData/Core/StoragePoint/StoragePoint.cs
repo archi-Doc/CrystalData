@@ -178,12 +178,12 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             if (v.storageObject is not null)
             {
-                v.storageObject.TryRemove();
+                v.storageObject.storageControl?.TryRemove(v.storageObject);
                 v.storageObject = default;
             }
 
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
-            StorageControl.Default.InvalidMap.GetOrCreate<TData>(ref v.pointId, ref v.storageObject);
+            StorageMap.Invalid.GetOrCreate<TData>(ref v.pointId, ref v.storageObject);//
             v.storageObject.Set(data);
         }
     }
@@ -230,7 +230,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             storageMap = crystal.Storage.StorageMap;
         }
 
-        storageMap ??= StorageControl.Default.InvalidMap;
+        storageMap ??= StorageMap.Invalid;
         storageMap.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
         return this.storageObject;
     }

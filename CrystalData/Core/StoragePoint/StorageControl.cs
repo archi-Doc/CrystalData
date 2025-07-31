@@ -2,18 +2,17 @@
 
 #pragma warning disable SA1202
 
+using CrystalData.Internal;
+
 namespace CrystalData;
 
 public partial class StorageControl
 {
-    public static readonly StorageControl Default = new();
-
     #region FiendAndProperty
 
+    private readonly Lock lockObject = new();
     private long storageUsage;
     private long memoryUsage;
-
-    public StorageMap InvalidMap { get; }
 
     public long StorageUsage => this.memoryUsage;
 
@@ -23,16 +22,38 @@ public partial class StorageControl
 
     internal StorageControl()
     {
-        this.InvalidMap = new(this, true);
     }
 
     public void UpdateStorageUsage(long size)
-    {
-        Interlocked.Add(ref this.storageUsage, size);
-    }
+        => Interlocked.Add(ref this.storageUsage, size);
 
     public void UpdateMemoryUsage(long size)
+        => Interlocked.Add(ref this.memoryUsage, size);
+
+    public bool TryRemove(StorageObject storageObject)
     {
-        Interlocked.Add(ref this.memoryUsage, size);
+        using (this.lockObject.EnterScope())
+        {
+            if (storageObject.storageControl != this)
+            {
+                return false;
+            }
+
+            storageObject.Goshujin = default;
+            this.UpdateStorageUsageInternal(-storageObject.Size);
+            this.UpdateMemoryUsageInternal(-storageObject.Size);//
+        }
+
+        return true;
+    }
+
+    private void UpdateStorageUsageInternal(long size)
+    {
+        this.storageUsage += size;
+    }
+
+    private void UpdateMemoryUsageInternal(long size)
+    {
+        this.memoryUsage += size;
     }
 }

@@ -11,26 +11,30 @@ namespace CrystalData;
 public sealed partial class StorageMap
 {
     public const string Filename = "Map";
+    public static readonly StorageMap Invalid = new();
 
     #region FiendAndProperty
-
-    private readonly bool invalidStorageControl;
 
     [Key(0)]
     private StorageObject.GoshujinClass storagePoints = new();
 
-    public StorageControl StorageControl { get; }
+    [IgnoreMember]
+    public StorageControl? StorageControl { get; private set; }
 
-    public bool IsValid => !this.invalidStorageControl;
+    [MemberNotNullWhen(true, nameof(StorageControl))]
+    public bool IsValid => this.StorageControl is not null;
 
-    public bool IsInvalid => this.invalidStorageControl;
+    public bool IsInvalid => this.StorageControl is null;
 
     #endregion
 
-    internal StorageMap(StorageControl storageControl, bool invalid)
+    public StorageMap()
+    {
+    }
+
+    public void Initialize(StorageControl storageControl)
     {
         this.StorageControl = storageControl;
-        this.invalidStorageControl = invalid;
     }
 
     public void Update(ulong pointId)
@@ -54,40 +58,28 @@ public sealed partial class StorageMap
         }
     }
 
-    public bool TryRemove(StorageObject storageObject)
+    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject)
     {
         if (this.IsInvalid)
         {
-            return true;
-        }
-
-        using (this.storagePoints.LockObject.EnterScope())
-        {
-            if (storageObject.Goshujin != this.storagePoints)
+            lock (this)
             {
-                return false;
-            }
+                if (storageObject is not null)
+                {
+                    return;
+                }
 
-            storageObject.Goshujin = default;
+                var typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+                storageObject = new StorageObject(typeIdentifier);
+                pointId = 0;
+                return;
+            }
         }
 
-        return true;
-    }
-
-    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject)
-    {
         using (this.storagePoints.LockObject.EnterScope())
         {
             if (storageObject is not null)
             {
-                return;
-            }
-
-            if (this.IsInvalid)
-            {
-                var typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
-                storageObject = new StorageObject(typeIdentifier);
-                pointId = 0;
                 return;
             }
 

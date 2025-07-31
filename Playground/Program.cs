@@ -61,6 +61,9 @@ internal class Program
                         NumberOfFileHistories = 0, // No history file.
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                        StorageConfiguration = new SimpleStorageConfiguration(
+                            new GlobalDirectoryConfiguration("MainStorage"),
+                            new GlobalDirectoryConfiguration("BackupStorage")),
                     });
             });
 

@@ -8,7 +8,7 @@ namespace CrystalData.Internal;
 #pragma warning disable SA1202 // Elements should be ordered by access
 
 [TinyhandObject(ExplicitKeyOnly = true)]
-[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+[ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 {
     public const int MaxHistories = 3; // 4
@@ -53,7 +53,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    private StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageControl.Default.InvalidMap;
+    internal StorageControl? storageControl => ((ICrystal?)this.StructualRoot)?.Crystalizer.StorageControl;
+
+    private StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageMap.Invalid;
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
@@ -176,11 +178,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             this.SetDataInternal(data);
         }
-    }
-
-    internal bool TryRemove()
-    {
-        return this.storageMap.TryRemove(this);
     }
 
     internal async Task<bool> Save(UnloadMode2 mode)
