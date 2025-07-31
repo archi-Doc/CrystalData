@@ -8,6 +8,8 @@ public partial class EmptyStorage : IStorage
 {
     public static readonly EmptyStorage Default = new();
 
+    StorageMap IStorage.StorageMap => StorageMap.Invalid;
+
     long IStorage.StorageUsage => 0;
 
     void IStorage.SetTimeout(TimeSpan timeout)

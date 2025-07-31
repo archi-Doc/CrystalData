@@ -7,7 +7,8 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
-public partial class StorageMap
+[TinyhandObject]
+public sealed partial class StorageMap
 {
     public const string Filename = "Map";
 
@@ -16,7 +17,9 @@ public partial class StorageMap
     #region FiendAndProperty
 
     private readonly bool invalidStorageControl;
-    private readonly StorageObject.GoshujinClass storagePoints = new();
+
+    [Key(0)]
+    private StorageObject.GoshujinClass storagePoints = new();
     private long memoryUsage;
 
     public bool IsValid => !this.invalidStorageControl;

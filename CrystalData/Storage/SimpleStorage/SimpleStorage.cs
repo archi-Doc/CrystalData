@@ -16,6 +16,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
     {
         this.crystalizer = crystalizer;
         this.timeout = TimeSpan.MinValue;
+        this.storageMap = StorageMap.Invalid;
     }
 
     public override string ToString()
@@ -23,18 +24,22 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     #region FieldAndProperty
 
-    public long StorageUsage => this.data == null ? 0 : this.data.StorageUsage;
-
-    private SimpleStorageData? data => this.crystal?.Data;
-
     private Crystalizer crystalizer;
     private ICrystal? primaryCrystal;
     private string directory = string.Empty;
     private string backupDirectory = string.Empty;
-    private ICrystal<SimpleStorageData>? crystal;
+    private ICrystal<SimpleStorageData>? storageCrystal;
+    private ICrystal<StorageMap>? mapCrystal;
+    private StorageMap storageMap;
     private IRawFiler? mainFiler;
     private IRawFiler? backupFiler;
     private TimeSpan timeout;
+
+    public StorageMap StorageMap => this.storageMap;
+
+    public long StorageUsage => this.data == null ? 0 : this.data.StorageUsage;
+
+    private SimpleStorageData? data => this.storageCrystal?.Data;
 
     #endregion
 
@@ -90,18 +95,33 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             }
         }
 
-        if (this.crystal == null)
+        if (this.storageCrystal == null)
         {
-            this.crystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
+            this.storageCrystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
             var mainConfiguration = directoryConfiguration.CombineFile(Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(Filename);
-            this.crystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
+            this.storageCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
                 NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
             });
 
-            result = await this.crystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
+            result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
+            return result;
+        }
+
+        if (this.mapCrystal == null)
+        {
+            this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null, false);
+            var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
+            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
+            this.mapCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
+            {
+                BackupFileConfiguration = backupConfiguration,
+                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
+            });
+
+            result = await this.mapCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
             return result;
         }
 
@@ -115,9 +135,9 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return;
         }
 
-        if (this.crystal != null)
+        if (this.storageCrystal != null)
         {
-            await this.crystal.Save().ConfigureAwait(false);
+            await this.storageCrystal.Save().ConfigureAwait(false);
         }
     }
 
@@ -268,7 +288,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     async Task<bool> IStorageInternal.TestJournal()
     {
-        if (this.crystal is ICrystalInternal crystalInternal)
+        if (this.storageCrystal is ICrystalInternal crystalInternal)
         {
             return await crystalInternal.TestJournal().ConfigureAwait(false);
         }

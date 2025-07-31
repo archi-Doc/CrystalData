@@ -224,14 +224,14 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        StorageMap? storageControl = default;
+        StorageMap? storageMap = default;
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
-            storageControl = crystal.Crystalizer.StorageControl;
+            storageMap = crystal.Storage.StorageMap;
         }
 
-        storageControl ??= StorageMap.Invalid;
-        storageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
+        storageMap ??= StorageMap.Invalid;
+        storageMap.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
         return this.storageObject;
     }
 }
