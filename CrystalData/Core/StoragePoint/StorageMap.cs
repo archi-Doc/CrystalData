@@ -12,6 +12,7 @@ public sealed partial class StorageMap
 {
     public const string Filename = "Map";
     public static readonly StorageMap Invalid = new();
+    private static readonly Lock InvalidLockObject = new();
 
     #region FiendAndProperty
 
@@ -62,7 +63,7 @@ public sealed partial class StorageMap
     {
         if (this.IsInvalid)
         {
-            lock (this)
+            using (InvalidLockObject.EnterScope())
             {
                 if (storageObject is not null)
                 {
