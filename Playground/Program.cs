@@ -24,7 +24,7 @@ public partial class FirstData
     public string Name { get; set; } = string.Empty;
 
     [Key(2)]
-    public StoragePointObsolete<int> IntStorage { get; set; } = new();
+    public StoragePoint<int> IntStorage { get; set; } = new();
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";

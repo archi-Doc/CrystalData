@@ -64,7 +64,7 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
     private string name = string.Empty;
 
     [Key(2)]
-    public StoragePointObsolete<string> StringStorage { get; set; } = new();
+    public StoragePoint<string> StringStorage { get; set; } = new();
 
     bool IEquatableObject<StoragePointClass>.ObjectEquals(StoragePointClass other)
         => ((IEquatable<StoragePointClass>)this).Equals(other);

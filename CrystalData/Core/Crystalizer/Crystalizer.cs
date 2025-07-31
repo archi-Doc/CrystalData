@@ -130,7 +130,7 @@ public class Crystalizer
 
     public MemoryControl Memory { get; }
 
-    public StorageControlObsolete StorageControl { get; }
+    public StorageMap StorageControl { get; }
 
     internal ICrystalDataQuery Query { get; }
 

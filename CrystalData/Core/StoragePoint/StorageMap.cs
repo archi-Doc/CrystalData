@@ -7,9 +7,9 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
-public partial class StorageControlObsolete
+public partial class StorageMap
 {
-    public static readonly StorageControlObsolete Invalid = new(true);
+    public static readonly StorageMap Invalid = new(true);
 
     #region FiendAndProperty
 
@@ -25,7 +25,7 @@ public partial class StorageControlObsolete
 
     #endregion
 
-    internal StorageControlObsolete(bool invalid)
+    internal StorageMap(bool invalid)
     {
         this.invalidStorageControl = invalid;
     }

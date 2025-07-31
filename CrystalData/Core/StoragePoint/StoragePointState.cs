@@ -3,12 +3,12 @@
 namespace CrystalData;
 
 /// <summary>
-/// Represents the state of a <see cref="StoragePointObsolete{TData}"/>.
+/// Represents the state of a <see cref="StoragePoint{TData}"/>.
 /// </summary>
 public enum StoragePointState
 {
     /// <summary>
-    /// The function of <see cref="StoragePointObsolete{TData}" /> is invalid, and the process is bypassed as is.
+    /// The function of <see cref="StoragePoint{TData}" /> is invalid, and the process is bypassed as is.
     /// </summary>
     InvalidStorage,
 
