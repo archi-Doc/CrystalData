@@ -12,26 +12,24 @@ public sealed partial class StorageMap
 {
     public const string Filename = "Map";
 
-    public static readonly StorageMap Invalid = new(true);
-
     #region FiendAndProperty
 
     private readonly bool invalidStorageControl;
 
     [Key(0)]
     private StorageObject.GoshujinClass storagePoints = new();
-    private long memoryUsage;
+
+    public StorageControl StorageControl { get; }
 
     public bool IsValid => !this.invalidStorageControl;
 
     public bool IsInvalid => this.invalidStorageControl;
 
-    public long MemoryUsage => this.memoryUsage;
-
     #endregion
 
-    internal StorageMap(bool invalid)
+    internal StorageMap(StorageControl storageControl, bool invalid)
     {
+        this.StorageControl = storageControl;
         this.invalidStorageControl = invalid;
     }
 
@@ -56,16 +54,6 @@ public sealed partial class StorageMap
         }
     }
 
-    public void UpdateMemoryUsage(int size)
-    {
-        if (this.IsInvalid)
-        {
-            return;
-        }
-
-        Interlocked.Add(ref this.memoryUsage, size);
-    }
-
     public bool TryRemove(StorageObject storageObject)
     {
         if (this.IsInvalid)
@@ -81,7 +69,6 @@ public sealed partial class StorageMap
             }
 
             storageObject.Goshujin = default;
-            this.UpdateMemoryUsage(-storageObject.Size);
         }
 
         return true;

@@ -6,10 +6,14 @@ namespace CrystalData;
 
 public partial class StorageControl
 {
+    public static readonly StorageControl Default = new();
+
     #region FiendAndProperty
 
     private long storageUsage;
     private long memoryUsage;
+
+    public StorageMap InvalidMap { get; }
 
     public long StorageUsage => this.memoryUsage;
 
@@ -19,6 +23,7 @@ public partial class StorageControl
 
     internal StorageControl()
     {
+        this.InvalidMap = new(this, true);
     }
 
     public void UpdateStorageUsage(long size)

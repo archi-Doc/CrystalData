@@ -53,7 +53,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    private StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageMap.Invalid;
+    private StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageControl.Default.InvalidMap;
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
@@ -414,7 +414,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
             // storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
-            this.storageMap.UpdateMemoryUsage(rentMemory.Length - this.size);
+            this.storageMap.StorageControl.UpdateMemoryUsage(rentMemory.Length - this.size);
             this.size = rentMemory.Length;
         }
 

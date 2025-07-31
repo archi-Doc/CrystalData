@@ -16,7 +16,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
     {
         this.crystalizer = crystalizer;
         this.timeout = TimeSpan.MinValue;
-        this.storageMap = StorageMap.Invalid;
+        this.storageMap = this.crystalizer.StorageControl.InvalidMap; // 
     }
 
     public override string ToString()
@@ -107,7 +107,10 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             });
 
             result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
-            return result;
+            if (result.IsFailure())
+            {
+                return result;
+            }
         }
 
         if (this.mapCrystal == null)
@@ -122,7 +125,14 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             });
 
             result = await this.mapCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
-            return result;
+            if (result.IsFailure())
+            {
+                return result;
+            }
+            else
+            {
+                this.storageMap = this.mapCrystal.Data;
+            }
         }
 
         return CrystalResult.Success;
