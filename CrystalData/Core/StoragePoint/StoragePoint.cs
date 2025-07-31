@@ -6,26 +6,38 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 /// <summary>
-/// <see cref="StoragePoint{TData}"/> is a subset of <see cref="CrystalObject{TData}"/>, allowing for the persistence of partial data.
+/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
+/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
+public partial class StoragePoint<TData> : StoragePoint
+{
+}
+
 [TinyhandObject(ExplicitKeyOnly = true)]
-public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObject, IStorageData
+[ValueLinkObject]
+public partial class StoragePoint : SemaphoreLock, IStructualObject, IStorageData
 {
     public const int MaxHistories = 3; // 4
 
     #region FieldAndProperty
 
-    [IgnoreMember]
-    private TData? data;
+    private object? data;
 
     [Key(0)]
-    private StorageId storageId0;
+    [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
+    private ulong pointId; // Lock:StorageControl, Key:0
 
     [Key(1)]
-    private StorageId storageId1;
+    private uint typeIdentifier; // Lock:this, Key(Special):1
 
     [Key(2)]
+    private StorageId storageId0;
+
+    [Key(3)]
+    private StorageId storageId1;
+
+    [Key(4)]
     private StorageId storageId2;
 
     // [Key(3)]
@@ -46,7 +58,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
     {
     }
 
-    public async ValueTask<TData> Get()
+    public async ValueTask<object?> Get()
     {
         if (this.data is { } data)
         {
@@ -76,7 +88,7 @@ public sealed partial class StoragePoint<TData> : SemaphoreLock, IStructualObjec
         }
     }
 
-    public void Set(TData data, int sizeHint = 0)
+    public void Set(object? data, int sizeHint = 0)
     {// Journaling is not supported.
         using (this.Lock())
         {
