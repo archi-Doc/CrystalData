@@ -9,6 +9,8 @@ namespace CrystalData;
 
 public partial class StorageMap
 {
+    public const string Filename = "Map";
+
     public static readonly StorageMap Invalid = new(true);
 
     #region FiendAndProperty

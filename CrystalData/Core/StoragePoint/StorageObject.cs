@@ -53,7 +53,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    private StorageMap storageControl => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : StorageMap.Invalid;
+    private StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Crystalizer.StorageControl : StorageMap.Invalid;
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
@@ -91,7 +91,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if ((this.storageControl.IsInvalid || this.IsDisabled) && this.data is not null)
+        if ((this.storageMap.IsInvalid || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
@@ -105,7 +105,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.Update(this.pointId);
+            this.storageMap.Update(this.pointId);
             return (TData)data;
         }
 
@@ -180,7 +180,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     internal bool TryRemove()
     {
-        return this.storageControl.TryRemove(this);
+        return this.storageMap.TryRemove(this);
     }
 
     internal async Task<bool> Save(UnloadMode2 mode)
@@ -410,11 +410,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             structualObject.SetupStructure(this);
         }
 
-        if (this.storageControl.IsValid)
+        if (this.storageMap.IsValid)
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
             // storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
-            this.storageControl.UpdateMemoryUsage(rentMemory.Length - this.size);
+            this.storageMap.UpdateMemoryUsage(rentMemory.Length - this.size);
             this.size = rentMemory.Length;
         }
 
@@ -559,7 +559,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
         else
         {// Enable storage
-            if (this.storageControl.IsValid)
+            if (this.storageMap.IsValid)
             {
                 this.state &= ~DisabledStateBit;
             }

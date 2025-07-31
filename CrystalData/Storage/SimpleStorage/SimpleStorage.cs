@@ -10,7 +10,7 @@ namespace CrystalData.Storage;
 
 internal partial class SimpleStorage : IStorage, IStorageInternal
 {
-    private const string SimpleStorageFile = "Simple";
+    private const string Filename = "Simple";
 
     public SimpleStorage(Crystalizer crystalizer)
     {
@@ -93,8 +93,8 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
         if (this.crystal == null)
         {
             this.crystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
-            var mainConfiguration = directoryConfiguration.CombineFile(SimpleStorageFile);
-            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(SimpleStorageFile);
+            var mainConfiguration = directoryConfiguration.CombineFile(Filename);
+            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(Filename);
             this.crystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
