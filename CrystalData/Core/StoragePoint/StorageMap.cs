@@ -19,23 +19,14 @@ public sealed partial class StorageMap
     [Key(0)]
     private StorageObject.GoshujinClass storagePoints = new();
 
-    [IgnoreMember]
-    public StorageControl? StorageControl { get; private set; }
-
-    [MemberNotNullWhen(true, nameof(StorageControl))]
-    public bool IsValid => this.StorageControl is not null;
-
-    public bool IsInvalid => this.StorageControl is null;
-
     #endregion
 
     public StorageMap()
     {
     }
 
-    public void Initialize(StorageControl storageControl)
+    public void Initialize()
     {
-        this.StorageControl = storageControl;
     }
 
     public void Update(ulong pointId)

@@ -6,7 +6,44 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
-public partial class StorageControl
+public static class StorageControl
+{
+    #region FiendAndProperty
+
+    /// <summary>
+    /// This is an object used for exclusive control for StorageControl, StorageMap, StoragePoint, and StorageObject.<br/>
+    /// To prevent deadlocks, do not call external functions while holding the lock.
+    /// </summary>
+    private static readonly Lock BottomLock = new();
+    private static long storageUsage;
+    private static long memoryUsage;
+
+    public static long StorageUsage => storageUsage;
+
+    public static long MemoryUsage => memoryUsage;
+
+    #endregion
+
+    public static bool TryRemove(StorageObject storageObject)
+    {
+        using (BottomLock.EnterScope())
+        {
+            storageObject.Goshujin = default;
+            UpdateStorageUsageInternal(-storageObject.Size);
+            UpdateMemoryUsageInternal(-storageObject.Size);//
+        }
+
+        return true;
+    }
+
+    private static void UpdateStorageUsageInternal(long size)
+        => storageUsage += size;
+
+    private static void UpdateMemoryUsageInternal(long size)
+        => memoryUsage += size;
+}
+
+/*public partial class StorageControl
 {
     #region FiendAndProperty
 
@@ -56,4 +93,4 @@ public partial class StorageControl
     {
         this.memoryUsage += size;
     }
-}
+}*/

@@ -178,7 +178,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             if (v.storageObject is not null)
             {
-                v.storageObject.storageControl?.TryRemove(v.storageObject);
+                StorageControl.TryRemove(v.storageObject);
                 v.storageObject = default;
             }
 

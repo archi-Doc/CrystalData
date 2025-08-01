@@ -41,6 +41,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private uint state; // Lock:this
     private int size; // Lock:this
 
+    private StorageObject? previousLeastRecentlyUsed;
+    private StorageObject? nextLeastRecentlyUsed;
+
     public IStructualRoot? StructualRoot { get; set; } // Lock:
 
     public IStructualObject? StructualParent { get; set; } // Lock:
@@ -53,7 +56,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    internal StorageControl? storageControl => ((ICrystal?)this.StructualRoot)?.Crystalizer.StorageControl;
+    // internal StorageControl? storageControl => ((ICrystal?)this.StructualRoot)?.Crystalizer.StorageControl;
 
     private StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageMap.Invalid;
 
@@ -71,7 +74,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     #endregion
 
-    [Link(Type = ChainType.LinkedList, Name = "LastAccessed")]
     internal StorageObject(ulong pointId, uint typeIdentifier)
     {
         this.pointId = pointId;
