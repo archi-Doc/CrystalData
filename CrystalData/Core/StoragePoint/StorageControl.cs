@@ -6,91 +6,49 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
-public static class StorageControl
+public partial class StorageControl
 {
+    public static readonly StorageControl Default = new();
+
     #region FiendAndProperty
 
     /// <summary>
     /// This is an object used for exclusive control for StorageControl, StorageMap, StoragePoint, and StorageObject.<br/>
     /// To prevent deadlocks, do not call external functions while holding the lock.
     /// </summary>
-    private static readonly Lock BottomLock = new();
-    private static long storageUsage;
-    private static long memoryUsage;
-
-    public static long StorageUsage => storageUsage;
-
-    public static long MemoryUsage => memoryUsage;
-
-    #endregion
-
-    public static bool TryRemove(StorageObject storageObject)
-    {
-        using (BottomLock.EnterScope())
-        {
-            storageObject.Goshujin = default;
-            UpdateStorageUsageInternal(-storageObject.Size);
-            UpdateMemoryUsageInternal(-storageObject.Size);//
-        }
-
-        return true;
-    }
-
-    private static void UpdateStorageUsageInternal(long size)
-        => storageUsage += size;
-
-    private static void UpdateMemoryUsageInternal(long size)
-        => memoryUsage += size;
-}
-
-/*public partial class StorageControl
-{
-    #region FiendAndProperty
-
-    private readonly Lock lockObject = new();
-    private long storageUsage;
+    private readonly Lock lowestLockObject = new();
+    // private long storageUsage;
     private long memoryUsage;
 
-    public long StorageUsage => this.memoryUsage;
+    /// <summary>
+    /// Gets <see cref="StorageMap" /> for <see cref="StorageObject" /> with storage disabled.
+    /// </summary>
+    public StorageMap DisabledMap { get; } = new();
+
+    // public long StorageUsage => this.storageUsage;
 
     public long MemoryUsage => this.memoryUsage;
 
     #endregion
 
-    internal StorageControl()
+    private StorageControl()
     {
     }
 
-    public void UpdateStorageUsage(long size)
-        => Interlocked.Add(ref this.storageUsage, size);
-
-    public void UpdateMemoryUsage(long size)
-        => Interlocked.Add(ref this.memoryUsage, size);
-
     public bool TryRemove(StorageObject storageObject)
     {
-        using (this.lockObject.EnterScope())
+        using (this.lowestLockObject.EnterScope())
         {
-            if (storageObject.storageControl != this)
-            {
-                return false;
-            }
-
             storageObject.Goshujin = default;
-            this.UpdateStorageUsageInternal(-storageObject.Size);
-            this.UpdateMemoryUsageInternal(-storageObject.Size);//
+            if (storageObject.storageMap.IsEnabled)
+            {
+                this.UpdateMemoryUsageInternal(-storageObject.Size);
+            }
         }
 
         return true;
     }
 
-    private void UpdateStorageUsageInternal(long size)
-    {
-        this.storageUsage += size;
-    }
-
     private void UpdateMemoryUsageInternal(long size)
-    {
-        this.memoryUsage += size;
-    }
-}*/
+        => this.memoryUsage += size;
+}

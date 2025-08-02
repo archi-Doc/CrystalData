@@ -11,18 +11,25 @@ namespace CrystalData;
 public sealed partial class StorageMap
 {
     public const string Filename = "Map";
-    public static readonly StorageMap Invalid = new();
-    private static readonly Lock InvalidLockObject = new();
 
     #region FiendAndProperty
+
+    private readonly bool enabledStorage;
 
     [Key(0)]
     private StorageObject.GoshujinClass storagePoints = new();
 
+    private long storageUsage;
+
+    public bool IsEnabled => this.enabledStorage;
+
+    public bool IsDisabled => !this.enabledStorage;
+
     #endregion
 
-    public StorageMap()
+    public StorageMap(bool enabled = true)
     {
+        this.enabledStorage = enabled;
     }
 
     public void Initialize()
@@ -97,4 +104,7 @@ public sealed partial class StorageMap
             pointId = id;
         }
     }
+
+    private void UpdateStorageUsageInternal(long size)
+        => this.storageUsage += size;
 }
