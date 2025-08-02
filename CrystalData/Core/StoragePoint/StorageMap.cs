@@ -14,47 +14,27 @@ public sealed partial class StorageMap
 
     #region FiendAndProperty
 
-    private readonly bool enabledStorage;
+    public StorageControl StorageControl { get; }
+
+    private bool enabledStorageMap = true;
 
     [Key(0)]
-    private StorageObject.GoshujinClass storagePoints = new();
+    private StorageObject.GoshujinClass storageObjects = new();
 
     private long storageUsage;
 
-    public bool IsEnabled => this.enabledStorage;
+    public bool IsEnabled => this.enabledStorageMap;
 
-    public bool IsDisabled => !this.enabledStorage;
+    public bool IsDisabled => !this.enabledStorageMap;
+
+    public long StorageUsage => this.storageUsage;
 
     #endregion
 
-    public StorageMap(bool enabled = true)
+    public StorageMap(StorageControl storageControl)
     {
-        this.enabledStorage = enabled;
-    }
-
-    public void Initialize()
-    {
-    }
-
-    public void Update(ulong pointId)
-    {
-        if (this.IsInvalid)
-        {
-            return;
-        }
-
-        if (pointId == 0)
-        {
-            return;
-        }
-
-        using (this.storagePoints.LockObject.EnterScope())
-        {
-            if (this.storagePoints.PointIdChain.TryGetValue(pointId, out var obj))
-            {// Found
-                this.storagePoints.LastAccessedChain.AddFirst(obj);
-            }
-        }
+        this.StorageControl = storageControl;
+        storageControl.AddStorageMap(this);
     }
 
     public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject)
@@ -75,7 +55,7 @@ public sealed partial class StorageMap
             }
         }
 
-        using (this.storagePoints.LockObject.EnterScope())
+        using (this.storageObjects.LockObject.EnterScope())
         {
             if (storageObject is not null)
             {
@@ -84,7 +64,7 @@ public sealed partial class StorageMap
 
             var id = pointId;
             if (id != 0 &&
-                this.storagePoints.PointIdChain.TryGetValue(id, out storageObject!))
+                this.storageObjects.PointIdChain.TryGetValue(id, out storageObject!))
             {// Found existing StoragePoint.
                 return;
             }
@@ -92,7 +72,7 @@ public sealed partial class StorageMap
             while (true)
             {
                 id = RandomVault.Default.NextUInt64();
-                if (!this.storagePoints.PointIdChain.ContainsKey(id))
+                if (!this.storageObjects.PointIdChain.ContainsKey(id))
                 {
                     break;
                 }
@@ -100,9 +80,14 @@ public sealed partial class StorageMap
 
             var typeIdentifier2 = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
             storageObject = new StorageObject(id, typeIdentifier2);
-            storageObject.Goshujin = this.storagePoints;
+            storageObject.Goshujin = this.storageObjects;
             pointId = id;
         }
+    }
+
+    internal void DisableStorageMap()
+    {
+        this.enabledStorageMap = false;
     }
 
     private void UpdateStorageUsageInternal(long size)

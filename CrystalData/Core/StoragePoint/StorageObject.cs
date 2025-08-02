@@ -56,7 +56,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int Size => this.size;
 
-    // internal StorageControl? storageControl => ((ICrystal?)this.StructualRoot)?.Crystalizer.StorageControl;
+    internal StorageControl storageControl => this.storageMap.StorageControl;
 
     internal StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageControl.Default.DisabledMap;
 
@@ -95,7 +95,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if ((this.storageMap.IsInvalid || this.IsDisabled) && this.data is not null)
+        if ((this.storageMap.IsDisabled || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
@@ -109,7 +109,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageMap.Update(this.pointId);
+            this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
 
@@ -409,11 +409,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             structualObject.SetupStructure(this);
         }
 
-        if (this.storageMap.IsValid)
+        if (this.storageMap.IsEnabled)
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
             // storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
-            StorageControl.Default.UpdateMemoryUsage(rentMemory.Length - this.size);
+            this.storageControl.Update(rentMemory.Length - this.size);
             this.size = rentMemory.Length;
         }
 
@@ -558,7 +558,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
         else
         {// Enable storage
-            if (this.storageMap.IsValid)
+            if (this.storageMap.IsEnabled)
             {
                 this.state &= ~DisabledStateBit;
             }
