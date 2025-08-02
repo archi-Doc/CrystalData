@@ -41,8 +41,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private uint state; // Lock:this
     private int size; // Lock:this
 
-    private StorageObject? previousLeastRecentlyUsed;
-    private StorageObject? nextLeastRecentlyUsed;
+    internal StorageObject? previous;
+    internal StorageObject? next;
 
     public IStructualRoot? StructualRoot { get; set; } // Lock:
 

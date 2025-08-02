@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Diagnostics;
 using CrystalData.Internal;
 
 namespace CrystalData;
@@ -22,15 +23,13 @@ public partial class StorageControl
     /// </summary>
     private readonly Lock lowestLockObject;
     private StorageMap[] storageMaps;
-    // private long storageUsage;
     private long memoryUsage;
+    private StorageObject? head; // Least recently used list.
 
     /// <summary>
     /// Gets <see cref="StorageMap" /> for <see cref="StorageObject" /> with storage disabled.
     /// </summary>
     public StorageMap DisabledMap { get; }
-
-    // public long StorageUsage => this.storageUsage;
 
     public long MemoryUsage => this.memoryUsage;
 
@@ -72,11 +71,26 @@ public partial class StorageControl
 
     public void MoveToRecent(StorageObject storageObject)
     {
+        if (storageObject.storageMap.IsDisabled)
+        {
+            return;
+        }
+
         using (this.lowestLockObject.EnterScope())
         {
-            if (storageObject.storageMap.IsEnabled)
+            if (this.head == null)
             {
-                storageObject.storageMap.Update(storageObject.PointId);
+                storageObject.next = storageObject;
+                storageObject.previous = storageObject;
+                this.head = storageObject;
+            }
+            else
+            {
+                storageObject.next = this.head;
+                storageObject.previous = this.head.previous;
+                this.head.previous!.next = storageObject;
+                this.head.previous = storageObject;
+                this.head = storageObject;
             }
         }
     }
@@ -89,6 +103,21 @@ public partial class StorageControl
             if (storageObject.storageMap.IsEnabled)
             {
                 this.UpdateMemoryUsageInternal(-storageObject.Size);
+            }
+
+            // Least recently used list.
+            if (storageObject.next == storageObject)
+            {
+                this.head = null;
+            }
+            else
+            {
+                storageObject.next!.previous = storageObject.previous;
+                storageObject.previous!.next = storageObject.next;
+                if (this.head == storageObject)
+                {
+                    this.head = storageObject.next;
+                }
             }
         }
 
