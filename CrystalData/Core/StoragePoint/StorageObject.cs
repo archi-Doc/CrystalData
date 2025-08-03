@@ -400,7 +400,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (storeMode == StoreMode.Release)
         {// Release
-            this.storageControl.Remove(this, false);
+            this.storageControl.Release(this, false);
             this.data = default;
         }
 

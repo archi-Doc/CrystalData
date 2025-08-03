@@ -155,7 +155,7 @@ public partial class StorageControl
         }
     }
 
-    internal void Remove(StorageObject storageObject, bool removeFromStorageMap)
+    internal void Release(StorageObject storageObject, bool removeFromStorageMap)
     {
         using (this.lowestLockObject.EnterScope())
         {
