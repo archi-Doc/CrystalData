@@ -14,9 +14,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     public const int MaxHistories = 3; // 4
 
     private const uint DisabledStateBit = 1u << 31;
-    private const uint UnloadingStateBit = 1u << 30;
-    private const uint UnloadedStateBit = 1u << 29;
-    private const uint UnloadingAndUnloadedStateBit = UnloadingStateBit | UnloadedStateBit;
+    private const uint RipStateBit = 1u << 30;
+    private const uint PendingRipStateBit = 1u << 29;
+    private const uint PendingReleaseStateBit = 1u << 28;
     private const uint LockedStateBit = 1u << 0;
 
     #region FieldAndProperty
@@ -64,11 +64,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public new bool IsLocked => (this.state & LockedStateBit) != 0;
 
-    public bool IsUnloading => (this.state & UnloadingStateBit) != 0;
+    public bool IsRip => (this.state & RipStateBit) != 0;
 
-    public bool IsUnloaded => (this.state & UnloadedStateBit) != 0;
+    public bool IsPendingRip => (this.state & PendingRipStateBit) != 0;
 
-    public bool IsUnloadingOrUnloaded => (this.state & UnloadingAndUnloadedStateBit) != 0;
+    public bool IsPendingRelease => (this.state & PendingReleaseStateBit) != 0;
 
     public bool CanUnload => !this.IsLocked;
 

@@ -2,7 +2,6 @@
 
 #pragma warning disable SA1202
 
-using System.Diagnostics;
 using CrystalData.Internal;
 
 namespace CrystalData;
@@ -18,13 +17,14 @@ public partial class StorageControl
     #region FiendAndProperty
 
     /// <summary>
-    /// This is an object used for exclusive control for StorageControl, StorageMap, StoragePoint, and StorageObject.<br/>
-    /// To prevent deadlocks, do not call external functions while holding the lock.
+    /// A lock object used for exclusive control for StorageControl, StorageMap, StoragePoint, and StorageObject.<br/>
+    /// To prevent deadlocks, do not call external functions while holding this lock.
     /// </summary>
     private readonly Lock lowestLockObject;
+
     private StorageMap[] storageMaps;
     private long memoryUsage;
-    private StorageObject? head; // Least recently used list.
+    private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
 
     /// <summary>
     /// Gets <see cref="StorageMap" /> for <see cref="StorageObject" /> with storage disabled.

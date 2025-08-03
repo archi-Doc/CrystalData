@@ -8,9 +8,9 @@ namespace CrystalData;
 public enum StoragePointState
 {
     /// <summary>
-    /// The function of <see cref="StoragePoint{TData}" /> is invalid, and the process is bypassed as is.
+    /// The function of <see cref="StoragePoint{TData}" /> is disabled, and the process is bypassed as is.
     /// </summary>
-    InvalidStorage,
+    Disabled,
 
     /// <summary>
     /// The data is stored on storage and is not loaded into memory.
@@ -28,12 +28,8 @@ public enum StoragePointState
     Locked,
 
     /// <summary>
-    /// The unloading process is in progress, and operations on the data are disabled.
+    /// The data has been unloaded and is no longer available.<br/>
+    /// This is intended for data persistence at application shutdown.
     /// </summary>
-    UnloadingInProgress,
-
-    /// <summary>
-    /// The data is unloaded, and operations on the data are disabled.
-    /// </summary>
-    Unloaded,
+    Rip,
 }

@@ -32,15 +32,17 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public bool IsDisabled => this.GetOrCreate().IsDisabled;
 
+    /// <summary>
+    /// Gets a value indicating whether storage is locked.<br/>
+    /// Reading is possible, but writing or unloading is not allowed.
+    /// </summary>
     public bool IsLocked => this.GetOrCreate().IsLocked;
 
-    public bool IsUnloading => this.GetOrCreate().IsUnloading;
+    public bool IsRip => this.GetOrCreate().IsRip;
 
-    public bool IsUnloaded => this.GetOrCreate().IsUnloaded;
+    public bool IsPendingRip => this.GetOrCreate().IsPendingRip;
 
-    public bool IsUnloadingOrUnloaded => this.GetOrCreate().IsUnloadingOrUnloaded;
-
-    public bool CanUnload => this.GetOrCreate().CanUnload;
+    public bool IsPendingRelease => this.GetOrCreate().IsPendingRelease;
 
     #endregion
 
