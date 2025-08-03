@@ -11,7 +11,7 @@ namespace CrystalData.Internal;
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject
-{
+{// Disabled, Rip, PendingRelease, Locked
     public const int MaxHistories = 3; // 4
 
     private const uint DisabledStateBit = 1u << 31;
@@ -131,18 +131,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this);
+            this.storageControl.MoveToRecent(this, 0);
             return (TData)data;
         }
 
         await this.EnterAsync().ConfigureAwait(false);
         try
         {
-            if (this.IsUnloadingOrUnloaded)
-            {// Unloading or unloaded
-                return default;
-            }
-
             if (this.data is null)
             {// PrepareAndLoad
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
@@ -172,7 +167,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
                 return default;
             }
 
-            if (this.IsUnloaded)
+            if (this.IsRip || this.IsLocked)
             {
                 return default;
             }
@@ -220,7 +215,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.IsPendingRelease || this.storageControl.IsRip)
             {
-
             }
         }
         finally
@@ -351,7 +345,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     #endregion
 
     internal async Task<bool> StoreDataInternal(StoreMode storeMode)
-    {
+    {// Lock:this
         if (this.data is null)
         {// No data
             return true;
@@ -406,7 +400,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (storeMode == StoreMode.Release)
         {// Release
-         //crystal.Crystalizer.Memory.ReportUnloaded(this, dataSize);
+            this.storageControl.Remove(this, false);
             this.data = default;
         }
 
@@ -475,8 +469,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         if (this.storageMap.IsEnabled)
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
-            // storageControl.GetOrCreate(ref this.pointId, this.typeIdentifier);
-            this.storageControl.Update(rentMemory.Length - this.size);
+            this.storageControl.MoveToRecent(this, rentMemory.Length - this.size);
             this.size = rentMemory.Length;
         }
 
@@ -485,6 +478,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             writer.Write(JournalRecord.Value);
             writer.Write(rentMemory.Span);
             root.AddJournal(ref writer);
+        }
+
+        if (rentMemory.IsRent)
+        {
+            rentMemory.Return();
         }
     }
 

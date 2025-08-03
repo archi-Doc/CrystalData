@@ -74,7 +74,7 @@ public partial class StorageControl
         }
     }
 
-    internal void MoveToRecent(StorageObject storageObject)
+    internal void MoveToRecent(StorageObject storageObject, long sizeDifference)
     {
         if (storageObject.storageMap.IsDisabled)
         {
@@ -83,6 +83,8 @@ public partial class StorageControl
 
         using (this.lowestLockObject.EnterScope())
         {
+            this.memoryUsage += sizeDifference;
+
             if (this.head == null)
             {
                 storageObject.next = storageObject;
@@ -117,7 +119,7 @@ public partial class StorageControl
             if (storageObject is null)
             {// New
                 if (pointId != 0 &&
-                    storageMap.storageObjects.PointIdChain.TryGetValue(pointId, out storageObject!))
+                    storageMap.StorageObjects.PointIdChain.TryGetValue(pointId, out storageObject!))
                 {// Found existing StoragePoint.
                     return;
                 }
@@ -128,7 +130,7 @@ public partial class StorageControl
             }
             else
             {// Existing
-                if (storageObject.Goshujin == storageMap.storageObjects)
+                if (storageObject.Goshujin == storageMap.StorageObjects)
                 {// Already exists in the specified StorageMap.
                     return;
                 }
@@ -140,7 +142,7 @@ public partial class StorageControl
 
             while (true)
             {
-                if (!storageMap.storageObjects.PointIdChain.ContainsKey(pointId))
+                if (!storageMap.StorageObjects.PointIdChain.ContainsKey(pointId))
                 {
                     break;
                 }
@@ -149,15 +151,14 @@ public partial class StorageControl
             }
 
             storageObject.Initialize(pointId, typeIdentifier, storageMap.IsDisabled);
-            storageObject.Goshujin = storageMap.storageObjects;
+            storageObject.Goshujin = storageMap.StorageObjects;
         }
     }
 
-    internal bool TryRemove(StorageObject storageObject)
+    internal void Remove(StorageObject storageObject, bool removeFromStorageMap)
     {
         using (this.lowestLockObject.EnterScope())
         {
-            storageObject.Goshujin = default;
             if (storageObject.storageMap.IsEnabled)
             {
                 this.UpdateMemoryUsageInternal(-storageObject.Size);
@@ -168,18 +169,21 @@ public partial class StorageControl
             {
                 this.head = null;
             }
-            else
+            else if (storageObject.next is not null)
             {
-                storageObject.next!.previous = storageObject.previous;
+                storageObject.next.previous = storageObject.previous;
                 storageObject.previous!.next = storageObject.next;
                 if (this.head == storageObject)
                 {
                     this.head = storageObject.next;
                 }
             }
-        }
 
-        return true;
+            if (removeFromStorageMap)
+            {
+                storageObject.Goshujin = default;
+            }
+        }
     }
 
     private void UpdateMemoryUsageInternal(long size)
