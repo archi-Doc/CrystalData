@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 
@@ -99,9 +100,20 @@ public partial class StorageControl
         }
     }
 
+    /// <summary>
+    /// This is a relatively complex function and forms the core of <see cref="StorageObject"/> creation.<br/>
+    /// For a new <see cref="StorageObject"/>, it is created and added to the <see cref="StorageMap"/>.<br/>
+    /// If the <see cref="StorageObject"/> is already associated with a <see cref="StorageMap"/>, it is first removed and then added to the new <see cref="StorageMap"/>.
+    /// </summary>
+    /// <typeparam name="TData">The type of data to be stored in the <see cref="StorageObject"/>.</typeparam>
+    /// <param name="pointId">The identifier of the storage point.</param>
+    /// <param name="storageObject">A reference to the <see cref="StorageObject"/> instance. If null, a new instance will be created.</param>
+    /// <param name="storageMap">The <see cref="StorageMap"/> to which the <see cref="StorageObject"/> will be associated.</param>
     public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject, StorageMap storageMap)
     {
-
+        using (this.lowestLockObject.EnterScope())
+        {
+        }
     }
 
     public bool TryRemove(StorageObject storageObject)
