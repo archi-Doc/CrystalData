@@ -23,6 +23,7 @@ public partial class StorageControl
     private readonly Lock lowestLockObject;
 
     private StorageMap[] storageMaps;
+    private bool isRip;
     private long memoryUsage;
     private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
 
@@ -30,6 +31,8 @@ public partial class StorageControl
     /// Gets <see cref="StorageMap" /> for <see cref="StorageObject" /> with storage disabled.
     /// </summary>
     public StorageMap DisabledMap { get; }
+
+    public bool IsRip => this.isRip;
 
     public long MemoryUsage => this.memoryUsage;
 

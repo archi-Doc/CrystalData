@@ -2,18 +2,20 @@
 
 namespace CrystalData;
 
-public enum UnloadMode2
+public enum StoreMode
 {
     /// <summary>
     /// The data is persisted, but the memory state is not changed.
     /// </summary>
-    NoUnload,
+    StoreOnly,
 
     /// <summary>
-    /// Attempts to persist the data and release resources. If the data is locked, neither persistence nor release will be performed.
+    /// Attempts to persist the data and release resources.<br/>
+    /// If the data is locked, it will be persisted and released once the lock is released.
     /// </summary>
-    TryUnload,
+    Release,
 
+    /*
     /// <summary>
     /// The data is persisted, and the process waits until unloading is complete.
     /// </summary>
@@ -24,7 +26,7 @@ public enum UnloadMode2
     /// Additionally, it sets the target StoragePoint to the unloaded state.<br/>
     /// This is intended for use during service or application shutdown.
     /// </summary>
-    UnloadAll,
+    UnloadAll,*/
 }
 
 public enum ProbeMode
@@ -68,8 +70,9 @@ public interface IStoragePoint
     /// <returns>
     /// A <see cref="Task{Boolean}"/> representing the asynchronous save operation. Returns <c>true</c> if the save was successful; otherwise, <c>false</c>.
     /// </returns>
-    Task<bool> Save(UnloadMode2 unloadMode);
+    Task<bool> StoreData(StoreMode storeMode);
 
+    /*
     /// <summary>
     /// Probes the storage point and its child elements using the specified probe mode.
     /// </summary>
@@ -84,5 +87,5 @@ public interface IStoragePoint
     /// <summary>
     /// Gets the <see cref="Type"/> of the data managed by this storage point.
     /// </summary>
-    Type DataType { get; }
+    Type DataType { get; }*/
 }

@@ -21,11 +21,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     private ulong pointId; // Lock:StorageControl
     private StorageObject? storageObject; // Lock:StorageControl
 
-    public Type DataType
-        => typeof(TData);
+    // public Type DataType => typeof(TData);
 
-    public uint TypeIdentifier
-        => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+    public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
@@ -210,12 +208,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
-    Task<bool> IStoragePoint.Save(UnloadMode2 unloadMode)
-    {
-        throw new NotImplementedException();
-    }
-
-    bool IStoragePoint.Probe(ProbeMode probeMode)
+    Task<bool> IStoragePoint.StoreData(StoreMode storeMode)
     {
         throw new NotImplementedException();
     }

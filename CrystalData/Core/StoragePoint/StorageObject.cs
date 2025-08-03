@@ -15,8 +15,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     private const uint DisabledStateBit = 1u << 31;
     private const uint RipStateBit = 1u << 30;
-    private const uint PendingRipStateBit = 1u << 29;
-    private const uint PendingReleaseStateBit = 1u << 28;
+    private const uint PendingReleaseStateBit = 1u << 29;
+    // private const uint PendingRipStateBit = 1u << 28;
     private const uint LockedStateBit = 1u << 0;
 
     #region FieldAndProperty
@@ -66,9 +66,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public bool IsRip => (this.state & RipStateBit) != 0;
 
-    public bool IsPendingRip => (this.state & PendingRipStateBit) != 0;
-
     public bool IsPendingRelease => (this.state & PendingReleaseStateBit) != 0;
+
+    // public bool IsPendingRip => (this.state & PendingRipStateBit) != 0;
 
     public bool CanUnload => !this.IsLocked;
 
@@ -174,6 +174,34 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
+    internal async ValueTask Unlock()
+    {
+        await this.EnterAsync().ConfigureAwait(false);
+        try
+        {
+            if (this.IsDisabled)
+            {
+                return;
+            }
+
+            if (!this.IsLocked)
+            {
+                return;
+            }
+
+            this.UnlockInternal();
+
+            if (this.IsPendingRelease || this.storageControl.IsRip)
+            {
+                
+            }
+        }
+        finally
+        {
+            this.Exit();
+        }
+    }
+
     internal void Set<TData>(TData data)
     {
         using (this.Lock())
@@ -182,12 +210,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async Task<bool> Save(UnloadMode2 mode)
+    internal async Task<bool> Save(StoreMode mode)
     {
         return false;
     }
 
-    internal bool Probe(ProbeMode probeMode)
+    /*internal bool Probe(ProbeMode probeMode)
     {
         if (probeMode == ProbeMode.IsUnloadableAll)
         {
@@ -213,7 +241,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
 
         return false;
-    }
+    }*/
 
     internal async Task<bool> Save(UnloadMode unloadMode)
     {
