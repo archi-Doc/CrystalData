@@ -37,7 +37,7 @@ public sealed partial class StorageMap
         storageControl.AddStorageMap(this);
     }
 
-    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject)
+    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject, StorageMap storageMap)
     {
         if (this.IsInvalid)
         {

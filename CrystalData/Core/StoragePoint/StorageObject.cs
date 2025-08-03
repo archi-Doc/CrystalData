@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.CompilerServices;
+using Tinyhand;
 using Tinyhand.IO;
 
 namespace CrystalData.Internal;
@@ -41,8 +42,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private uint state; // Lock:this
     private int size; // Lock:this
 
+#pragma warning disable SA1401 // Fields should be private
+#pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
     internal StorageObject? previous;
     internal StorageObject? next;
+#pragma warning restore SA1307 // Accessible fields should begin with upper-case letter
+#pragma warning restore SA1401 // Fields should be private
 
     public IStructualRoot? StructualRoot { get; set; } // Lock:
 
@@ -145,6 +150,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         await this.EnterAsync().ConfigureAwait(false);
         try
         {
+            if (this.storageControl.IsRip)
+            {
+                return default;
+            }
+
             if (this.IsUnloaded)
             {
                 return default;
@@ -193,7 +203,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.IsPendingRelease || this.storageControl.IsRip)
             {
-                
+
             }
         }
         finally
@@ -208,11 +218,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             this.SetDataInternal(data);
         }
-    }
-
-    internal async Task<bool> Save(StoreMode mode)
-    {
-        return false;
     }
 
     /*internal bool Probe(ProbeMode probeMode)
@@ -243,80 +248,25 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         return false;
     }*/
 
-    internal async Task<bool> Save(UnloadMode unloadMode)
+    internal async Task<bool> StoreData(StoreMode storeMode)
     {
         if (this.data is null)
         {// No data
             return true;
         }
 
+        var result = false;
         await this.EnterAsync().ConfigureAwait(false); // using (this.Lock())
         try
         {
-            if (this.data is null)
-            {// No data
-                return true;
-            }
-
-            if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
-            {// No crystal
-                return true;
-            }
-
-            // Save children
-            if (this.data is IStructualObject structualObject)
-            {
-                var result = await structualObject.Save(unloadMode).ConfigureAwait(false);
-                if (!result)
-                {
-                    return false;
-                }
-            }
-
-            var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
-
-            // Serialize and get hash.
-            var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
-            var dataSize = rentMemory.Span.Length;
-            var hash = FarmHash.Hash64(rentMemory.Span);
-
-            if (hash != this.storageId0.Hash)
-            {// Different data
-                // Put
-                ulong fileId = 0;
-                crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
-                var storageId = new StorageId(currentPosition, fileId, hash);
-
-                // Update histories
-                this.AddInternal(crystal, storageId);
-
-                // Journal
-                AddJournal();
-                void AddJournal()
-                {
-                    if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
-                    {
-                        writer.Write(JournalRecord.AddStorage);
-                        TinyhandSerializer.SerializeObject(ref writer, storageId);
-                        root.AddJournal(ref writer);
-                    }
-                }
-            }
-
-            rentMemory.Return();
-
-            if (unloadMode.IsUnload())
-            {// Unload
-                //crystal.Crystalizer.Memory.ReportUnloaded(this, dataSize);
-                this.data = default;
-            }
+            result = await this.StoreDataInternal(storeMode).ConfigureAwait(false);
         }
         finally
         {
             this.Exit();
         }
 
-        return true;
+        return result;
     }
 
     internal void Erase()
@@ -377,6 +327,69 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     }
 
     #endregion
+
+    internal async Task<bool> StoreDataInternal(StoreMode storeMode)
+    {
+        if (this.data is null)
+        {// No data
+            return true;
+        }
+
+        if (this.StructualRoot is not ICrystal crystal)
+        {// No crystal
+            return true;
+        }
+
+        // Save children
+        if (this.data is IStructualObject structualObject)
+        {
+            var result = await structualObject.Save(UnloadMode.TryUnload).ConfigureAwait(false);
+            if (!result)
+            {
+                return false;
+            }
+        }
+
+        var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
+
+        // Serialize and get hash.
+        var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
+        var dataSize = rentMemory.Span.Length;
+        var hash = FarmHash.Hash64(rentMemory.Span);
+
+        if (hash != this.storageId0.Hash)
+        {// Different data
+         // Put
+            ulong fileId = 0;
+            crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+            var storageId = new StorageId(currentPosition, fileId, hash);
+
+            // Update histories
+            this.AddInternal(crystal, storageId);
+
+            // Journal
+            AddJournal();
+            void AddJournal()
+            {
+                if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+                {
+                    writer.Write(JournalRecord.AddStorage);
+                    TinyhandSerializer.SerializeObject(ref writer, storageId);
+                    root.AddJournal(ref writer);
+                }
+            }
+        }
+
+        rentMemory.Return();
+
+        if (storeMode == StoreMode.Release)
+        {// Release
+         //crystal.Crystalizer.Memory.ReportUnloaded(this, dataSize);
+            this.data = default;
+        }
+
+        return true;
+    }
 
     private async Task PrepareAndLoadInternal<TData>()
     {// using (this.Lock())

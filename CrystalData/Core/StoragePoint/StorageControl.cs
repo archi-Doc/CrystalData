@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 
 namespace CrystalData;
@@ -96,6 +97,11 @@ public partial class StorageControl
                 this.head = storageObject;
             }
         }
+    }
+
+    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject, StorageMap storageMap)
+    {
+
     }
 
     public bool TryRemove(StorageObject storageObject)

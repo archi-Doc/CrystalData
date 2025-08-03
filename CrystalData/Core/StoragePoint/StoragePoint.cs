@@ -38,8 +38,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool IsRip => this.GetOrCreate().IsRip;
 
-    public bool IsPendingRip => this.GetOrCreate().IsPendingRip;
-
     public bool IsPendingRelease => this.GetOrCreate().IsPendingRelease;
 
     #endregion
@@ -129,6 +127,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     {
         if (this.storageObject is not null)
         {
+            if (parent?.StructualRoot is ICrystal crystal)
+            {
+                StorageControl.Default.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, crystal.Storage.StorageMap);
+            }
+
             ((IStructualObject)this.storageObject).SetupStructure(parent, key);
         }
 
@@ -176,15 +179,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
         else
         {
-            if (v.storageObject is not null)
-            {
-                StorageControl.Default.TryRemove(v.storageObject);
-                v.storageObject = default;
-            }
-
+            StorageControl.Default.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageControl.Default.DisabledMap);
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
-
-            StorageControl.Default.DisabledMap.GetOrCreate<TData>(ref v.pointId, ref v.storageObject);
             v.storageObject.Set(data);
         }
     }
@@ -209,9 +205,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     #endregion
 
     Task<bool> IStoragePoint.StoreData(StoreMode storeMode)
-    {
-        throw new NotImplementedException();
-    }
+        => this.GetOrCreate().StoreData(storeMode);
 
     private StorageObject GetOrCreate()
     {
@@ -220,14 +214,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        StorageMap? storageMap = default;
+        StorageMap storageMap = StorageControl.Default.DisabledMap;
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
             storageMap = crystal.Storage.StorageMap;
         }
 
-        storageMap ??= StorageControl.Default.DisabledMap;
-        storageMap.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
+        StorageControl.Default.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
         return this.storageObject;
     }
 }
