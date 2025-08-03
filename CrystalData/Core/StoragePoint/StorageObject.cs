@@ -79,16 +79,33 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     #endregion
 
+    internal StorageObject()
+    {
+    }
+
     internal StorageObject(ulong pointId, uint typeIdentifier)
     {
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
     }
 
-    internal StorageObject(uint typeIdentifier)
+    internal StorageObject(uint typeIdentifier, bool disabledStorage)
     {
         this.typeIdentifier = typeIdentifier;
-        this.state |= DisabledStateBit;
+        if (disabledStorage)
+        {// Disable storage
+            this.state |= DisabledStateBit;
+        }
+    }
+
+    internal void Initialize(ulong pointId, uint typeIdentifier, bool disabledStorage)
+    {
+        this.pointId = pointId;
+        this.typeIdentifier = typeIdentifier;
+        if (disabledStorage)
+        {// Disable storage
+            this.state |= DisabledStateBit;
+        }
     }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
@@ -280,6 +297,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
         ((IStructualObject)this).SetParentAndKey(parent, key);
+
+        /*if (this.data is IStructualObject structualObject)
+        {
+            structualObject.SetupStructure(parent, key);
+        }*/
     }
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)

@@ -74,7 +74,7 @@ public partial class StorageControl
         }
     }
 
-    public void MoveToRecent(StorageObject storageObject)
+    internal void MoveToRecent(StorageObject storageObject)
     {
         if (storageObject.storageMap.IsDisabled)
         {
@@ -109,14 +109,51 @@ public partial class StorageControl
     /// <param name="pointId">The identifier of the storage point.</param>
     /// <param name="storageObject">A reference to the <see cref="StorageObject"/> instance. If null, a new instance will be created.</param>
     /// <param name="storageMap">The <see cref="StorageMap"/> to which the <see cref="StorageObject"/> will be associated.</param>
-    public void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject, StorageMap storageMap)
+    internal void GetOrCreate<TData>(ref ulong pointId, [NotNull] ref StorageObject? storageObject, StorageMap storageMap)
     {
         using (this.lowestLockObject.EnterScope())
         {
+            uint typeIdentifier;
+            if (storageObject is null)
+            {// New
+                if (pointId != 0 &&
+                    storageMap.storageObjects.PointIdChain.TryGetValue(pointId, out storageObject!))
+                {// Found existing StoragePoint.
+                    return;
+                }
+
+                typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
+                pointId = RandomVault.Default.NextUInt64();
+                storageObject = new();
+            }
+            else
+            {// Existing
+                if (storageObject.Goshujin == storageMap.storageObjects)
+                {// Already exists in the specified StorageMap.
+                    return;
+                }
+
+                typeIdentifier = storageObject.TypeIdentifier;
+                pointId = storageObject.PointId;
+                storageObject.Goshujin = default;
+            }
+
+            while (true)
+            {
+                if (!storageMap.storageObjects.PointIdChain.ContainsKey(pointId))
+                {
+                    break;
+                }
+
+                pointId = RandomVault.Default.NextUInt64();
+            }
+
+            storageObject.Initialize(pointId, typeIdentifier, storageMap.IsDisabled);
+            storageObject.Goshujin = storageMap.storageObjects;
         }
     }
 
-    public bool TryRemove(StorageObject storageObject)
+    internal bool TryRemove(StorageObject storageObject)
     {
         using (this.lowestLockObject.EnterScope())
         {
