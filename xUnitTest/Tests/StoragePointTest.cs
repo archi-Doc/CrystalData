@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc.Threading;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -7,8 +8,8 @@ using Xunit;
 
 namespace xUnitTest.CrystalDataTest;
 
-[TinyhandObject(Structual = true, LockObject = nameof(lockObject))]
-[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public sealed partial record StoragePointClass1
 {
     public StoragePointClass1(int id, string name)
@@ -24,8 +25,13 @@ public sealed partial record StoragePointClass1
     public int Id { get; set; }
 
     [Key(1)]
-    [Link(Type = ChainType.Ordered)]
     public string Name { get; set; }
+
+    [Key(2)]
+    public StoragePointClass Class1 { get; set; } = new(1, "Class1", "Description of Class1");
+
+    [Key(3)]
+    public StoragePoint<StoragePointClass> Class2 { get; set; } = new();
 }
 
 [TinyhandObject(Structual = false)]
@@ -120,6 +126,21 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
 
 public class StoragePointTest
 {
+    [Fact]
+    public async Task Test2()
+    {
+        var g = new StoragePointClass1.GoshujinClass();
+        using (var writer = g.TryLock(1, TryLockMode.GetOrCreate))
+        {
+            if (writer is not null)
+            {
+                writer.Name = "Test";
+                var c2 = await writer.Class2.GetOrCreate();
+                writer.Commit();
+            }
+        }
+    }
+
     [Fact]
     public async Task Test1()
     {

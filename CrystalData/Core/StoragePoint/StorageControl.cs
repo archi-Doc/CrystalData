@@ -69,7 +69,7 @@ public partial class StorageControl
         using (this.lowestLockObject.EnterScope())
         {
             var length = this.storageMaps.Length;
-            Array.Resize(ref this.storageMaps, length);
+            Array.Resize(ref this.storageMaps, length + 1);
             this.storageMaps[length] = storageMap;
         }
     }

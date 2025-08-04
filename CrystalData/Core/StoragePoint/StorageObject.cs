@@ -51,11 +51,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private uint state; // Lock:this
     private int size; // Lock:this
 
-    public IStructualRoot? StructualRoot { get; set; } // Lock:
+    public IStructualRoot? StructualRoot { get; set; } // Lock: (Parent)
 
-    public IStructualObject? StructualParent { get; set; } // Lock:
+    public IStructualObject? StructualParent { get; set; } // Lock: (Parent)
 
-    public int StructualKey { get; set; } // Lock:
+    public int StructualKey { get; set; } // Lock: (Parent)
 
     public ulong PointId => this.pointId;
 
@@ -247,6 +247,26 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {// No data
             return true;
         }
+
+        /*this.SetPendingReleaseStateBit();
+        if (storeMode == StoreMode.Release)
+        {// Release
+            this.SetPendingReleaseStateBit();
+        }
+
+        bool result;
+        if (this.TryEnter())
+        {
+            try
+            {
+                result = await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
+                this.ReleaseIfPendingInternal();
+            }
+            finally
+            {
+                this.Exit();
+            }
+        }*/
 
         await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
 
