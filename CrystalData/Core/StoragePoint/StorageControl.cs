@@ -117,10 +117,10 @@ public partial class StorageControl
         {
             uint typeIdentifier;
             if (storageObject is null)
-            {// New
+            {// Create a new object.
                 if (pointId != 0 &&
                     storageMap.StorageObjects.PointIdChain.TryGetValue(pointId, out storageObject!))
-                {// Found existing StoragePoint.
+                {// Found existing StorageObject.
                     return;
                 }
 
@@ -129,7 +129,7 @@ public partial class StorageControl
                 storageObject = new();
             }
             else
-            {// Existing
+            {// Use an existing object.
                 if (storageObject.Goshujin == storageMap.StorageObjects)
                 {// Already exists in the specified StorageMap.
                     return;

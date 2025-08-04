@@ -67,7 +67,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
-    public new bool IsLocked => (this.state & LockedStateBit) != 0;
+    // public new bool IsLocked => (this.state & LockedStateBit) != 0;
 
     public bool IsRip => (this.state & RipStateBit) != 0;
 
@@ -81,21 +81,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     internal StorageObject()
     {
-    }
-
-    internal StorageObject(ulong pointId, uint typeIdentifier)
-    {
-        this.pointId = pointId;
-        this.typeIdentifier = typeIdentifier;
-    }
-
-    internal StorageObject(uint typeIdentifier, bool disabledStorage)
-    {
-        this.typeIdentifier = typeIdentifier;
-        if (disabledStorage)
-        {// Disable storage
-            this.state |= DisabledStateBit;
-        }
     }
 
     internal void Initialize(ulong pointId, uint typeIdentifier, bool disabledStorage)

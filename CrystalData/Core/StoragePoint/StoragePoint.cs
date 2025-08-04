@@ -21,8 +21,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     private ulong pointId; // Lock:StorageControl
     private StorageObject? storageObject; // Lock:StorageControl
 
-    // public Type DataType => typeof(TData);
-
     public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>
@@ -36,8 +34,16 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public bool IsLocked => this.GetOrCreate().IsLocked;
 
+    /// <summary>
+    /// Gets a value indicating whether storage is rip.<br/>
+    /// Storage is shutting down and is read-only.
+    /// </summary>
     public bool IsRip => this.GetOrCreate().IsRip;
 
+    /// <summary>
+    /// Gets a value indicating whether storage is pending release.<br/>
+    /// Once the lock is released, the storage will be persisted and memory will be freed.
+    /// </summary>
     public bool IsPendingRelease => this.GetOrCreate().IsPendingRelease;
 
     #endregion
