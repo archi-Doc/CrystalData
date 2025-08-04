@@ -21,7 +21,7 @@ public class EmptyJournal : IJournal
         writer = default(TinyhandWriter);
     }
 
-    Task IJournal.SaveJournalAsync()
+    Task IJournal.StoreJournalAsync()
     {
         return Task.CompletedTask;
     }

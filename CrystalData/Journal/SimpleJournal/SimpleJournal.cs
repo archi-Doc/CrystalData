@@ -152,7 +152,7 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    async Task IJournal.SaveJournalAsync()
+    async Task IJournal.StoreJournalAsync()
     {
         await this.SaveJournalAsync(true).ConfigureAwait(false);
     }

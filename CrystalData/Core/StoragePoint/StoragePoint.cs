@@ -68,11 +68,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public ValueTask<TData> GetOrCreate()
         => this.GetStorageObject().GetOrCreate<TData>();
 
-    public ValueTask<TData?> TryLock()
-        => this.GetStorageObject().TryLock<TData>();
+    // public ValueTask<TData?> TryLock() => this.GetStorageObject().TryLock<TData>();
 
-    public void Unlock()
-        => this.GetStorageObject().Unlock();
+    // public void Unlock() => this.GetStorageObject().Unlock();
 
     public bool DataEquals(StoragePoint<TData> other)
     {

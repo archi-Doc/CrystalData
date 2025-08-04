@@ -544,7 +544,7 @@ public class Crystalizer
         // Save/Terminate journal
         if (this.Journal is { } journal)
         {
-            await journal.SaveJournalAsync().ConfigureAwait(false);
+            await journal.StoreJournalAsync().ConfigureAwait(false);
             await journal.TerminateAsync().ConfigureAwait(false);
         }
 
@@ -671,12 +671,12 @@ public class Crystalizer
         return result;
     }
 
-    public async Task SaveJournal()
+    public async Task StoreJournal()
     {
         // Save journal
         if (this.Journal is { } journal)
         {
-            await journal.SaveJournalAsync().ConfigureAwait(false);
+            await journal.StoreJournalAsync().ConfigureAwait(false);
         }
     }
 

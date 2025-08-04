@@ -32,6 +32,8 @@ public interface ICrystal : IStructualRoot
 
     Task<CrystalResult> Save(UnloadMode unloadMode = UnloadMode.NoUnload);
 
+    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly);
+
     Task<CrystalResult> Delete();
 
     void Terminate();

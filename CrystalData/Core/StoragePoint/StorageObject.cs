@@ -169,7 +169,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData?> TryLock<TData>()
+    /*internal async ValueTask<TData?> TryLock<TData>()
     {
         if (this.storageControl.IsRip || this.IsRip)
         {
@@ -201,7 +201,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {// Lock:this
         this.ReleaseIfPendingInternal();
         this.Exit();
-    }
+    }*/
 
     internal void Set<TData>(TData data)
         where TData : notnull

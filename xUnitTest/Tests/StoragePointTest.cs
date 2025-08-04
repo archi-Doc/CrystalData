@@ -147,8 +147,8 @@ public class StoragePointTest
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePointClass>(true);
 
         var g = crystal.Data;
-        await crystal.Save(UnloadMode.ForceUnload);
-        await crystal.Crystalizer.SaveJournal();
+        await crystal.Store(StoreMode.Release);
+        await crystal.Crystalizer.StoreJournal();
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }
