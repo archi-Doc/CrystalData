@@ -51,11 +51,18 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private uint state; // Lock:this
     private int size; // Lock:this
 
-    public IStructualRoot? StructualRoot { get; set; } // Lock: (Parent)
+    public IStructualRoot? StructualRoot
+    {
+        get => this.storagePo
+    }
 
     public IStructualObject? StructualParent { get; set; } // Lock: (Parent)
 
-    public int StructualKey { get; set; } // Lock: (Parent)
+    public int StructualKey
+    {
+        get => default;
+        set { }
+    }
 
     public ulong PointId => this.pointId;
 
