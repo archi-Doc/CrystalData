@@ -90,11 +90,11 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
 
         return this.id == other.Id &&
             this.name == other.Name &&
-            this.StringStorage.TryGet().Result == other.Description;
+            this.StringStorage.Get().Result == other.Description;
     }
 
     public override int GetHashCode()
-        => HashCode.Combine(this.id, this.name, this.StringStorage.TryGet().Result);
+        => HashCode.Combine(this.id, this.name, this.StringStorage.Get().Result);
 }
 
 public class StoragePointTest

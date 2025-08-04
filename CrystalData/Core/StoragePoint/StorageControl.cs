@@ -159,24 +159,31 @@ public partial class StorageControl
     {
         using (this.lowestLockObject.EnterScope())
         {
-            if (storageObject.storageMap.IsEnabled)
-            {
-                this.UpdateMemoryUsageInternal(-storageObject.Size);
-            }
-
             // Least recently used list.
-            if (storageObject.next == storageObject)
+            if (storageObject.previous is not null &&
+                storageObject.next is not null)
             {
-                this.head = null;
-            }
-            else if (storageObject.next is not null)
-            {
-                storageObject.next.previous = storageObject.previous;
-                storageObject.previous!.next = storageObject.next;
-                if (this.head == storageObject)
+                if (storageObject.storageMap.IsEnabled)
                 {
-                    this.head = storageObject.next;
+                    this.UpdateMemoryUsageInternal(-storageObject.Size);
                 }
+
+                if (storageObject.next == storageObject)
+                {
+                    this.head = null;
+                }
+                else
+                {
+                    storageObject.next.previous = storageObject.previous;
+                    storageObject.previous.next = storageObject.next;
+                    if (this.head == storageObject)
+                    {
+                        this.head = storageObject.next;
+                    }
+                }
+
+                storageObject.previous = default;
+                storageObject.next = default;
             }
 
             if (removeFromStorageMap)

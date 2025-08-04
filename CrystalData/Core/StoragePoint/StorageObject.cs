@@ -19,7 +19,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private const uint RipStateBit = 1u << 30;
     private const uint PendingReleaseStateBit = 1u << 29;
     // private const uint PendingRipStateBit = 1u << 28;
-    private const uint LockedStateBit = 1u << 0;
+    // private const uint LockedStateBit = 1u << 0;
 
     #region FieldAndProperty
 
@@ -90,7 +90,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         this.typeIdentifier = typeIdentifier;
         if (disabledStorage)
         {// Disable storage
-            this.state |= DisabledStateBit;
+            this.SetDisableStateBit();
         }
     }
 
@@ -168,73 +168,43 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData?> TryLock<TData>(bool createIfNotExists = true)
+    internal async ValueTask<TData?> TryLock<TData>()
     {
         await this.EnterAsync().ConfigureAwait(false);
-        try
-        {
-            if (this.storageControl.IsRip)
-            {
-                return default;
-            }
-
-            if (this.IsRip || this.IsLocked)
-            {
-                return default;
-            }
-
-            if (this.data is null)
-            {// PrepareAndLoad
-                await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-                // this.PrepareData() is called from PrepareAndLoadInternal().
-            }
-
-            if (this.data is null && createIfNotExists)
-            {// Reconstruct
-                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>());
-            }
-
-            if (!this.TryLockInternal())
-            {
-                return default;
-            }
-
-            return (TData?)this.data;
-        }
-        finally
+        if (this.storageControl.IsRip)
         {
             this.Exit();
+            return default;
         }
+
+        if (this.IsRip || this.IsLocked)
+        {
+            this.Exit();
+            return default;
+        }
+
+        if (this.data is null)
+        {// PrepareAndLoad
+            await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
+            // this.PrepareData() is called from PrepareAndLoadInternal().
+        }
+
+        if (this.data is null)
+        {// Reconstruct
+            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>());
+        }
+
+        return (TData?)this.data;
     }
 
-    internal async ValueTask Unlock()
+    internal void Unlock()
     {
-        await this.EnterAsync().ConfigureAwait(false);
-        try
-        {
-            if (this.IsDisabled)
-            {
-                return;
-            }
-
-            if (!this.IsLocked)
-            {
-                return;
-            }
-
-            this.UnlockInternal();
-
-            if (this.IsPendingRelease || this.storageControl.IsRip)
-            {
-            }
-        }
-        finally
-        {
-            this.Exit();
-        }
+        this.ReleaseIfPendingInternal();
+        this.Exit();
     }
 
     internal void Set<TData>(TData data)
+        where TData : notnull
     {
         using (this.Lock())
         {
@@ -275,6 +245,24 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         if (this.data is null)
         {// No data
             return true;
+        }
+
+        await this.StoreDataInternal().ConfigureAwait(false);
+
+        if (storeMode == StoreMode.Release)
+        {// Release
+            this.SetPendingReleaseStateBit();
+            if (this.TryEnter())
+            {
+                try
+                {
+                    this.ReleaseIfPendingInternal();
+                }
+                finally
+                {
+                    this.Exit();
+                }
+            }
         }
 
         var result = false;
@@ -418,6 +406,74 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         return true;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ReleaseIfPendingInternal()
+    {// Lock:this
+        if (this.IsPendingRelease)
+        {
+            this.ClearPendingReleaseStateBit();
+            this.storageControl.Release(this, false);
+            this.data = default;
+        }
+    }
+
+    private async Task<bool> StoreDataInternal()
+    {// Lock:this
+        if (this.data is null)
+        {// No data
+            return true;
+        }
+
+        if (this.StructualRoot is not ICrystal crystal)
+        {// No crystal
+            return true;
+        }
+
+        // Save children
+        if (this.data is IStructualObject structualObject)
+        {
+            var result = await structualObject.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+            if (!result)
+            {
+                return false;
+            }
+        }
+
+        var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
+
+        // Serialize and get hash.
+        var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
+        var dataSize = rentMemory.Span.Length;
+        var hash = FarmHash.Hash64(rentMemory.Span);
+
+        if (hash != this.storageId0.Hash)
+        {// Different data
+         // Put
+            ulong fileId = 0;
+            crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+            var storageId = new StorageId(currentPosition, fileId, hash);
+
+            // Update histories
+            this.AddInternal(crystal, storageId);
+
+            // Journal
+            AddJournal();
+            void AddJournal()
+            {
+                if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+                {
+                    writer.Write(JournalRecord.AddStorage);
+                    TinyhandSerializer.SerializeObject(ref writer, storageId);
+                    root.AddJournal(ref writer);
+                }
+            }
+        }
+
+        rentMemory.Return();
+
+        return true;
+    }
+
     private async Task PrepareAndLoadInternal<TData>()
     {// using (this.Lock())
         if (this.data is not null)
@@ -472,7 +528,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {// this.Lock() required
         BytePool.RentMemory rentMemory = default;
 
-        this.data = data;
+        this.data = data!;
         if (this.data is IStructualObject structualObject)
         {
             structualObject.SetupStructure(this);
@@ -602,7 +658,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    private bool TryLockInternal()
+    private void SetDisableStateBit() => this.state |= DisabledStateBit;
+
+    private void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
+
+    private void SetRipStateBit() => this.state |= RipStateBit;
+
+    private void ClearRipStateBit() => this.state &= ~RipStateBit;
+
+    private void SetPendingReleaseStateBit() => this.state |= PendingReleaseStateBit;
+
+    private void ClearPendingReleaseStateBit() => this.state &= ~PendingReleaseStateBit;
+
+    /*private bool TryLockInternal()
     {
         if (this.IsLocked)
         {
@@ -618,7 +686,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private void UnlockInternal()
     {
         this.state &= ~LockedStateBit;
-    }
+    }*/
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ConfigureStorage(bool disableStorage)
@@ -627,13 +695,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (disableStorage)
         {
-            this.state |= DisabledStateBit;
+            this.SetDisableStateBit();
         }
         else
         {// Enable storage
             if (this.storageMap.IsEnabled)
             {
-                this.state &= ~DisabledStateBit;
+                this.ClearDisableStateBit();
             }
         }
 

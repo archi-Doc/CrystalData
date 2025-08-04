@@ -15,6 +15,7 @@ namespace CrystalData;
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
 public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IStoragePoint
+    where TData : notnull
 {
     #region FiendAndProperty
 
@@ -61,16 +62,22 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public void Set(TData data)
         => this.GetStorageObject().Set(data);
 
-    public ValueTask<TData?> TryGet()
+    public ValueTask<TData?> Get()
         => this.GetStorageObject().Get<TData>();
 
     public ValueTask<TData> GetOrCreate()
         => this.GetStorageObject().GetOrCreate<TData>();
 
+    public ValueTask<TData?> TryLock()
+        => this.GetStorageObject().TryLock<TData>();
+
+    public void Unlock()
+        => this.GetStorageObject().Unlock();
+
     public bool DataEquals(StoragePoint<TData> other)
     {
-        var data = this.TryGet().Result;
-        var otherData = other.TryGet().Result;
+        var data = this.Get().Result;
+        var otherData = other.Get().Result;
         if (data is null)
         {
             return otherData is null;
@@ -83,7 +90,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(TData? otherData)
     {
-        var data = this.TryGet().Result;
+        var data = this.Get().Result;
         if (data is null)
         {
             return otherData is null;
@@ -189,7 +196,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         else
         {
             StorageControl.Default.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageControl.Default.DisabledMap);
-            var data = TinyhandSerializer.Deserialize<TData>(ref reader, options);
+            var data = TinyhandSerializer.Deserialize<TData>(ref reader, options) ?? TinyhandSerializer.Reconstruct<TData>(options);
             v.storageObject.Set(data);
         }
     }
