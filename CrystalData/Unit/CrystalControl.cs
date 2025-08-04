@@ -39,8 +39,8 @@ public class CrystalControl
                     context.AddSingleton<CrystalizerConfiguration>();
                     context.AddSingleton<CrystalizerOptions>();
                     context.AddSingleton<Crystalizer>();
-                    context.AddSingleton<StorageControl>();
                     context.Services.AddSingleton<StorageControl>(serviceProvider => StorageControl.Default);
+                    context.AddSingleton<StorageMap>();
                     context.AddSingleton<IStorageKey, StorageKey>();
                     context.TryAddSingleton<ICrystalDataQuery, CrystalDataQueryDefault>();
                 }

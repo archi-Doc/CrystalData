@@ -2,13 +2,11 @@
 
 #pragma warning disable SA1202
 
-using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
-using Tinyhand.IO;
 
 namespace CrystalData;
 
-[TinyhandObject]
+[TinyhandObject(UseServiceProvider = true)]
 public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
@@ -87,11 +85,7 @@ public sealed partial class StorageMap : IStructualObject
 
     IStructualObject? IStructualObject.StructualParent { get; set; }
 
-    int IStructualObject.StructualKey
-    {
-        get => default;
-        set { }
-    }
+    int IStructualObject.StructualKey { get; set; }
 
     #endregion
 
