@@ -11,7 +11,7 @@ namespace CrystalData.Internal;
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject
-{// Disabled, Rip, PendingRelease, Locked
+{// Disabled, Rip, PendingRelease
     public const int MaxHistories = 3; // 4
 
     private const uint DisabledStateBit = 1u << 31;
@@ -22,6 +22,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     #region FieldAndProperty
 
+#pragma warning disable SA1401 // Fields should be private
+#pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
+
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
     private ulong pointId; // Lock:StorageControl
@@ -30,24 +33,23 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private uint typeIdentifier; // Lock:StorageControl
 
     [Key(2)]
-    private StorageId storageId0; // Lock:this
+    internal StorageId storageId0; // Lock:StorageControl
 
     [Key(3)]
-    private StorageId storageId1; // Lock:this
+    internal StorageId storageId1; // Lock:StorageControl
 
     [Key(4)]
-    private StorageId storageId2; // Lock:this
+    internal StorageId storageId2; // Lock:StorageControl
+
+    internal StorageObject? previous; // Lock:StorageControl
+    internal StorageObject? next; // Lock:StorageControl
+
+#pragma warning restore SA1307 // Accessible fields should begin with upper-case letter
+#pragma warning restore SA1401 // Fields should be private
 
     private object? data; // Lock:this
     private uint state; // Lock:this
     private int size; // Lock:this
-
-#pragma warning disable SA1401 // Fields should be private
-#pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
-    internal StorageObject? previous; // Lock:StorageControl
-    internal StorageObject? next; // Lock:StorageControl
-#pragma warning restore SA1307 // Accessible fields should begin with upper-case letter
-#pragma warning restore SA1401 // Fields should be private
 
     public IStructualRoot? StructualRoot { get; set; } // Lock:
 
@@ -169,14 +171,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     internal async ValueTask<TData?> TryLock<TData>()
     {
-        await this.EnterAsync().ConfigureAwait(false);
-        if (this.storageControl.IsRip)
+        if (this.storageControl.IsRip || this.IsRip)
         {
-            this.Exit();
             return default;
         }
 
-        if (this.IsRip || this.IsLocked)
+        await this.EnterAsync().ConfigureAwait(false);
+        if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();
             return default;
@@ -241,12 +242,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     internal async Task<bool> StoreData(StoreMode storeMode)
     {
-        if (this.data is null)
+        if (this.data is not { } data ||
+            this.StructualRoot is not ICrystal crystal)
         {// No data
             return true;
         }
 
-        await this.StoreDataInternal().ConfigureAwait(false);
+        await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
 
         if (storeMode == StoreMode.Release)
         {// Release
@@ -306,7 +308,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             reader.TryRead(out record);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
-            this.AddInternal(crystal, storageId);
+            StorageControl.Default.AddStorage(this, crystal, storageId);
             return true;
         }
 
@@ -331,69 +333,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     #endregion
 
-    internal async Task<bool> StoreDataInternal(StoreMode storeMode)
-    {// Lock:this
-        if (this.data is null)
-        {// No data
-            return true;
-        }
-
-        if (this.StructualRoot is not ICrystal crystal)
-        {// No crystal
-            return true;
-        }
-
-        // Save children
-        if (this.data is IStructualObject structualObject)
-        {
-            var result = await structualObject.Save(UnloadMode.TryUnload).ConfigureAwait(false);
-            if (!result)
-            {
-                return false;
-            }
-        }
-
-        var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
-
-        // Serialize and get hash.
-        var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
-        var dataSize = rentMemory.Span.Length;
-        var hash = FarmHash.Hash64(rentMemory.Span);
-
-        if (hash != this.storageId0.Hash)
-        {// Different data
-         // Put
-            ulong fileId = 0;
-            crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
-            var storageId = new StorageId(currentPosition, fileId, hash);
-
-            // Update histories
-            this.AddInternal(crystal, storageId);
-
-            // Journal
-            AddJournal();
-            void AddJournal()
-            {
-                if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
-                {
-                    writer.Write(JournalRecord.AddStorage);
-                    TinyhandSerializer.SerializeObject(ref writer, storageId);
-                    root.AddJournal(ref writer);
-                }
-            }
-        }
-
-        rentMemory.Return();
-
-        if (storeMode == StoreMode.Release)
-        {// Release
-            this.storageControl.Release(this, false);
-            this.data = default;
-        }
-
-        return true;
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ReleaseIfPendingInternal()
     {// Lock:this
@@ -405,61 +344,52 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    private async Task<bool> StoreDataInternal()
-    {// Lock:this
-        if (this.data is null)
-        {// No data
-            return true;
-        }
+    private async Task<bool> StoreData(StoreMode storeMode, object data, ICrystal crystal)
+    {// No lock
+        bool result = true;
 
-        if (this.StructualRoot is not ICrystal crystal)
-        {// No crystal
-            return true;
-        }
-
-        // Save children
-        if (this.data is IStructualObject structualObject)
+        // Store children
+        if (data is IStructualObject structualObject)
         {
-            var result = await structualObject.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
-            if (!result)
+            if (!await structualObject.StoreData(storeMode).ConfigureAwait(false))
             {
-                return false;
+                result = false;
             }
         }
 
-        var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
-
         // Serialize and get hash.
-        var rentMemory = TinyhandSerializer.SerializeToRentMemory(this.data);
+        (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, data);
+        if (rentMemory.IsEmpty)
+        {// No data
+            return false;
+        }
+
         var dataSize = rentMemory.Span.Length;
         var hash = FarmHash.Hash64(rentMemory.Span);
 
         if (hash != this.storageId0.Hash)
         {// Different data
-         // Put
+            // Put
             ulong fileId = 0;
             crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+            var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
             var storageId = new StorageId(currentPosition, fileId, hash);
 
-            // Update histories
-            this.AddInternal(crystal, storageId);
+            // Update storage id
+            StorageControl.Default.AddStorage(this, crystal, storageId);
 
             // Journal
-            AddJournal();
-            void AddJournal()
+            if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
-                {
-                    writer.Write(JournalRecord.AddStorage);
-                    TinyhandSerializer.SerializeObject(ref writer, storageId);
-                    root.AddJournal(ref writer);
-                }
+                writer.Write(JournalRecord.AddStorage);
+                TinyhandSerializer.SerializeObject(ref writer, storageId);
+                root.AddJournal(ref writer);
             }
         }
 
         rentMemory.Return();
 
-        return true;
+        return result;
     }
 
     private async Task PrepareAndLoadInternal<TData>()
@@ -541,55 +471,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             rentMemory.Return();
         }
-    }
-
-    private void AddInternal(ICrystal crystal, StorageId storageId)
-    {
-        var numberOfHistories = crystal.CrystalConfiguration.NumberOfFileHistories;
-        ulong fileId;
-        var storage = crystal.Storage;
-
-        if (numberOfHistories <= 1)
-        {
-            this.storageId0 = storageId;
-        }
-        else if (numberOfHistories == 2)
-        {
-            if (this.storageId1.IsValid)
-            {
-                fileId = this.storageId1.FileId;
-                storage.DeleteAndForget(ref fileId);
-            }
-
-            this.storageId1 = this.storageId0;
-            this.storageId0 = storageId;
-        }
-        else
-        {
-            if (this.storageId2.IsValid)
-            {
-                fileId = this.storageId2.FileId;
-                storage.DeleteAndForget(ref fileId);
-            }
-
-            this.storageId2 = this.storageId1;
-            this.storageId1 = this.storageId0;
-            this.storageId0 = storageId;
-        }
-
-        /*else
-        {
-            if (this.storageId3.IsValid)
-            {
-                fileId = this.storageId3.FileId;
-                storage.DeleteAndForget(ref fileId);
-            }
-
-            this.storageId3 = this.storageId2;
-            this.storageId2 = this.storageId1;
-            this.storageId1 = this.storageId0;
-            this.storageId0 = storageId;
-        }*/
     }
 
     private void EraseStorage()

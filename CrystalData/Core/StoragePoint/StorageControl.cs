@@ -210,6 +210,38 @@ public partial class StorageControl
         }
     }
 
+    internal void AddStorage(StorageObject storageObject, ICrystal crystal, StorageId storageId)
+    {
+        var numberOfHistories = crystal.CrystalConfiguration.NumberOfFileHistories;
+        ulong fileIdToDelete = default;
+
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (numberOfHistories <= 1)
+            {
+                storageObject.storageId0 = storageId;
+            }
+            else if (numberOfHistories == 2)
+            {
+                fileIdToDelete = storageObject.storageId1.FileId;
+                storageObject.storageId1 = storageObject.storageId0;
+                storageObject.storageId0 = storageId;
+            }
+            else
+            {
+                fileIdToDelete = storageObject.storageId2.FileId;
+                storageObject.storageId2 = storageObject.storageId1;
+                storageObject.storageId1 = storageObject.storageId0;
+                storageObject.storageId0 = storageId;
+            }
+        }
+
+        if (fileIdToDelete != 0)
+        {// Delete the oldest file.
+            crystal.Storage.DeleteAndForget(ref fileIdToDelete);
+        }
+    }
+
     private void UpdateMemoryUsageInternal(long size)
         => this.memoryUsage += size;
 }

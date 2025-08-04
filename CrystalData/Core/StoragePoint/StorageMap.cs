@@ -19,11 +19,11 @@ public sealed partial class StorageMap
     private bool enabledStorageMap = true;
 
     [Key(0)]
-    private StorageObject.GoshujinClass storageObjects = new();
+    private StorageObject.GoshujinClass storageObjects = new(); // Lock:StorageControl
 
     private long storageUsage;
 
-    internal StorageObject.GoshujinClass StorageObjects => this.storageObjects;
+    internal StorageObject.GoshujinClass StorageObjects => this.storageObjects; // Lock:StorageControl
 
     public bool IsEnabled => this.enabledStorageMap;
 
