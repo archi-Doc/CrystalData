@@ -128,7 +128,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             if (this.data is null)
             {// PrepareAndLoad
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-                // this.PrepareData() is called from PrepareAndLoadInternal().
             }
 
             if (this.data is null)
@@ -144,7 +143,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData?> TryGet<TData>()
+    internal async ValueTask<TData?> Get<TData>()
     {
         if (this.data is { } data)
         {
@@ -158,7 +157,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             if (this.data is null)
             {// PrepareAndLoad
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-                // this.PrepareData() is called from PrepareAndLoadInternal().
             }
 
             return (TData?)this.data;
@@ -186,7 +184,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         if (this.data is null)
         {// PrepareAndLoad
             await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-            // this.PrepareData() is called from PrepareAndLoadInternal().
         }
 
         if (this.data is null)
@@ -334,7 +331,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {
-            this.data = this.TryGet<object>().Result;
+            this.data = this.Get<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)

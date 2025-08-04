@@ -49,22 +49,48 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StoragePoint{TData}"/> class.
+    /// </summary>
     public StoragePoint()
     {
     }
 
+    /// <summary>
+    /// Disables storage for this storage point, causing data to be serialized directly.
+    /// </summary>
     public void DisableStorage()
         => this.GetStorageObject().ConfigureStorage(true);
 
+    /// <summary>
+    /// Enables storage for this storage point, allowing data to be persisted to storage.
+    /// </summary>
     public void EnableStorage()
         => this.GetStorageObject().ConfigureStorage(false);
 
+    /// <summary>
+    /// Sets the data instance for this storage point.<br/>
+    /// This function is not recommended, as instance replacement may cause data inconsistencies.
+    /// </summary>
+    /// <param name="data">The data to set.</param>
     public void Set(TData data)
         => this.GetStorageObject().Set(data);
 
+    /// <summary>
+    /// Asynchronously gets the data associated with this storage point.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if available; otherwise, <c>null</c>.
+    /// </returns>
     public ValueTask<TData?> Get()
-        => this.GetStorageObject().TryGet<TData>();
+        => this.GetStorageObject().Get<TData>();
 
+    /// <summary>
+    /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data.
+    /// </returns>
     public ValueTask<TData> GetOrCreate()
         => this.GetStorageObject().GetOrCreate<TData>();
 
@@ -139,7 +165,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
-        if (this.storageObject is not null)
+        /*if (this.storageObject is not null)
         {
             if (parent?.StructualRoot is ICrystal crystal)
             {
@@ -147,7 +173,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             }
 
             ((IStructualObject)this.storageObject).SetupStructure(parent, key);
-        }
+        }*/
 
         /*if (this.storageObject is null &&
             parent?.StructualRoot is ICrystal crystal)
