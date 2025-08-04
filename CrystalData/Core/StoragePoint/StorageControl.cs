@@ -74,9 +74,9 @@ public partial class StorageControl
         }
     }
 
-    internal void MoveToRecent(StorageObject storageObject, long sizeDifference)
+    internal void MoveToRecent(StorageObject node, long sizeDifference)
     {
-        if (storageObject.storageMap.IsDisabled)
+        if (node.storageMap.IsDisabled)
         {
             return;
         }
@@ -85,20 +85,37 @@ public partial class StorageControl
         {
             this.memoryUsage += sizeDifference;
 
-            if (this.head == null)
-            {
-                storageObject.next = storageObject;
-                storageObject.previous = storageObject;
-                this.head = storageObject;
+            if (node.next is null ||
+                node.previous is null)
+            {// Not added to the list.
+                if (this.head is null)
+                {// First node
+                    this.head = node;
+                    node.next = node;
+                    node.previous = node;
+                    return;
+                }
             }
             else
-            {
-                storageObject.next = this.head;
-                storageObject.previous = this.head.previous;
-                this.head.previous!.next = storageObject;
-                this.head.previous = storageObject;
-                this.head = storageObject;
+            {// Remove the node from the list.
+                if (node.next == node)
+                {// Only one node in the list.
+                    return;
+                }
+
+                node.next.previous = node.previous;
+                node.previous.next = node.next;
+                if (this.head == node)
+                {
+                    this.head = node.next;
+                }
             }
+
+            node.next = this.head;
+            node.previous = this.head!.previous;
+            this.head.previous!.next = node;
+            this.head.previous = node;
+            this.head = node;
         }
     }
 
@@ -155,40 +172,40 @@ public partial class StorageControl
         }
     }
 
-    internal void Release(StorageObject storageObject, bool removeFromStorageMap)
+    internal void Release(StorageObject node, bool removeFromStorageMap)
     {
         using (this.lowestLockObject.EnterScope())
         {
             // Least recently used list.
-            if (storageObject.previous is not null &&
-                storageObject.next is not null)
+            if (node.previous is not null &&
+                node.next is not null)
             {
-                if (storageObject.storageMap.IsEnabled)
+                if (node.storageMap.IsEnabled)
                 {
-                    this.UpdateMemoryUsageInternal(-storageObject.Size);
+                    this.UpdateMemoryUsageInternal(-node.Size);
                 }
 
-                if (storageObject.next == storageObject)
+                if (node.next == node)
                 {
                     this.head = null;
                 }
                 else
                 {
-                    storageObject.next.previous = storageObject.previous;
-                    storageObject.previous.next = storageObject.next;
-                    if (this.head == storageObject)
+                    node.next.previous = node.previous;
+                    node.previous.next = node.next;
+                    if (this.head == node)
                     {
-                        this.head = storageObject.next;
+                        this.head = node.next;
                     }
                 }
 
-                storageObject.previous = default;
-                storageObject.next = default;
+                node.previous = default;
+                node.next = default;
             }
 
             if (removeFromStorageMap)
             {
-                storageObject.Goshujin = default;
+                node.Goshujin = default;
             }
         }
     }
