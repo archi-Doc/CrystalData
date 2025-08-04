@@ -2,7 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Tinyhand;
 using Tinyhand.IO;
 
 namespace CrystalData.Internal;
@@ -25,19 +24,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
-    private ulong pointId; // Lock:StorageControl, Key:0
+    private ulong pointId; // Lock:StorageControl
 
     [Key(1)]
-    private uint typeIdentifier; // Lock:this, Key(Special):1
+    private uint typeIdentifier; // Lock:StorageControl
 
     [Key(2)]
-    private StorageId storageId0; // Lock:this, Key(Special):2
+    private StorageId storageId0; // Lock:this
 
     [Key(3)]
-    private StorageId storageId1; // Lock:this, Key(Special):3
+    private StorageId storageId1; // Lock:this
 
     [Key(4)]
-    private StorageId storageId2; // Lock:this, Key(Special):4
+    private StorageId storageId2; // Lock:this
 
     private object? data; // Lock:this
     private uint state; // Lock:this
@@ -85,7 +84,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     }
 
     internal void Initialize(ulong pointId, uint typeIdentifier, bool disabledStorage)
-    {
+    {// Lock:StorageControl
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
         if (disabledStorage)
@@ -132,7 +131,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.data is null)
             {// Reconstruct
-                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>());
+                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false);
             }
 
             return (TData)this.data;
@@ -143,7 +142,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData?> Get<TData>()
+    internal async ValueTask<TData?> TryGet<TData>()
     {
         if (this.data is { } data)
         {
@@ -191,7 +190,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {// Reconstruct
-            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>());
+            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false);
         }
 
         return (TData?)this.data;
@@ -208,7 +207,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         using (this.Lock())
         {
-            this.SetDataInternal(data);
+            this.SetDataInternal(data, true);
         }
     }
 
@@ -324,7 +323,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {
-            this.data = this.Get<object>().Result;
+            this.data = this.TryGet<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -475,7 +474,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     }
 
     private async Task PrepareAndLoadInternal<TData>()
-    {// using (this.Lock())
+    {// Lock:this
         if (this.data is not null)
         {
             return;
@@ -514,7 +513,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             var data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
             if (data is not null)
             {
-                this.SetDataInternal(data);
+                this.SetDataInternal(data, false);
             }
         }
         finally
@@ -524,8 +523,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     }
 
     [MemberNotNull(nameof(data))]
-    internal void SetDataInternal<TData>(TData data)
-    {// this.Lock() required
+    internal void SetDataInternal<TData>(TData data, bool recordJournal)
+    {// Lock:this
         BytePool.RentMemory rentMemory = default;
 
         this.data = data!;
@@ -541,7 +540,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             this.size = rentMemory.Length;
         }
 
-        if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+        if (recordJournal &&
+            ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {
             writer.Write(JournalRecord.Value);
             writer.Write(rentMemory.Span);
