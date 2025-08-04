@@ -129,23 +129,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
 
-    IStructualObject? IStructualObject.StructualParent
-    {
-        get => default;
-        set { }
-    }
+    IStructualObject? IStructualObject.StructualParent { get; set; }
 
-    int IStructualObject.StructualKey
-    {
-        get => default;
-        set { }
-    }
+    int IStructualObject.StructualKey { get; set; }
 
-    void IStructualObject.SetupStructure(IStructualObject? parent, int key)
+    /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
         ((IStructualObject)this).StructualRoot = parent?.StructualRoot;
 
-        /*if (this.storageObject is not null)
+        if (this.storageObject is not null)
         {
             if (parent?.StructualRoot is ICrystal crystal)
             {
@@ -153,15 +145,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             }
 
             ((IStructualObject)this.storageObject).SetupStructure(parent, key);
-        }*/
-
-        /*if (this.storageObject is null &&
-            parent?.StructualRoot is ICrystal crystal)
-        {
-            crystal.Crystalizer.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject);
-            ((IStructualObject)this.storageObject).SetParentAndKey(parent, key);
-        }*/
-    }
+        }
+    }*/
 
     #endregion
 

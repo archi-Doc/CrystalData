@@ -148,6 +148,7 @@ public class StoragePointTest
 
         var g = crystal.Data;
         var st = await g.StringStorage.Get();
+        st = await g.StringStorage.GetOrCreate();
 
         await crystal.Store(StoreMode.Release);
         await crystal.Crystalizer.StoreJournal();
