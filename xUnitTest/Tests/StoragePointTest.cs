@@ -7,6 +7,27 @@ using Xunit;
 
 namespace xUnitTest.CrystalDataTest;
 
+[TinyhandObject(Structual = true, LockObject = nameof(lockObject))]
+[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+public sealed partial record StoragePointClass1
+{
+    public StoragePointClass1(int id, string name)
+    {
+        this.Id = id;
+        this.Name = name;
+    }
+
+    private readonly Lock lockObject = new();
+
+    [Key(0)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    public int Id { get; set; }
+
+    [Key(1)]
+    [Link(Type = ChainType.Ordered)]
+    public string Name { get; set; }
+}
+
 [TinyhandObject(Structual = false)]
 public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass>, IEquatable<NoStoragePointClass>
 {
