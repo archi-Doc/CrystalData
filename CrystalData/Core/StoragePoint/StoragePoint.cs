@@ -26,25 +26,25 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
     /// </summary>
-    public bool IsDisabled => this.GetOrCreate().IsDisabled;
+    public bool IsDisabled => this.GetStorageObject().IsDisabled;
 
     /// <summary>
     /// Gets a value indicating whether storage is locked.<br/>
     /// Reading is possible, but writing or unloading is not allowed.
     /// </summary>
-    public bool IsLocked => this.GetOrCreate().IsLocked;
+    public bool IsLocked => this.GetStorageObject().IsLocked;
 
     /// <summary>
     /// Gets a value indicating whether storage is rip.<br/>
     /// Storage is shutting down and is read-only.
     /// </summary>
-    public bool IsRip => this.GetOrCreate().IsRip;
+    public bool IsRip => this.GetStorageObject().IsRip;
 
     /// <summary>
     /// Gets a value indicating whether storage is pending release.<br/>
     /// Once the lock is released, the storage will be persisted and memory will be freed.
     /// </summary>
-    public bool IsPendingRelease => this.GetOrCreate().IsPendingRelease;
+    public bool IsPendingRelease => this.GetStorageObject().IsPendingRelease;
 
     #endregion
 
@@ -53,16 +53,19 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     }
 
     public void DisableStorage()
-        => this.GetOrCreate().ConfigureStorage(true);
+        => this.GetStorageObject().ConfigureStorage(true);
 
     public void EnableStorage()
-        => this.GetOrCreate().ConfigureStorage(false);
+        => this.GetStorageObject().ConfigureStorage(false);
 
     public void Set(TData data)
-        => this.GetOrCreate().Set(data);
+        => this.GetStorageObject().Set(data);
 
     public ValueTask<TData?> TryGet()
-        => this.GetOrCreate().TryGet<TData>();
+        => this.GetStorageObject().Get<TData>();
+
+    public ValueTask<TData> GetOrCreate()
+        => this.GetStorageObject().GetOrCreate<TData>();
 
     public bool DataEquals(StoragePoint<TData> other)
     {
@@ -211,9 +214,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     #endregion
 
     Task<bool> IStoragePoint.StoreData(StoreMode storeMode)
-        => this.GetOrCreate().StoreData(storeMode);
+        => this.GetStorageObject().StoreData(storeMode);
 
-    private StorageObject GetOrCreate()
+    private StorageObject GetStorageObject()
     {
         if (this.storageObject is not null)
         {

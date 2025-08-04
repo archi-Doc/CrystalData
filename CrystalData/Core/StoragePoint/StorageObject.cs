@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Tinyhand;
 using Tinyhand.IO;
@@ -112,7 +113,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData?> TryGet<TData>(bool createIfNotExists = true)
+    internal async ValueTask<TData> GetOrCreate<TData>()
     {
         if (this.data is { } data)
         {
@@ -129,9 +130,34 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
                 // this.PrepareData() is called from PrepareAndLoadInternal().
             }
 
-            if (this.data is null && createIfNotExists)
+            if (this.data is null)
             {// Reconstruct
                 this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>());
+            }
+
+            return (TData)this.data;
+        }
+        finally
+        {
+            this.Exit();
+        }
+    }
+
+    internal async ValueTask<TData?> Get<TData>()
+    {
+        if (this.data is { } data)
+        {
+            this.storageControl.MoveToRecent(this, 0);
+            return (TData)data;
+        }
+
+        await this.EnterAsync().ConfigureAwait(false);
+        try
+        {
+            if (this.data is null)
+            {// PrepareAndLoad
+                await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
+                // this.PrepareData() is called from PrepareAndLoadInternal().
             }
 
             return (TData?)this.data;
@@ -310,7 +336,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {
-            this.data = this.TryGet<object>(false).Result;
+            this.data = this.Get<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -441,6 +467,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
+    [MemberNotNull(nameof(data))]
     internal void SetDataInternal<TData>(TData data)
     {// this.Lock() required
         BytePool.RentMemory rentMemory = default;
