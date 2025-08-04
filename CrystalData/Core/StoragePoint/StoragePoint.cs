@@ -14,7 +14,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IStoragePoint
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStoragePoint, IStructualObject
     where TData : notnull
 {
     #region FiendAndProperty
@@ -140,42 +140,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         get => default;
         set { }
     }
-
-    /*IStructualRoot? IStructualObject.StructualRoot
-    {// Delegate properties to the underlying StorageObject.
-        get => this.storageObject?.StructualRoot;
-        set
-        {
-            if (this.storageObject is not null)
-            {
-                this.storageObject.StructualRoot = value;
-            }
-        }
-    }
-
-    IStructualObject? IStructualObject.StructualParent
-    {// Delegate properties to the underlying StorageObject.
-        get => this.storageObject?.StructualParent;
-        set
-        {
-            if (this.storageObject is not null)
-            {
-                this.storageObject.StructualParent = value;
-            }
-        }
-    }
-
-    int IStructualObject.StructualKey
-    {// Delegate properties to the underlying StorageObject.
-        get => this.storageObject is null ? 0 : this.storageObject.StructualKey;
-        set
-        {
-            if (this.storageObject is not null)
-            {
-                this.storageObject.StructualKey = value;
-            }
-        }
-    }*/
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {

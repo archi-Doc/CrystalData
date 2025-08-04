@@ -4,11 +4,12 @@
 
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
+using Tinyhand.IO;
 
 namespace CrystalData;
 
 [TinyhandObject]
-public sealed partial class StorageMap
+public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
 
@@ -30,6 +31,67 @@ public sealed partial class StorageMap
     public bool IsDisabled => !this.enabledStorageMap;
 
     public long StorageUsage => this.storageUsage;
+
+    #endregion
+
+    /*
+    #region IStructualRoot
+
+    bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
+    {
+        if (this.crystalizer.Journal is not null)
+        {
+            this.crystalizer.Journal.GetWriter(recordType, out writer);
+
+            writer.Write_Locator();
+            writer.Write(this.);
+            return true;
+        }
+        else
+        {
+            writer = default;
+            return false;
+        }
+    }
+
+    ulong IStructualRoot.AddJournal(ref TinyhandWriter writer)
+    {
+        if (this.crystalizer.Journal is not null)
+        {
+            return this.crystalizer.Journal.Add(ref writer);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    bool IStructualRoot.TryAddToSaveQueue()
+    {
+        if (this.CrystalConfiguration.SavePolicy == SavePolicy.OnChanged)
+        {
+            this.Crystalizer.AddToSaveQueue(this);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    #endregion*/
+
+    #region IStructualObject
+
+    IStructualRoot? IStructualObject.StructualRoot { get; set; }
+
+    IStructualObject? IStructualObject.StructualParent { get; set; }
+
+    int IStructualObject.StructualKey
+    {
+        get => default;
+        set { }
+    }
 
     #endregion
 

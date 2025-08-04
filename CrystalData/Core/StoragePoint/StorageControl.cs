@@ -2,7 +2,6 @@
 
 #pragma warning disable SA1202
 
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 
@@ -167,7 +166,7 @@ public partial class StorageControl
                 pointId = RandomVault.Default.NextUInt64();
             }
 
-            storageObject.Initialize(pointId, typeIdentifier, storageMap.IsDisabled);
+            storageObject.Initialize(pointId, typeIdentifier, storageMap);
             storageObject.Goshujin = storageMap.StorageObjects;
         }
     }

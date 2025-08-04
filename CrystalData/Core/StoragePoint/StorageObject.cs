@@ -41,6 +41,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     [Key(4)]
     internal StorageId storageId2; // Lock:StorageControl
 
+    internal StorageMap storageMap; // Lock:StorageControl
     internal StorageObject? previous; // Lock:StorageControl
     internal StorageObject? next; // Lock:StorageControl
 
@@ -53,10 +54,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public IStructualRoot? StructualRoot
     {
-        get => this.storagePo
+        get => ((IStructualObject)this.storageMap).StructualRoot;
+        set { }
     }
 
-    public IStructualObject? StructualParent { get; set; } // Lock: (Parent)
+    public IStructualObject? StructualParent
+    {
+        get => this.storageMap;
+        set { }
+    }
 
     public int StructualKey
     {
@@ -72,8 +78,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     internal StorageControl storageControl => this.storageMap.StorageControl;
 
-    internal StorageMap storageMap => this.StructualRoot is ICrystal crystal ? crystal.Storage.StorageMap : StorageControl.Default.DisabledMap;
-
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
     // public new bool IsLocked => (this.state & LockedStateBit) != 0;
@@ -88,15 +92,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     #endregion
 
-    internal StorageObject()
+    public StorageObject()
     {
+        this.storageMap = StorageControl.Default.DisabledMap;
     }
 
-    internal void Initialize(ulong pointId, uint typeIdentifier, bool disabledStorage)
+    internal void Initialize(ulong pointId, uint typeIdentifier, StorageMap storageMap)
     {// Lock:StorageControl
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
-        if (disabledStorage)
+        this.storageMap = storageMap;
+        if (storageMap.IsDisabled)
         {// Disable storage
             this.SetDisableStateBit();
         }
