@@ -27,7 +27,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
     /// </summary>
-    public bool IsDisabled => this.storageObject?.IsDisabled == true;
+    public bool IsDisabled => this.GetOrCreateStorageObject().IsDisabled;
 
     /// <summary>
     /// Gets a value indicating whether storage is locked.<br/>
