@@ -14,7 +14,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStoragePoint, IStructualObject
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
     where TData : notnull
 {
     #region FiendAndProperty
@@ -27,25 +27,25 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <summary>
     /// Gets a value indicating whether storage is disabled, and data is serialized directly.
     /// </summary>
-    public bool IsDisabled => this.GetStorageObject().IsDisabled;
+    public bool IsDisabled => this.storageObject?.IsDisabled == true;
 
     /// <summary>
     /// Gets a value indicating whether storage is locked.<br/>
     /// Reading is possible, but writing or unloading is not allowed.
     /// </summary>
-    public bool IsLocked => this.GetStorageObject().IsLocked;
+    public bool IsLocked => this.storageObject?.IsLocked == true;
 
     /// <summary>
     /// Gets a value indicating whether storage is rip.<br/>
     /// Storage is shutting down and is read-only.
     /// </summary>
-    public bool IsRip => this.GetStorageObject().IsRip;
+    public bool IsRip => this.storageObject?.IsRip == true;
 
     /// <summary>
     /// Gets a value indicating whether storage is pending release.<br/>
     /// Once the lock is released, the storage will be persisted and memory will be freed.
     /// </summary>
-    public bool IsPendingRelease => this.GetStorageObject().IsPendingRelease;
+    public bool IsPendingRelease => this.storageObject?.IsPendingRelease == true;
 
     #endregion
 
@@ -60,13 +60,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Disables storage for this storage point, causing data to be serialized directly.
     /// </summary>
     public void DisableStorage()
-        => this.GetStorageObject().ConfigureStorage(true);
+        => this.GetOrCreateStorageObject().ConfigureStorage(true);
 
     /// <summary>
     /// Enables storage for this storage point, allowing data to be persisted to storage.
     /// </summary>
     public void EnableStorage()
-        => this.GetStorageObject().ConfigureStorage(false);
+        => this.GetOrCreateStorageObject().ConfigureStorage(false);
 
     /// <summary>
     /// Sets the data instance for this storage point.<br/>
@@ -74,7 +74,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     /// <param name="data">The data to set.</param>
     public void Set(TData data)
-        => this.GetStorageObject().Set(data);
+        => this.GetOrCreateStorageObject().Set(data);
 
     /// <summary>
     /// Asynchronously gets the data associated with this storage point.
@@ -83,7 +83,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if available; otherwise, <c>null</c>.
     /// </returns>
     public ValueTask<TData?> Get()
-        => this.GetStorageObject().Get<TData>();
+        => this.GetOrCreateStorageObject().Get<TData>();
 
     /// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
@@ -92,7 +92,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data.
     /// </returns>
     public ValueTask<TData> GetOrCreate()
-        => this.GetStorageObject().GetOrCreate<TData>();
+        => this.GetOrCreateStorageObject().GetOrCreate<TData>();
 
     // public ValueTask<TData?> TryLock() => this.GetStorageObject().TryLock<TData>();
 
@@ -132,6 +132,21 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     IStructualObject? IStructualObject.StructualParent { get; set; }
 
     int IStructualObject.StructualKey { get; set; }
+
+    Task<bool> IStructualObject.StoreData(StoreMode storeMode)
+    {
+        if (this.storageObject is { } storageObject)
+        {
+            return storageObject.StoreData(storeMode);
+        }
+        else
+        {
+            return Task.FromResult(true);
+        }
+    }
+
+    void IStructualObject.Erase()
+        => this.storageObject?.Erase();
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -209,10 +224,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
-    Task<bool> IStoragePoint.StoreData(StoreMode storeMode)
-        => this.GetStorageObject().StoreData(storeMode);
-
-    private StorageObject GetStorageObject()
+    private StorageObject GetOrCreateStorageObject()
     {
         if (this.storageObject is not null)
         {
