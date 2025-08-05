@@ -241,6 +241,52 @@ public partial class StorageControl
         }
     }
 
+    internal void EraseStorage(StorageObject storageObject)
+    {
+        ulong id0;
+        ulong id1;
+        ulong id2;
+        // ulong id3;
+
+        using (this.lowestLockObject.EnterScope())
+        {
+            id0 = storageObject.storageId0.FileId;
+            id1 = storageObject.storageId1.FileId;
+            id2 = storageObject.storageId2.FileId;
+            // id3 = this.storageId3.FileId;
+
+            storageObject.storageId0 = default;
+            storageObject.storageId1 = default;
+            storageObject.storageId2 = default;
+            // this.storageId3 = default;
+        }
+
+        if (storageObject.StructualRoot is ICrystal crystal)
+        {// Delete storage
+            var storage = crystal.Storage;
+
+            if (id0 != 0)
+            {
+                storage.DeleteAndForget(ref id0);
+            }
+
+            if (id1 != 0)
+            {
+                storage.DeleteAndForget(ref id1);
+            }
+
+            if (id2 != 0)
+            {
+                storage.DeleteAndForget(ref id2);
+            }
+
+            /*if (id3 != 0)
+            {
+                storage.DeleteAndForget(ref id3);
+            }*/
+        }
+    }
+
     private void UpdateMemoryUsageInternal(long size)
         => this.memoryUsage += size;
 }

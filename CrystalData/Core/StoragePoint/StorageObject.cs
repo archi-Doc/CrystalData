@@ -222,33 +222,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    /*internal bool Probe(ProbeMode probeMode)
-    {
-        if (probeMode == ProbeMode.IsUnloadableAll)
-        {
-            if (this.IsLocked)
-            {// Locked (not unloadable)
-                return false;
-            }
-        }
-        else if (probeMode == ProbeMode.IsUnloadedAll)
-        {
-            if (!this.IsUnloaded && !this.IsDisabled)
-            {// Not unloaded and not disabled
-                return false;
-            }
-        }
-        else if (probeMode == ProbeMode.LockAll)
-        {
-            this.TryLockInternal();
-        }
-        else if (probeMode == ProbeMode.UnlockAll)
-        {
-            this.UnlockInternal();
-        }
-
-        return false;
-    }*/
+    #region IStructualObject
 
     internal async Task<bool> StoreData(StoreMode storeMode)
     {
@@ -299,22 +273,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         return true;
     }
 
-    internal void Erase()
-    {
-        this.EraseStorage();
-        ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
-    }
-
-    #region IStructualObject
-
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
         ((IStructualObject)this).SetParentAndKey(parent, key);
 
-        /*if (this.data is IStructualObject structualObject)
+        if (this.data is IStructualObject structualObject)
         {
-            structualObject.SetupStructure(parent, key);
-        }*/
+            structualObject.SetupStructure(this, 0);
+        }
+    }
+
+    internal void Erase()
+    {
+        this.EraseStorage(true);
     }
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
@@ -326,7 +297,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (record == JournalRecord.EraseStorage)
         {// Erase storage
-            this.EraseStorage();
+            this.EraseStorage(false);
             return true;
         }
         else if (record == JournalRecord.AddStorage)
@@ -425,7 +396,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     private async Task PrepareAndLoadInternal<TData>()
     {// Lock:this
         if (this.data is not null)
-        {
+        {// Already loaded
             return;
         }
 
@@ -503,58 +474,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    private void EraseStorage()
+    private void EraseStorage(bool recordJournal)
     {
-        IStructualObject? structualObject;
-        ulong id0;
-        ulong id1;
-        ulong id2;
-        // ulong id3;
+        this.storageControl.EraseStorage(this);
 
         using (this.Lock())
         {
-            structualObject = this.data as IStructualObject;
-
-            id0 = this.storageId0.FileId;
-            id1 = this.storageId1.FileId;
-            id2 = this.storageId2.FileId;
-            // id3 = this.storageId3.FileId;
-
-            this.data = default;
-            this.storageId0 = default;
-            this.storageId1 = default;
-            this.storageId2 = default;
-            // this.storageId3 = default;
+            if (this.data is IStructualObject structualObject)
+            {
+                structualObject.Erase();
+            }
         }
 
-        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
-        {// Delete storage
-            var storage = crystal.Storage;
-
-            if (id0 != 0)
-            {
-                storage.DeleteAndForget(ref id0);
-            }
-
-            if (id1 != 0)
-            {
-                storage.DeleteAndForget(ref id1);
-            }
-
-            if (id2 != 0)
-            {
-                storage.DeleteAndForget(ref id2);
-            }
-
-            /*if (id3 != 0)
-            {
-                storage.DeleteAndForget(ref id3);
-            }*/
-        }
-
-        if (structualObject is not null)
+        if (recordJournal)
         {
-            structualObject.Erase();
+            ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
         }
     }
 

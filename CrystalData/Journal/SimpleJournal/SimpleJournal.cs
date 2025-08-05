@@ -106,6 +106,8 @@ public partial class SimpleJournal : IJournal
         return CrystalResult.Success;
     }
 
+    int IJournal.MaxRecordLength => this.SimpleJournalConfiguration.MaxRecordLength;
+
     void IJournal.GetWriter(JournalType recordType, out TinyhandWriter writer)
     {
         writer = TinyhandWriter.CreateFromBytePool();

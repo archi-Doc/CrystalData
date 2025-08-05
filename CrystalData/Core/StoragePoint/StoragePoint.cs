@@ -146,7 +146,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     }
 
     void IStructualObject.Erase()
-        => this.storageObject?.Erase();
+        => this.GetOrCreateStorageObject().Erase();
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -178,7 +178,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             writer.Write(v.pointId);
         }
         else
-        {// StorageObject
+        {// StorageObject (In-class or Storage disabled)
             v.storageObject.SerializeStoragePoint(ref writer, options);
         }
     }

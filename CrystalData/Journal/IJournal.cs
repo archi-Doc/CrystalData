@@ -6,6 +6,8 @@ namespace CrystalData;
 
 public interface IJournal
 {
+    int MaxRecordLength { get; }
+
     Task<CrystalResult> Prepare(PrepareParam param);
 
     void GetWriter(JournalType recordType, out TinyhandWriter writer);
