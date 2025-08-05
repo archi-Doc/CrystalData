@@ -94,9 +94,23 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public ValueTask<TData> GetOrCreate()
         => this.GetOrCreateStorageObject().GetOrCreate<TData>();
 
-    // public ValueTask<TData?> TryLock() => this.GetStorageObject().TryLock<TData>();
+    /// <summary>
+    /// Attempts to acquire a lock on the storage object and returns the data if successful.<br/>
+    /// If storage is shutting down, return <c>null</c>.<br/>
+    /// Since data may be saved and released during storage operations, always lock the data when making changes.<br/>
+    /// This is for storage operation locks only. Please use a different mechanism for object-level locks.<br/>
+    /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
+    /// </returns>
+    public ValueTask<TData?> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
 
-    // public void Unlock() => this.GetStorageObject().Unlock();
+    /// <summary>
+    /// Releases the lock previously acquired by <see cref="TryLock"/>.<br/>
+    /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
+    /// </summary>
+    public void Unlock() => this.GetOrCreateStorageObject().Unlock();
 
     public bool DataEquals(StoragePoint<TData> other)
     {
