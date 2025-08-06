@@ -3,6 +3,7 @@
 #pragma warning disable SA1202
 
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using CrystalData.Internal;
 
 namespace CrystalData;
@@ -73,16 +74,46 @@ public partial class StorageControl
         }
     }
 
-    internal void MoveToRecent(StorageObject node, long sizeDifference)
+    internal void ConfigureStorage(StorageObject storageObject, bool disableStorage)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (disableStorage)
+            {
+                storageObject.SetDisableStateBit();
+            }
+            else
+            {// Enable storage
+                if (storageObject.storageMap.IsEnabled)
+                {
+                    storageObject.ClearDisableStateBit();
+                }
+            }
+        }
+    }
+
+    internal void MoveToRecent(StorageObject node, int newSize)
     {
         if (node.storageMap.IsDisabled)
         {
+            if (newSize >= 0)
+            {
+                using (this.lowestLockObject.EnterScope())
+                {
+                    node.size = newSize;
+                }
+            }
+
             return;
         }
 
         using (this.lowestLockObject.EnterScope())
         {
-            this.memoryUsage += sizeDifference;
+            if (newSize >= 0)
+            {
+                this.memoryUsage += newSize - node.size;
+                node.size = newSize;
+            }
 
             if (node.next is null ||
                 node.previous is null)
@@ -181,7 +212,7 @@ public partial class StorageControl
             {
                 if (node.storageMap.IsEnabled)
                 {
-                    this.UpdateMemoryUsageInternal(-node.Size);
+                    this.memoryUsage -= node.Size;
                 }
 
                 if (node.next == node)
@@ -286,7 +317,4 @@ public partial class StorageControl
             }*/
         }
     }
-
-    private void UpdateMemoryUsageInternal(long size)
-        => this.memoryUsage += size;
 }

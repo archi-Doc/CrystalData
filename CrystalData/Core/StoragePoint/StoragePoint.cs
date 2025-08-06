@@ -41,11 +41,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public bool IsRip => this.storageObject?.IsRip == true;
 
-    /// <summary>
+    /*/// <summary>
     /// Gets a value indicating whether storage is pending release.<br/>
     /// Once the lock is released, the storage will be persisted and memory will be freed.
     /// </summary>
-    public bool IsPendingRelease => this.storageObject?.IsPendingRelease == true;
+    public bool IsPendingRelease => this.storageObject?.IsPendingRelease == true;*/
 
     #endregion
 
@@ -82,8 +82,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if available; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<TData?> Get()
-        => this.GetOrCreateStorageObject().Get<TData>();
+    public ValueTask<TData?> TryGet()
+        => this.GetOrCreateStorageObject().TryGet<TData>();
 
     /// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
@@ -114,8 +114,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(StoragePoint<TData> other)
     {
-        var data = this.Get().Result;
-        var otherData = other.Get().Result;
+        var data = this.TryGet().Result;
+        var otherData = other.TryGet().Result;
         if (data is null)
         {
             return otherData is null;
@@ -128,7 +128,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(TData? otherData)
     {
-        var data = this.Get().Result;
+        var data = this.TryGet().Result;
         if (data is null)
         {
             return otherData is null;

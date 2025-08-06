@@ -16,7 +16,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     private const uint DisabledStateBit = 1u << 31;
     private const uint RipStateBit = 1u << 30;
-    private const uint PendingReleaseStateBit = 1u << 29;
+    // private const uint PendingReleaseStateBit = 1u << 29;
     // private const uint PendingRipStateBit = 1u << 28;
     // private const uint LockedStateBit = 1u << 0;
 
@@ -45,12 +45,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     internal StorageObject? previous; // Lock:StorageControl
     internal StorageObject? next; // Lock:StorageControl
 
+    private object? data; // Lock:this
+    private uint state; // Lock:StorageControl
+    internal int size; // Lock:StorageControl
+
 #pragma warning restore SA1307 // Accessible fields should begin with upper-case letter
 #pragma warning restore SA1401 // Fields should be private
-
-    private object? data; // Lock:this
-    private uint state; // Lock:this
-    private int size; // Lock:this
 
     public IStructualRoot? StructualRoot
     {
@@ -84,11 +84,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public bool IsRip => (this.state & RipStateBit) != 0;
 
-    public bool IsPendingRelease => (this.state & PendingReleaseStateBit) != 0;
+    // public bool IsPendingRelease => (this.state & PendingReleaseStateBit) != 0;
 
     // public bool IsPendingRip => (this.state & PendingRipStateBit) != 0;
-
-    public bool CanUnload => !this.IsLocked;
 
     #endregion
 
@@ -104,7 +102,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         this.storageMap = storageMap;
         if (storageMap.IsDisabled)
         {// Disable storage
-            this.SetDisableStateBit(); // Lock:this is necessary, but… oh well.
+            this.SetDisableStateBit();
         }
     }
 
@@ -131,7 +129,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this, 0);
+            this.storageControl.MoveToRecent(this, -1);
             return (TData)data;
         }
 
@@ -156,11 +154,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData?> Get<TData>()
+    internal async ValueTask<TData?> TryGet<TData>()
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this, 0);
+            this.storageControl.MoveToRecent(this, -1);
             return (TData)data;
         }
 
@@ -232,17 +230,84 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return true;
         }
 
-        await this.EnterAsync().ConfigureAwait(false);
-        try
+        object? data;
+        ICrystal? crystal;
+
+        if (storeMode == StoreMode.Release)
         {
-            await this.StoreDataInternal(storeMode).ConfigureAwait(false);
+            await this.EnterAsync().ConfigureAwait(false);
+            try
+            {
+                data = this.data;
+                crystal = this.StructualRoot as ICrystal;
+                if (data is null || crystal is null)
+                {// No data
+                    return true;
+                }
+
+                // Release
+                this.storageControl.Release(this, false);
+                this.data = default;
+            }
+            finally
+            {
+                this.Exit();
+            }
         }
-        finally
+        else
         {
-            this.Exit();
+            data = this.data;
+            crystal = this.StructualRoot as ICrystal;
+            if (data is null || crystal is null)
+            {// No data
+                return true;
+            }
         }
 
-        return true;
+        bool result = true;
+
+        // Store children
+        if (data is IStructualObject structualObject)
+        {
+            if (!await structualObject.StoreData(storeMode).ConfigureAwait(false))
+            {
+                result = false;
+            }
+        }
+
+        // Serialize and get hash.
+        (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, data);
+        if (rentMemory.IsEmpty)
+        {// No data
+            return false;
+        }
+
+        var dataSize = rentMemory.Span.Length;
+        var hash = FarmHash.Hash64(rentMemory.Span);
+
+        if (hash != this.storageId0.Hash)
+        {// Different data
+         // Put
+            ulong fileId = 0;
+            crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+            var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
+            var storageId = new StorageId(currentPosition, fileId, hash);
+
+            // Update storage id
+            StorageControl.Default.AddStorage(this, crystal, storageId);
+
+            // Journal
+            if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+            {
+                writer.Write(JournalRecord.AddStorage);
+                TinyhandSerializer.SerializeObject(ref writer, storageId);
+                root.AddJournal(ref writer);
+            }
+        }
+
+        rentMemory.Return();
+
+        return result;
     }
 
     /*internal async Task<bool> StoreData(StoreMode storeMode)
@@ -336,7 +401,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {
-            this.data = this.Get<object>().Result;
+            this.data = this.TryGet<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -416,7 +481,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         return result;
     }*/
 
-    private async Task<bool> StoreDataInternal(StoreMode storeMode)
+    /*private async Task<bool> StoreDataInternal(StoreMode storeMode)
     {// Lock:this
         if (this.data is not { } data ||
                 this.StructualRoot is not ICrystal crystal)
@@ -436,7 +501,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
 
         // Serialize and get hash.
-        (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, this.data);
+        (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, data);
         if (rentMemory.IsEmpty)
         {// No data
             return false;
@@ -474,7 +539,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
 
         return result;
-    }
+    }*/
 
     private async Task PrepareAndLoadInternal<TData>()
     {// Lock:this
@@ -539,8 +604,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         if (this.storageMap.IsEnabled)
         {
             rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
-            this.storageControl.MoveToRecent(this, rentMemory.Length - this.size);
-            this.size = rentMemory.Length;
+            this.storageControl.MoveToRecent(this, rentMemory.Length);
         }
 
         if (recordJournal &&
@@ -575,9 +639,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    private void SetDisableStateBit() => this.state |= DisabledStateBit;
+    internal void SetDisableStateBit() => this.state |= DisabledStateBit;
 
-    private void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
+    internal void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
 
     /*private void SetRipStateBit() => this.state |= RipStateBit;
 
@@ -608,20 +672,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ConfigureStorage(bool disableStorage)
     {
-        this.Enter(); // using (this.Lock())
-
-        if (disableStorage)
-        {
-            this.SetDisableStateBit();
-        }
-        else
-        {// Enable storage
-            if (this.storageMap.IsEnabled)
-            {
-                this.ClearDisableStateBit();
-            }
-        }
-
-        this.Exit();
+        this.storageControl.ConfigureStorage(this, disableStorage);
     }
 }

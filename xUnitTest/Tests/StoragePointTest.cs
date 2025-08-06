@@ -117,11 +117,11 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
 
         return this.id == other.Id &&
             this.name == other.Name &&
-            this.StringStorage.Get().Result == other.Description;
+            this.StringStorage.TryGet().Result == other.Description;
     }
 
     public override int GetHashCode()
-        => HashCode.Combine(this.id, this.name, this.StringStorage.Get().Result);
+        => HashCode.Combine(this.id, this.name, this.StringStorage.TryGet().Result);
 }
 
 public class StoragePointTest
@@ -147,7 +147,7 @@ public class StoragePointTest
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePointClass>(true);
 
         var g = crystal.Data;
-        var st = await g.StringStorage.Get();
+        var st = await g.StringStorage.TryGet();
         st = await g.StringStorage.GetOrCreate();
 
         await crystal.Store(StoreMode.Release);
