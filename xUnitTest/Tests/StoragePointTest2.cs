@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc.Threading;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -33,7 +34,7 @@ public partial record SpRootClass
 public partial record SpFirstClass
 {
     [IgnoreMember]
-    public Lock LockObject { get; } = new();
+    public SemaphoreLock LockObject { get; } = new();
 
     [Key(0)]
     public int Id { get; set; }
@@ -63,7 +64,7 @@ public class StoragePointTest2
         (await root.NameStorage.TryGet()).Is("Test2");
 
         var firstClass = root.FirstClass;
-        using (firstClass.LockObject.EnterScope())
+        using (firstClass.LockObject.Lock())
         {
             firstClass.Id = 123;
         }
@@ -71,7 +72,7 @@ public class StoragePointTest2
         firstClass = await root.FirstClassStorage.GetOrCreate();
         if (await root.FirstClassStorage.TryLock() is { } firstClass2)
         {
-            using (firstClass2.LockObject.EnterScope())
+            using (firstClass2.LockObject.Lock())
             {
                 firstClass2.Id = 456;
             }
