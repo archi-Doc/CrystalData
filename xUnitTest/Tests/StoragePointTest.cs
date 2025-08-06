@@ -153,6 +153,8 @@ public class StoragePointTest
         await crystal.Store(StoreMode.Release);
         await crystal.Crystalizer.StoreJournal();
 
+        st = await g.StringStorage.TryGet();
+
         await TestHelper.UnloadAndDeleteAll(crystal);
     }
 
