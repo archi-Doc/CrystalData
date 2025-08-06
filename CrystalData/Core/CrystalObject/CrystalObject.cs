@@ -468,7 +468,7 @@ Exit:
 
             // Delete storage
             this.ResolveAndPrepareStorage();
-            await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+            await this.storage.DeleteStorageAsync().ConfigureAwait(false);//
 
             // Journal/Waypoint
             this.Crystalizer.RemovePlane(this.waypoint);
@@ -627,6 +627,14 @@ Exit:
         }
 
         return testResult;
+    }
+
+    void ICrystalInternal.SetStorage(IStorage storage)
+    {
+        using (this.semaphore.Lock())
+        {
+            this.storage = storage;
+        }
     }
 
     #endregion

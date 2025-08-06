@@ -150,6 +150,13 @@ public class StoragePointTest
         var st = await g.StringStorage.TryGet();
         st = await g.StringStorage.GetOrCreate();
 
+        if (g.StringStorage.TryLock() is not null)
+        {
+            g.StringStorage.Unlock();
+        }
+
+        g.StringStorage.Set("Test String");
+
         await crystal.Store(StoreMode.Release);
         await crystal.Crystalizer.StoreJournal();
 

@@ -47,13 +47,15 @@ public interface ICrystal<TData> : ICrystal
 
 internal interface ICrystalInternal : ICrystal
 {
-    Task? TryPeriodicSave(DateTime utc);
-
-    Task<bool> TestJournal();
-
     CrystalConfiguration OriginalCrystalConfiguration { get; }
 
     Waypoint Waypoint { get; }
+
+    void SetStorage(IStorage storage);
+
+    Task? TryPeriodicSave(DateTime utc);
+
+    Task<bool> TestJournal();
 }
 
 internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal
