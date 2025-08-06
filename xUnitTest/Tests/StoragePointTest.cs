@@ -161,6 +161,7 @@ public class StoragePointTest
         await crystal.Crystalizer.StoreJournal();
 
         st = await g.StringStorage.TryGet();
+        st.Is("Test String");
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }

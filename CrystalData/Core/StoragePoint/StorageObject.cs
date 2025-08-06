@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
-using static Arc.Collections.BytePool;
 
 namespace CrystalData.Internal;
 
@@ -288,7 +287,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (hash != this.storageId0.Hash)
         {// Different data
-         // Put
+            // Put
             ulong fileId = 0;
             crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
             var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
