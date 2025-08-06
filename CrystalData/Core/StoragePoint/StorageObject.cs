@@ -3,6 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
+using static Arc.Collections.BytePool;
 
 namespace CrystalData.Internal;
 
@@ -143,7 +144,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.data is null)
             {// Reconstruct
-                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false);
+                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
             }
 
             return (TData)this.data;
@@ -199,7 +200,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {// Reconstruct
-            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false);
+            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
         return (TData?)this.data;
@@ -216,7 +217,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         using (this.Lock())
         {
-            this.SetDataInternal(data, true);
+            this.SetDataInternal(data, true, default);
         }
     }
 
@@ -579,10 +580,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         try
         {
             var data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
-            if (data is not null)
-            {
-                this.SetDataInternal(data, false);
-            }
+            this.SetDataInternal(data, false, result.Data);
         }
         finally
         {
@@ -591,10 +589,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     }
 
     [MemberNotNull(nameof(data))]
-    internal void SetDataInternal<TData>(TData data, bool recordJournal)
+    internal void SetDataInternal<TData>(TData data, bool recordJournal, BytePool.RentReadOnlyMemory original)
     {// Lock:this
         BytePool.RentMemory rentMemory = default;
-
         this.data = data!;
         if (this.data is IStructualObject structualObject)
         {
@@ -603,15 +600,26 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.storageMap.IsEnabled)
         {
-            rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
-            this.storageControl.MoveToRecent(this, rentMemory.Length);
+            if (original.IsEmpty)
+            {
+                rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                original = rentMemory.ReadOnly;
+            }
+
+            this.storageControl.MoveToRecent(this, original.Length);
         }
 
         if (recordJournal &&
             ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {
+            if (original.IsEmpty)
+            {
+                rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                original = rentMemory.ReadOnly;
+            }
+
             writer.Write(JournalRecord.Value);
-            writer.Write(rentMemory.Span);
+            writer.Write(original.Span);
             root.AddJournal(ref writer);
         }
 
