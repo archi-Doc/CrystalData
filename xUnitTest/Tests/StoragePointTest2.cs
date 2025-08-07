@@ -15,7 +15,7 @@ public partial record SpRootClass
     {
     }
 
-    private readonly Lock lockObject = new();
+    private readonly SemaphoreLock lockObject = new();
 
     [Key(0)]
     public string Name { get; set; } = string.Empty;
