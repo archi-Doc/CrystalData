@@ -54,7 +54,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 return v;
             }
 
-            using (this.semaphore.Lock())
+            using (this.semaphore.EnterScope())
             {
                 if (this.State == CrystalState.Initial)
                 {// Initial
@@ -90,7 +90,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 return v;
             }
 
-            using (this.semaphore.Lock())
+            using (this.semaphore.EnterScope())
             {
                 if (this.storage != null)
                 {
@@ -107,7 +107,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     void ICrystal.Configure(CrystalConfiguration configuration)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = configuration;
             this.PrepareCrystalConfiguration();
@@ -119,7 +119,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     void ICrystal.ConfigureFile(FileConfiguration configuration)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { FileConfiguration = configuration, };
             this.PrepareCrystalConfiguration();
@@ -130,7 +130,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     void ICrystal.ConfigureStorage(StorageConfiguration configuration)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { StorageConfiguration = configuration, };
             this.PrepareCrystalConfiguration();
@@ -141,7 +141,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     async Task<CrystalResult> ICrystal.PrepareAndLoad(bool useQuery)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             if (this.State == CrystalState.Prepared)
             {// Prepared
@@ -162,7 +162,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         {// Volatile
             if (storeMode == StoreMode.Release)
             {// Unload
-                using (this.semaphore.Lock())
+                using (this.semaphore.EnterScope())
                 {
                     this.data = null;
                     this.State = CrystalState.Initial;
@@ -189,17 +189,17 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return CrystalResult.NotPrepared;
         }
 
-        var semaphore = obj as IGoshujinSemaphore;
+        var semaphore = obj as IRepeatableSemaphore;
         if (semaphore is not null)
         {
             if (storeMode == StoreMode.Release)
             {
-                semaphore.LockAndTryUnload(out var state);
+                semaphore.LockAndTryRelease(out var state);
                 if (state == GoshujinState.Valid)
                 {// Cannot unload because a WriterClass is still present.
                     return CrystalResult.DataIsLocked;
                 }
-                else if (state == GoshujinState.Unloading)
+                else if (state == GoshujinState.Releasing)
                 {// Unload (Success)
                     if (semaphore.SemaphoreCount > 0)
                     {
@@ -275,7 +275,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return result;
         }
 
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
@@ -290,7 +290,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         return CrystalResult.Success;
 
 Exit:
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
             if (storeMode == StoreMode.Release)
@@ -309,7 +309,7 @@ Exit:
         {// Volatile
             if (unloadMode.IsUnload())
             {// Unload
-                using (this.semaphore.Lock())
+                using (this.semaphore.EnterScope())
                 {
                     this.data = null;
                     this.State = CrystalState.Initial;
@@ -336,17 +336,17 @@ Exit:
             return CrystalResult.NotPrepared;
         }
 
-        var semaphore = obj as IGoshujinSemaphore;
+        var semaphore = obj as IRepeatableSemaphore;
         if (semaphore is not null)
         {
             if (unloadMode == UnloadMode.TryUnload)
             {
-                semaphore.LockAndTryUnload(out var state);
+                semaphore.LockAndTryRelease(out var state);
                 if (state == GoshujinState.Valid)
                 {// Cannot unload because a WriterClass is still present.
                     return CrystalResult.DataIsLocked;
                 }
-                else if (state == GoshujinState.Unloading)
+                else if (state == GoshujinState.Releasing)
                 {// Unload (Success)
                     if (semaphore.SemaphoreCount > 0)
                     {
@@ -360,7 +360,7 @@ Exit:
             }
             else if (unloadMode == UnloadMode.ForceUnload)
             {
-                semaphore.LockAndForceUnload();
+                semaphore.LockAndForceRelease();
             }
         }
 
@@ -421,7 +421,7 @@ Exit:
             return result;
         }
 
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
@@ -436,7 +436,7 @@ Exit:
         return CrystalResult.Success;
 
 Exit:
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
             if (unloadMode.IsUnload())
@@ -451,7 +451,7 @@ Exit:
 
     async Task<CrystalResult> ICrystal.Delete()
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             if (this.State == CrystalState.Initial)
             {// Initial
@@ -530,7 +530,7 @@ Exit:
         }
 
         var testResult = true;
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             if (this.crystalFiler is null ||
                 this.crystalFiler.Main is not { } main)
@@ -631,7 +631,7 @@ Exit:
 
     void ICrystalInternal.SetStorage(IStorage storage)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.storage = storage;
         }
@@ -747,7 +747,7 @@ Exit:
     }
 
     private async Task<CrystalResult> PrepareAndLoadInternal(bool useQuery)
-    {// this.semaphore.Lock()
+    {// this.semaphore.EnterScope()
         CrystalResult result;
         var param = PrepareParam.New<TData>(this.Crystalizer, useQuery);
 

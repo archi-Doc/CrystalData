@@ -214,7 +214,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     internal void Set<TData>(TData data)
         where TData : notnull
     {
-        using (this.Lock())
+        using (this.EnterScope())
         {
             this.SetDataInternal(data, true, default);
         }
@@ -632,7 +632,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         this.storageControl.EraseStorage(this);
 
-        using (this.Lock())
+        using (this.EnterScope())
         {
             if (this.data is IStructualObject structualObject)
             {

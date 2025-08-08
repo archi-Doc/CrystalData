@@ -62,7 +62,7 @@ internal static class UnloadTaskExtension
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.Crystal.DataType.FullName!);
-                    task.GoshujinSemaphore?.LockAndForceUnload();
+                    task.GoshujinSemaphore?.LockAndForceRelease();
                     using (goshujin.LockObject.EnterScope())
                     {
                         task.LastProcessed = utc;
@@ -85,14 +85,14 @@ internal partial class UnloadTask : IEquatable<UnloadTask>
     public UnloadTask(ICrystal crystal)
     {
         this.Crystal = crystal;
-        this.GoshujinSemaphore = crystal as IGoshujinSemaphore;
+        this.GoshujinSemaphore = crystal as IRepeatableSemaphore;
     }
 
     #region FieldAndProperty
 
     public ICrystal Crystal { get; }
 
-    public IGoshujinSemaphore? GoshujinSemaphore { get; }
+    public IRepeatableSemaphore? GoshujinSemaphore { get; }
 
     public DateTime FirstProcessed { get; set; }
 

@@ -78,7 +78,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
 
     public void Set(TData data, int sizeHint = 0)
     {// Journaling is not supported.
-        using (this.Lock())
+        using (this.EnterScope())
         {
             this.data = data;
         }
@@ -355,7 +355,7 @@ public sealed partial class StorageData<TData> : SemaphoreLock, IStructualObject
         ulong id2;
         // ulong id3;
 
-        using (this.Lock())
+        using (this.EnterScope())
         {
             structualObject = this.data as IStructualObject;
 
