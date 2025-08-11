@@ -1,12 +1,28 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
+using Tinyhand.IO;
+using ValueLink;
 
 namespace Sandbox;
+
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+public partial record SpSecondClass
+{
+    [Key(0)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    public int Id { get; set; }
+
+    [Key(1)]
+    public StoragePoint<FirstData> FirstDataStorage { get; set; } = new();
+}
 
 // First, create a class to represent the data content.
 [TinyhandObject(Structual = true)] // Annotate TinyhandObject attribute to make this class serializable.
