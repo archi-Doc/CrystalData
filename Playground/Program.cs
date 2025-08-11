@@ -16,6 +16,11 @@ namespace Sandbox;
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public partial record SpSecondClass
 {
+    public SpSecondClass(int id)
+    {
+        this.Id = id;
+    }
+
     [Key(0)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
