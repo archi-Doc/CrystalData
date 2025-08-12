@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.IO;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
 
@@ -298,8 +299,34 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return CrystalResult.NotPrepared;
         }
 
+        // Method 1: Delete the files in Storage one by one. If the Storage folder is not empty, leave it intact.
+        /*if (this.storageCrystal is { } crystal)
+        {
+            var array = crystal.Data.GetFileArray();
+            foreach (var x in array)
+            {
+                var path = this.FileToPath(x);
+                this.mainFiler.DeleteAndForget(this.MainFile(path));
+                if (this.backupFiler is not null)
+                {
+                    this.backupFiler.DeleteAndForget(this.BackupFile(path));
+                }
+            }
+
+            await crystal.Delete().ConfigureAwait(false);
+        }
+
+        if (this.mapCrystal is { } crystal2)
+        {
+            await crystal2.Delete().ConfigureAwait(false);
+        }
+
         _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory, false).ConfigureAwait(false);
-        return await this.mainFiler.DeleteDirectoryAsync(this.directory, false).ConfigureAwait(false);
+        return await this.mainFiler.DeleteDirectoryAsync(this.directory, false).ConfigureAwait(false);*/
+
+        // Method 2: Delete the Storage folder entirely.
+        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory, true).ConfigureAwait(false);
+        return await this.mainFiler.DeleteDirectoryAsync(this.directory, true).ConfigureAwait(false);
     }
 
     async Task<bool> IStorageInternal.TestJournal()

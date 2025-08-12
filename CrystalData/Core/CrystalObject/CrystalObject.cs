@@ -467,8 +467,11 @@ Exit:
             await this.crystalFiler.DeleteAllAsync().ConfigureAwait(false);
 
             // Delete storage
-            this.ResolveAndPrepareStorage();
-            await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+            if (this.CrystalConfiguration.StorageConfiguration != EmptyStorageConfiguration.Default)
+            {// StorageMap uses Storage internally, and this prevents infinite recursive calls caused by it.
+                this.ResolveAndPrepareStorage();
+                await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+            }
 
             // Journal/Waypoint
             this.Crystalizer.RemovePlane(this.waypoint);

@@ -189,7 +189,7 @@ TryWrite:
             work.Type == FilerWork.WorkType.DeleteDirectory)
         {// Delete directory recursively
             if (work.Type == FilerWork.WorkType.DeleteEmptyDirectory &&
-                ContainsAnyFile(filePath))
+                StorageHelper.ContainsAnyFile(filePath))
             {// Directory is not empty
                 work.Result = CrystalResult.FileOperationError;
                 return;
@@ -315,44 +315,5 @@ TryWrite:
         }
 
         return (false, rootedPath);
-    }
-
-    private static bool ContainsAnyFile(string path)
-    {
-        var stack = new Stack<string>();
-        stack.Push(path);
-
-        while (stack.Count > 0)
-        {
-            var dir = stack.Pop();
-
-            foreach (var entry in Directory.EnumerateFileSystemEntries(dir))
-            {
-                FileAttributes attr;
-                try
-                {
-                    attr = File.GetAttributes(entry);
-                }
-                catch
-                {
-                    return true;
-                }
-
-                if ((attr & FileAttributes.Directory) == 0)
-                {
-                    return true;
-                }
-
-                if ((attr & FileAttributes.ReparsePoint) != 0)
-                {
-                    // Skip reparse points (e.g., symlinks, junctions)
-                    continue;
-                }
-
-                stack.Push(entry);
-            }
-        }
-
-        return false;
     }
 }
