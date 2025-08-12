@@ -83,7 +83,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
 
         // g2: empty
         await c.PrepareAndLoad(false);
@@ -98,7 +98,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
 
         // g3: Zero
         await c.PrepareAndLoad(false);
@@ -116,7 +116,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
         var result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
@@ -139,7 +139,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
         result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
@@ -158,7 +158,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
         result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
@@ -175,7 +175,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
 
         // g2: empty
         await c.PrepareAndLoad(false);
@@ -186,7 +186,7 @@ public class JournalTest
         g2.Add(new(0, "Zero", 0));
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
 
         // g3: Zero
         await c.PrepareAndLoad(false);
@@ -202,7 +202,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
         var result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
@@ -230,7 +230,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
         result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
@@ -253,7 +253,7 @@ public class JournalTest
         }
 
         await c.Save(UnloadMode.ForceUnload);
-        await c.Crystalizer.SaveJournal();
+        await c.Crystalizer.StoreJournal();
         result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 

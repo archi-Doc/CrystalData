@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
 
@@ -86,6 +87,14 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
         using (this.lockObject.EnterScope())
         {
             return this.fileToSize.TryGetValue(file, out size);
+        }
+    }
+
+    public uint[] GetFileArray()
+    {
+        using (this.lockObject.EnterScope())
+        {
+            return this.fileToSize.Keys.ToArray();
         }
     }
 

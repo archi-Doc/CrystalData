@@ -4,6 +4,8 @@ namespace CrystalData;
 
 public interface IStorage
 {
+    StorageMap StorageMap { get; }
+
     long StorageUsage { get; }
 
     void SetTimeout(TimeSpan timeout);

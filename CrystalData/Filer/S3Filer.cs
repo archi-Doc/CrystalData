@@ -158,8 +158,11 @@ TryWrite:
 
             work.Result = CrystalResult.FileOperationError;
         }
+        else if (work.Type == FilerWork.WorkType.DeleteEmptyDirectory)
+        {// Delete empty directory
+        }
         else if (work.Type == FilerWork.WorkType.DeleteDirectory)
-        {
+        {// Delete directory recursively
             if (!filePath.EndsWith(StorageHelper.Slash))
             {
                 filePath += StorageHelper.Slash;

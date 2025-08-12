@@ -9,6 +9,7 @@ public class FilerWork : IEquatable<FilerWork>
         Write,
         Read,
         Delete,
+        DeleteEmptyDirectory,
         DeleteDirectory,
         List,
     }

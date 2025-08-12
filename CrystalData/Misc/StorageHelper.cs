@@ -273,4 +273,48 @@ public static partial class StorageHelper
             return false;
         }
     }
+
+    /// <summary>
+    /// Determines whether the specified directory or any of its subdirectories contains at least one file.
+    /// </summary>
+    /// <param name="path">The path to the directory to check.</param>
+    /// <returns>
+    /// <c>true</c> if the directory or any subdirectory contains at least one file; otherwise, <c>false</c>.
+    /// </returns>
+    /// <remarks>
+    /// This method recursively checks all subdirectories. If an entry cannot be accessed, it is assumed to be a file.
+    /// Reparse points (e.g., symlinks, junctions) are skipped.
+    /// </remarks>
+    public static bool ContainsAnyFile(string path)
+    {
+        foreach (var entry in Directory.EnumerateFileSystemEntries(path))
+        {
+            FileAttributes attr;
+            try
+            {
+                attr = File.GetAttributes(entry);
+            }
+            catch
+            {
+                return true;
+            }
+
+            if ((attr & FileAttributes.Directory) == 0)
+            {// Not directory
+                return true;
+            }
+
+            if ((attr & FileAttributes.ReparsePoint) != 0)
+            {// Skip reparse points (e.g., symlinks, junctions)
+                continue;
+            }
+
+            if (ContainsAnyFile(entry))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

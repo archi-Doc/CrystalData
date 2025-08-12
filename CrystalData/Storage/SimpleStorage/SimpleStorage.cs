@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.IO;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
 
@@ -10,12 +11,13 @@ namespace CrystalData.Storage;
 
 internal partial class SimpleStorage : IStorage, IStorageInternal
 {
-    private const string SimpleStorageFile = "Simple";
+    private const string Filename = "Simple";
 
     public SimpleStorage(Crystalizer crystalizer)
     {
         this.crystalizer = crystalizer;
         this.timeout = TimeSpan.MinValue;
+        this.storageMap = StorageControl.Default.DisabledMap;
     }
 
     public override string ToString()
@@ -23,18 +25,22 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     #region FieldAndProperty
 
-    public long StorageUsage => this.data == null ? 0 : this.data.StorageUsage;
-
-    private SimpleStorageData? data => this.crystal?.Data;
-
     private Crystalizer crystalizer;
     private ICrystal? primaryCrystal;
     private string directory = string.Empty;
     private string backupDirectory = string.Empty;
-    private ICrystal<SimpleStorageData>? crystal;
+    private ICrystal<SimpleStorageData>? storageCrystal;
+    private ICrystal<StorageMap>? mapCrystal;
+    private StorageMap storageMap;
     private IRawFiler? mainFiler;
     private IRawFiler? backupFiler;
     private TimeSpan timeout;
+
+    public StorageMap StorageMap => this.storageMap;
+
+    public long StorageUsage => this.storageData == null ? 0 : this.storageData.StorageUsage;
+
+    private SimpleStorageData? storageData => this.storageCrystal?.Data;
 
     #endregion
 
@@ -90,19 +96,45 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             }
         }
 
-        if (this.crystal == null)
-        {
-            this.crystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
-            var mainConfiguration = directoryConfiguration.CombineFile(SimpleStorageFile);
-            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(SimpleStorageFile);
-            this.crystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
+        if (this.storageCrystal == null)
+        {// SimpleStorageData
+            this.storageCrystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
+            var mainConfiguration = directoryConfiguration.CombineFile(Filename);
+            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(Filename);
+            this.storageCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
                 NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
             });
 
-            result = await this.crystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
-            return result;
+            result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
+        }
+
+        if (this.mapCrystal == null)
+        {// StorageMap
+            this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null, false);
+            var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
+            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
+            this.mapCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
+            {
+                BackupFileConfiguration = backupConfiguration,
+                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
+            });
+
+            ((ICrystalInternal)this.mapCrystal).SetStorage(this);
+            result = await this.mapCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
+            else
+            {
+                this.storageMap = this.mapCrystal.Data;
+            }
         }
 
         return CrystalResult.Success;
@@ -115,21 +147,26 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return;
         }
 
-        if (this.crystal != null)
+        if (this.storageCrystal is not null)
         {
-            await this.crystal.Save().ConfigureAwait(false);
+            await this.storageCrystal.Save().ConfigureAwait(false);
+        }
+
+        if (this.mapCrystal is not null)
+        {
+            await this.mapCrystal.Save().ConfigureAwait(false);
         }
     }
 
     CrystalResult IStorage.PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return CrystalResult.NotPrepared;
         }
 
         var file = FileIdToFile(fileId);
-        this.data.Put(ref file, dataToBeShared.Memory.Length);
+        this.storageData.Put(ref file, dataToBeShared.Memory.Length);
         fileId = FileToFileId(file);
 
         var path = this.FileToPath(FileIdToFile(fileId));
@@ -155,9 +192,9 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return CrystalResult.NotFound;
         }
 
-        if (this.data != null)
+        if (this.storageData != null)
         {
-            if (this.data.Remove(file))
+            if (this.storageData.Remove(file))
             {// Not found
                 fileId = 0;
                 return CrystalResult.NotFound;
@@ -180,14 +217,14 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     Task<CrystalMemoryOwnerResult> IStorage.GetAsync(ref ulong fileId)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.NotPrepared));
         }
 
         var file = FileIdToFile(fileId);
         int size;
-        if (!this.data.TryGetValue(file, out size))
+        if (!this.storageData.TryGetValue(file, out size))
         {// Not found
             fileId = 0;
             return Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.NotFound));
@@ -209,13 +246,13 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     Task<CrystalResult> IStorage.PutAsync(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return Task.FromResult(CrystalResult.NotPrepared);
         }
 
         var file = FileIdToFile(fileId);
-        this.data.Put(ref file, dataToBeShared.Memory.Length);
+        this.storageData.Put(ref file, dataToBeShared.Memory.Length);
         fileId = FileToFileId(file);
 
         var path = this.FileToPath(FileIdToFile(fileId));
@@ -230,7 +267,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
     Task<CrystalResult> IStorage.DeleteAsync(ref ulong fileId)
     {
-        if (this.mainFiler == null || this.data == null)
+        if (this.mainFiler == null || this.storageData == null)
         {
             return Task.FromResult(CrystalResult.NotPrepared);
         }
@@ -241,7 +278,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return Task.FromResult(CrystalResult.NotFound);
         }
 
-        this.data.Remove(file);
+        this.storageData.Remove(file);
 
         fileId = 0;
 
@@ -262,20 +299,51 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return CrystalResult.NotPrepared;
         }
 
-        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory).ConfigureAwait(false);
-        return await this.mainFiler.DeleteDirectoryAsync(this.directory).ConfigureAwait(false);
+        // Method 1: Delete the files in Storage one by one. If the Storage folder is not empty, leave it intact.
+        /*if (this.storageCrystal is { } crystal)
+        {
+            var array = crystal.Data.GetFileArray();
+            foreach (var x in array)
+            {
+                var path = this.FileToPath(x);
+                this.mainFiler.DeleteAndForget(this.MainFile(path));
+                if (this.backupFiler is not null)
+                {
+                    this.backupFiler.DeleteAndForget(this.BackupFile(path));
+                }
+            }
+
+            await crystal.Delete().ConfigureAwait(false);
+        }
+
+        if (this.mapCrystal is { } crystal2)
+        {
+            await crystal2.Delete().ConfigureAwait(false);
+        }
+
+        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory, false).ConfigureAwait(false);
+        return await this.mainFiler.DeleteDirectoryAsync(this.directory, false).ConfigureAwait(false);*/
+
+        // Method 2: Delete the Storage folder entirely.
+        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory, true).ConfigureAwait(false);
+        return await this.mainFiler.DeleteDirectoryAsync(this.directory, true).ConfigureAwait(false);
     }
 
     async Task<bool> IStorageInternal.TestJournal()
     {
-        if (this.crystal is ICrystalInternal crystalInternal)
+        if (this.storageCrystal is ICrystalInternal crystalInternal &&
+            await crystalInternal.TestJournal().ConfigureAwait(false) == false)
         {
-            return await crystalInternal.TestJournal().ConfigureAwait(false);
+            return false;
         }
-        else
+
+        if (this.mapCrystal is ICrystalInternal crystalInternal2 &&
+            await crystalInternal2.TestJournal().ConfigureAwait(false) == false)
         {
-            return true;
+            return false;
         }
+
+        return true;
     }
 
     #endregion

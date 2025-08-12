@@ -82,6 +82,7 @@ public class Crystalizer
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
         this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
         this.Memory = new(this, this.CrystalCheck.MemoryStats);
+        // this.StorageControl = new();
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -128,6 +129,8 @@ public class Crystalizer
     public IStorageKey StorageKey { get; }
 
     public MemoryControl Memory { get; }
+
+    // public StorageControl StorageControl { get; }
 
     internal ICrystalDataQuery Query { get; }
 
@@ -541,7 +544,7 @@ public class Crystalizer
         // Save/Terminate journal
         if (this.Journal is { } journal)
         {
-            await journal.SaveJournalAsync().ConfigureAwait(false);
+            await journal.StoreJournalAsync().ConfigureAwait(false);
             await journal.TerminateAsync().ConfigureAwait(false);
         }
 
@@ -668,12 +671,12 @@ public class Crystalizer
         return result;
     }
 
-    public async Task SaveJournal()
+    public async Task StoreJournal()
     {
         // Save journal
         if (this.Journal is { } journal)
         {
-            await journal.SaveJournalAsync().ConfigureAwait(false);
+            await journal.StoreJournalAsync().ConfigureAwait(false);
         }
     }
 

@@ -11,6 +11,8 @@ public class EmptyJournal : IJournal
         return Task.FromResult(CrystalResult.Success);
     }
 
+    int IJournal.MaxRecordLength => 0;
+
     ulong IJournal.Add(ref TinyhandWriter writer)
     {
         return 0;
@@ -21,7 +23,7 @@ public class EmptyJournal : IJournal
         writer = default(TinyhandWriter);
     }
 
-    Task IJournal.SaveJournalAsync()
+    Task IJournal.StoreJournalAsync()
     {
         return Task.CompletedTask;
     }

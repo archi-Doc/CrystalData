@@ -1,0 +1,190 @@
+﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+
+using Arc.Threading;
+using CrystalData;
+using Tinyhand;
+using ValueLink;
+using Xunit;
+
+namespace xUnitTest.CrystalDataTest;
+
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
+public sealed partial record StoragePointClass1
+{
+    public StoragePointClass1(int id, string name)
+    {
+        this.Id = id;
+        this.Name = name;
+    }
+
+    private readonly Lock lockObject = new();
+
+    [Key(0)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    public int Id { get; set; }
+
+    [Key(1)]
+    public string Name { get; set; }
+
+    [Key(2)]
+    public StoragePointClass Class1 { get; set; } = new(1, "Class1", "Description of Class1");
+
+    [Key(3)]
+    public StoragePoint<StoragePointClass> Class2 { get; set; } = new();
+}
+
+[TinyhandObject(Structual = false)]
+public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass>, IEquatable<NoStoragePointClass>
+{
+    public NoStoragePointClass(int id, string name, string descrption)
+    {
+        this.id = id;
+        this.name = name;
+        this.Description = descrption;
+    }
+
+    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    private int id;
+
+    [Key(1, AddProperty = "Name")]
+    [Link(Type = ChainType.Ordered)]
+    private string name = string.Empty;
+
+    [Key(2)]
+    public string Description { get; set; } = string.Empty;
+
+    bool IEquatableObject<NoStoragePointClass>.ObjectEquals(NoStoragePointClass other)
+        => ((IEquatable<NoStoragePointClass>)this).Equals(other);
+
+    bool IEquatable<NoStoragePointClass>.Equals(NoStoragePointClass? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.id == other.id &&
+            this.name == other.name &&
+            this.Description == other.Description;
+    }
+}
+
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
+public sealed partial record StoragePointClass : IEquatableObject<StoragePointClass>, IEquatable<StoragePointClass>
+{
+    public StoragePointClass(int id, string name, string descrption)
+    {
+        this.id = id;
+        this.name = name;
+        this.StringStorage.Set(descrption);
+    }
+
+    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    private int id;
+
+    [Key(1, AddProperty = "Name")]
+    [Link(Type = ChainType.Ordered)]
+    private string name = string.Empty;
+
+    [Key(2)]
+    public StoragePoint<string> StringStorage { get; set; } = new();
+
+    bool IEquatableObject<StoragePointClass>.ObjectEquals(StoragePointClass other)
+        => ((IEquatable<StoragePointClass>)this).Equals(other);
+
+    public bool Equals(StoragePointClass? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.id == other.id &&
+            this.name == other.name &&
+            this.StringStorage.DataEquals(other.StringStorage);
+    }
+
+    public bool Equals(NoStoragePointClass? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.id == other.Id &&
+            this.name == other.Name &&
+            this.StringStorage.TryGet().Result == other.Description;
+    }
+
+    public override int GetHashCode()
+        => HashCode.Combine(this.id, this.name, this.StringStorage.TryGet().Result);
+}
+
+public class StoragePointTest
+{
+    [Fact]
+    public async Task Test2()
+    {
+        var g = new StoragePointClass1.GoshujinClass();
+        using (var writer = g.TryLock(1, TryLockMode.GetOrCreate))
+        {
+            if (writer is not null)
+            {
+                writer.Name = "Test";
+                var c2 = await writer.Class2.GetOrCreate();
+                writer.Commit();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Test1()
+    {
+        var crystal = await TestHelper.CreateAndStartCrystal<StoragePointClass>(true);
+
+        var g = crystal.Data;
+        var st = await g.StringStorage.TryGet();
+        st = await g.StringStorage.GetOrCreate();
+
+        if (await g.StringStorage.TryLock() is not null)
+        {
+            g.StringStorage.Unlock();
+        }
+
+        g.StringStorage.Set("Test String");
+
+        await crystal.Store(StoreMode.Release);
+        await crystal.Crystalizer.StoreJournal();
+
+        st = await g.StringStorage.TryGet();
+        st.Is("Test String");
+
+        await TestHelper.UnloadAndDeleteAll(crystal);
+    }
+
+    [Fact]
+    public async Task Test0()
+    {
+        var tc = new StoragePointClass(1, "test", "22");
+        var bin = TinyhandSerializer.Serialize(tc);
+        var tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
+
+        bin = TinyhandSerializer.Serialize(tc, TinyhandSerializerOptions.Special);
+        tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin, TinyhandSerializerOptions.Special);
+
+        tc.StringStorage.DisableStorage();
+        tc.StringStorage.IsDisabled.IsTrue();
+        tc.StringStorage.EnableStorage();
+        tc.StringStorage.IsDisabled.IsTrue();
+        bin = TinyhandSerializer.Serialize(tc);
+        tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
+        tc.Equals(tc2).IsTrue();
+
+        var td = TinyhandSerializer.Deserialize<NoStoragePointClass>(bin);
+        tc.Equals(td).IsTrue();
+    }
+}

@@ -1,15 +1,36 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
+using Tinyhand.IO;
+using ValueLink;
 
 namespace Sandbox;
 
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+public partial record SpSecondClass
+{
+    public SpSecondClass(int id)
+    {
+        this.Id = id;
+    }
+
+    [Key(0)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    public int Id { get; set; }
+
+    [Key(1)]
+    public StoragePoint<FirstData> FirstDataStorage { get; set; } = new();
+}
+
 // First, create a class to represent the data content.
-[TinyhandObject] // Annotate TinyhandObject attribute to make this class serializable.
+[TinyhandObject(Structual = true)] // Annotate TinyhandObject attribute to make this class serializable.
 public partial class FirstData
 {
     public FirstData()
@@ -22,6 +43,9 @@ public partial class FirstData
     [Key(1)]
     [DefaultValue("Hoge")] // The default value for the name property.
     public string Name { get; set; } = string.Empty;
+
+    [Key(2)]
+    public StoragePoint<int> IntStorage { get; set; } = new();
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";
@@ -58,6 +82,9 @@ internal class Program
                         NumberOfFileHistories = 0, // No history file.
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                        StorageConfiguration = new SimpleStorageConfiguration(
+                            new GlobalDirectoryConfiguration("MainStorage"),
+                            new GlobalDirectoryConfiguration("BackupStorage")),
                     });
             });
 

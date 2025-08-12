@@ -32,6 +32,7 @@ public static class TestHelper
         });
 
         var unit = builder.Build();
+        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
 
         var crystal = crystalizer.GetCrystal<TData>();
@@ -86,7 +87,7 @@ public static class TestHelper
         var directory = Path.GetDirectoryName(crystal.CrystalConfiguration.FileConfiguration.Path);
         if (!string.IsNullOrEmpty(directory))
         {
-            Directory.EnumerateFileSystemEntries(directory).Any().IsFalse(); // Directory is empty
+            StorageHelper.ContainsAnyFile(directory).IsFalse(); // Directory is empty
             Directory.Delete(directory, true);
         }
 

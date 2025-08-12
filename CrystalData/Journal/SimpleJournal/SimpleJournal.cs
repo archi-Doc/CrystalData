@@ -106,6 +106,8 @@ public partial class SimpleJournal : IJournal
         return CrystalResult.Success;
     }
 
+    int IJournal.MaxRecordLength => this.SimpleJournalConfiguration.MaxRecordLength;
+
     void IJournal.GetWriter(JournalType recordType, out TinyhandWriter writer)
     {
         writer = TinyhandWriter.CreateFromBytePool();
@@ -152,7 +154,7 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    async Task IJournal.SaveJournalAsync()
+    async Task IJournal.StoreJournalAsync()
     {
         await this.SaveJournalAsync(true).ConfigureAwait(false);
     }

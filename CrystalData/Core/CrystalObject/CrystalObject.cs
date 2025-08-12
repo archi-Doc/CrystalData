@@ -54,7 +54,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 return v;
             }
 
-            using (this.semaphore.Lock())
+            using (this.semaphore.EnterScope())
             {
                 if (this.State == CrystalState.Initial)
                 {// Initial
@@ -90,7 +90,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 return v;
             }
 
-            using (this.semaphore.Lock())
+            using (this.semaphore.EnterScope())
             {
                 if (this.storage != null)
                 {
@@ -107,7 +107,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     void ICrystal.Configure(CrystalConfiguration configuration)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = configuration;
             this.PrepareCrystalConfiguration();
@@ -119,7 +119,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     void ICrystal.ConfigureFile(FileConfiguration configuration)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { FileConfiguration = configuration, };
             this.PrepareCrystalConfiguration();
@@ -130,7 +130,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     void ICrystal.ConfigureStorage(StorageConfiguration configuration)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { StorageConfiguration = configuration, };
             this.PrepareCrystalConfiguration();
@@ -141,7 +141,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
 
     async Task<CrystalResult> ICrystal.PrepareAndLoad(bool useQuery)
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             if (this.State == CrystalState.Prepared)
             {// Prepared
@@ -156,13 +156,13 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         }
     }
 
-    async Task<CrystalResult> ICrystal.Save(UnloadMode unloadMode)
+    async Task<CrystalResult> ICrystal.Store(StoreMode storeMode)
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.Volatile)
         {// Volatile
-            if (unloadMode.IsUnload())
+            if (storeMode == StoreMode.Release)
             {// Unload
-                using (this.semaphore.Lock())
+                using (this.semaphore.EnterScope())
                 {
                     this.data = null;
                     this.State = CrystalState.Initial;
@@ -189,17 +189,164 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return CrystalResult.NotPrepared;
         }
 
-        var semaphore = obj as IGoshujinSemaphore;
+        var semaphore = obj as IRepeatableSemaphore;
         if (semaphore is not null)
         {
-            if (unloadMode == UnloadMode.TryUnload)
+            if (storeMode == StoreMode.Release)
             {
-                semaphore.LockAndTryUnload(out var state);
+                semaphore.LockAndTryRelease(out var state);
                 if (state == GoshujinState.Valid)
                 {// Cannot unload because a WriterClass is still present.
                     return CrystalResult.DataIsLocked;
                 }
-                else if (state == GoshujinState.Unloading)
+                else if (state == GoshujinState.Releasing)
+                {// Unload (Success)
+                    if (semaphore.SemaphoreCount > 0)
+                    {
+                        return CrystalResult.DataIsLocked;
+                    }
+                }
+                else
+                {// Obsolete
+                    return CrystalResult.DataIsObsolete;
+                }
+            }
+
+            /*else if (unloadMode == UnloadMode.ForceUnload)
+            {
+                semaphore.LockAndForceUnload();
+            }*/
+        }
+
+        if (obj is IStructualObject structualObject)
+        {
+            if (await structualObject.StoreData(storeMode).ConfigureAwait(false) == false)
+            {
+                return CrystalResult.DataIsLocked;
+            }
+        }
+
+        if (this.storage is { } storage && storage is not EmptyStorage)
+        {
+            await storage.SaveStorage(this).ConfigureAwait(false);
+        }
+
+        this.lastSavedTime = DateTime.UtcNow;
+
+        // Starting position
+        var startingPosition = this.Crystalizer.GetJournalPosition();
+
+        // Serialize
+        BytePool.RentMemory rentMemory;
+        try
+        {
+            if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
+            {// utf8
+                rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(obj);
+            }
+            else
+            {// binary
+                rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(obj);
+            }
+        }
+        catch
+        {
+            return CrystalResult.SerializationFailed;
+        }
+
+        // Get hash
+        var hash = FarmHash.Hash64(rentMemory.Span);
+        if (hash == currentWaypoint.Hash)
+        {// Identical data
+            goto Exit;
+        }
+
+        var waypoint = this.waypoint;
+        if (!waypoint.Equals(currentWaypoint))
+        {// Waypoint changed
+            goto Exit;
+        }
+
+        this.Crystalizer.UpdateWaypoint(this, ref currentWaypoint, hash);
+
+        var result = await filer.Save(rentMemory.ReadOnly, currentWaypoint).ConfigureAwait(false);
+        if (result != CrystalResult.Success)
+        {// Write error
+            return result;
+        }
+
+        using (this.semaphore.EnterScope())
+        {// Update waypoint and plane position.
+            this.waypoint = currentWaypoint;
+            this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
+            if (storeMode == StoreMode.Release)
+            {// Unload
+                this.data = null;
+                this.State = CrystalState.Initial;
+            }
+        }
+
+        _ = filer.LimitNumberOfFiles();
+        return CrystalResult.Success;
+
+Exit:
+        using (this.semaphore.EnterScope())
+        {
+            this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
+            if (storeMode == StoreMode.Release)
+            {// Unload
+                this.data = null;
+                this.State = CrystalState.Initial;
+            }
+        }
+
+        return CrystalResult.Success;
+    }
+
+    async Task<CrystalResult> ICrystal.Save(UnloadMode unloadMode)
+    {
+        if (this.CrystalConfiguration.SavePolicy == SavePolicy.Volatile)
+        {// Volatile
+            if (unloadMode.IsUnload())
+            {// Unload
+                using (this.semaphore.EnterScope())
+                {
+                    this.data = null;
+                    this.State = CrystalState.Initial;
+                }
+            }
+
+            return CrystalResult.Success;
+        }
+
+        var obj = Volatile.Read(ref this.data);
+        var filer = Volatile.Read(ref this.crystalFiler);
+        var currentWaypoint = this.waypoint;
+
+        if (this.State == CrystalState.Initial)
+        {// Initial
+            return CrystalResult.NotPrepared;
+        }
+        else if (this.State == CrystalState.Deleted)
+        {// Deleted
+            return CrystalResult.Deleted;
+        }
+        else if (obj == null || filer == null)
+        {
+            return CrystalResult.NotPrepared;
+        }
+
+        var semaphore = obj as IRepeatableSemaphore;
+        if (semaphore is not null)
+        {
+            if (unloadMode == UnloadMode.TryUnload)
+            {
+                semaphore.LockAndTryRelease(out var state);
+                if (state == GoshujinState.Valid)
+                {// Cannot unload because a WriterClass is still present.
+                    return CrystalResult.DataIsLocked;
+                }
+                else if (state == GoshujinState.Releasing)
                 {// Unload (Success)
                     if (semaphore.SemaphoreCount > 0)
                     {
@@ -213,7 +360,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             }
             else if (unloadMode == UnloadMode.ForceUnload)
             {
-                semaphore.LockAndForceUnload();
+                semaphore.LockAndForceRelease();
             }
         }
 
@@ -274,7 +421,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return result;
         }
 
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
@@ -289,7 +436,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         return CrystalResult.Success;
 
 Exit:
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
             if (unloadMode.IsUnload())
@@ -304,7 +451,7 @@ Exit:
 
     async Task<CrystalResult> ICrystal.Delete()
     {
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             if (this.State == CrystalState.Initial)
             {// Initial
@@ -320,8 +467,11 @@ Exit:
             await this.crystalFiler.DeleteAllAsync().ConfigureAwait(false);
 
             // Delete storage
-            this.ResolveAndPrepareStorage();
-            await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+            if (this.CrystalConfiguration.StorageConfiguration != EmptyStorageConfiguration.Default)
+            {// StorageMap uses Storage internally, and this prevents infinite recursive calls caused by it.
+                this.ResolveAndPrepareStorage();
+                await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+            }
 
             // Journal/Waypoint
             this.Crystalizer.RemovePlane(this.waypoint);
@@ -383,7 +533,7 @@ Exit:
         }
 
         var testResult = true;
-        using (this.semaphore.Lock())
+        using (this.semaphore.EnterScope())
         {
             if (this.crystalFiler is null ||
                 this.crystalFiler.Main is not { } main)
@@ -424,7 +574,7 @@ Exit:
 
                 if (currentObject is IStructualObject structualObject)
                 {
-                    structualObject.SetParent(this);
+                    structualObject.SetupStructure(this);
                 }
 
                 if (previousObject is not null)
@@ -480,6 +630,14 @@ Exit:
         }
 
         return testResult;
+    }
+
+    void ICrystalInternal.SetStorage(IStorage storage)
+    {
+        using (this.semaphore.EnterScope())
+        {
+            this.storage = storage;
+        }
     }
 
     #endregion
@@ -592,7 +750,7 @@ Exit:
     }
 
     private async Task<CrystalResult> PrepareAndLoadInternal(bool useQuery)
-    {// this.semaphore.Lock()
+    {// this.semaphore.EnterScope()
         CrystalResult result;
         var param = PrepareParam.New<TData>(this.Crystalizer, useQuery);
 
@@ -807,7 +965,7 @@ Exit:
         if (this.data is IStructualObject journalObject)
         {
             // journalObject.Journal = this;
-            journalObject.SetParent(this);
+            journalObject.SetupStructure(this);
         }
     }
 

@@ -32,6 +32,8 @@ public interface ICrystal : IStructualRoot
 
     Task<CrystalResult> Save(UnloadMode unloadMode = UnloadMode.NoUnload);
 
+    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly);
+
     Task<CrystalResult> Delete();
 
     void Terminate();
@@ -45,13 +47,15 @@ public interface ICrystal<TData> : ICrystal
 
 internal interface ICrystalInternal : ICrystal
 {
-    Task? TryPeriodicSave(DateTime utc);
-
-    Task<bool> TestJournal();
-
     CrystalConfiguration OriginalCrystalConfiguration { get; }
 
     Waypoint Waypoint { get; }
+
+    void SetStorage(IStorage storage);
+
+    Task? TryPeriodicSave(DateTime utc);
+
+    Task<bool> TestJournal();
 }
 
 internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal
