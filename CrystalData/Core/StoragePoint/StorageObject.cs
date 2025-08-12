@@ -129,7 +129,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this, -1);
+            this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
 
@@ -158,7 +158,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this, -1);
+            this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
 
@@ -314,7 +314,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         var hash = FarmHash.Hash64(rentMemory.Span);
         if (storeMode != StoreMode.Release)
         {
-            this.storageControl.SetStorageSize(this, dataSize);
+            await this.storageControl.SetStorageSize(this, dataSize).ConfigureAwait(false);
         }
 
         if (hash != this.storageId0.Hash)

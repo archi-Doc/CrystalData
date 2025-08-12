@@ -9,6 +9,9 @@ namespace CrystalData;
 
 public partial class StorageControl
 {
+    private const int MinimumDataSize = 1024;
+    private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
+
     /// <summary>
     /// This is the default instance of StorageControl.<br/>
     /// I know it’s not ideal to use it as a static, but...
@@ -17,7 +20,6 @@ public partial class StorageControl
 
     #region FiendAndProperty
 
-    private readonly Crystalizer? crystalizer;
     /// <summary>
     /// A lock object used for exclusive control for StorageControl, StorageMap, StoragePoint, and StorageObject.<br/>
     /// To prevent deadlocks, do not call external functions while holding this lock.
@@ -36,9 +38,20 @@ public partial class StorageControl
 
     public bool IsRip => this.isRip;
 
+    public long MemoryUsageLimit { get; internal set; } = DefaultMemoryLimit;
+
     public long MemoryUsage => this.memoryUsage;
 
-    public bool StorageReleaseRequired => this.memoryUsage > this.crystalizer.MemoryUsageLimit;
+    public long AvailableMemory
+    {
+        get
+        {
+            var available = this.MemoryUsageLimit - this.MemoryUsage;
+            return available > 0 ? available : 0;
+        }
+    }
+
+    public bool StorageReleaseRequired => this.memoryUsage > this.MemoryUsageLimit;
 
     public long StorageUsage
     {
@@ -94,7 +107,7 @@ public partial class StorageControl
         }
     }
 
-    internal void SetStorageSize(StorageObject node, int newSize)
+    internal Task SetStorageSize(StorageObject node, int newSize)
     {
         using (this.lowestLockObject.EnterScope())
         {
@@ -108,12 +121,45 @@ public partial class StorageControl
 
         if (newSize >= 0 && this.StorageReleaseRequired)
         {
-            this.ReleaseStorage(false);
+            return this.ReleaseStorage(false);
         }
+
+        return Task.CompletedTask;
     }
 
-    internal void ReleaseStorage(bool rip)
+    internal async Task ReleaseStorage(bool rip)
     {
+        while (true)
+        {
+            if (rip)
+            {
+                if (this.head is null)
+                {// No storage objects to release.
+                    break;
+                }
+            }
+            else
+            {
+                if (!this.StorageReleaseRequired)
+                {
+                    break;
+                }
+            }
+
+            StorageObject? node;
+            using (this.lowestLockObject.EnterScope())
+            {
+                node = this.head?.previous; // Get the least recently used node.
+                if (node is null)
+                {// No storage objects to release.
+                    break;
+                }
+
+                this.MoveToRecentInternal(node);
+            }
+
+            await node.StoreData(StoreMode.Release);
+        }
     }
 
     /// <summary>
@@ -122,7 +168,7 @@ public partial class StorageControl
     /// If the storage map is disabled, only updates its size.
     /// </summary>
     /// <param name="node">The <see cref="StorageObject"/> to move.</param>
-    /// <param name="newSize">The new size of the object. If negative, the size is not updated.</param>
+    /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
         if (node.storageMap.IsDisabled)
@@ -146,42 +192,25 @@ public partial class StorageControl
                 node.size = newSize;
             }
 
-            if (node.next is null ||
-                node.previous is null)
-            {// Not added to the list.
-                if (this.head is null)
-                {// First node
-                    this.head = node;
-                    node.next = node;
-                    node.previous = node;
-                    return;
-                }
-            }
-            else
-            {// Remove the node from the list.
-                if (node.next == node)
-                {// Only one node in the list.
-                    return;
-                }
-
-                node.next.previous = node.previous;
-                node.previous.next = node.next;
-                if (this.head == node)
-                {
-                    this.head = node.next;
-                }
-            }
-
-            node.next = this.head;
-            node.previous = this.head!.previous;
-            this.head.previous!.next = node;
-            this.head.previous = node;
-            this.head = node;
+            this.MoveToRecentInternal(node);
         }
 
         if (newSize >= 0 && this.StorageReleaseRequired)
         {
             this.ReleaseStorage(false);
+        }
+    }
+
+    internal void MoveToRecent(StorageObject node)
+    {
+        if (node.storageMap.IsDisabled)
+        {
+            return;
+        }
+
+        using (this.lowestLockObject.EnterScope())
+        {
+            this.MoveToRecentInternal(node);
         }
     }
 
@@ -352,5 +381,40 @@ public partial class StorageControl
                 storage.DeleteAndForget(ref id3);
             }*/
         }
+    }
+
+    private void MoveToRecentInternal(StorageObject node)
+    {
+        if (node.next is null ||
+            node.previous is null)
+        {// Not added to the list.
+            if (this.head is null)
+            {// First node
+                this.head = node;
+                node.next = node;
+                node.previous = node;
+                return;
+            }
+        }
+        else
+        {// Remove the node from the list.
+            if (node.next == node)
+            {// Only one node in the list.
+                return;
+            }
+
+            node.next.previous = node.previous;
+            node.previous.next = node.next;
+            if (this.head == node)
+            {
+                this.head = node.next;
+            }
+        }
+
+        node.next = this.head;
+        node.previous = this.head!.previous;
+        this.head.previous!.next = node;
+        this.head.previous = node;
+        this.head = node;
     }
 }

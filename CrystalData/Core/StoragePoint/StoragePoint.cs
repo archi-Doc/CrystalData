@@ -104,7 +104,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Sets the data instance for this storage point.<br/>
     /// This function is not recommended, as instance replacement may cause data inconsistencies.
     /// </summary>
-    /// <param name="data">The data to set.</param>
+    /// <param name="data">The data to set.</param>]
     public void Set(TData data)
         => this.GetOrCreateStorageObject().Set(data);
 

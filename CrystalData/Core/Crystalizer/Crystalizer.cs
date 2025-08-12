@@ -61,7 +61,7 @@ public class Crystalizer
         this.EnableFilerLogger = options.EnableFilerLogger;
         this.RootDirectory = options.DataDirectory;
         this.FilerTimeout = options.FilerTimeout;
-        this.MemoryUsageLimit = options.MemoryUsageLimit;
+        StorageControl.Default.MemoryUsageLimit = options.MemoryUsageLimit;
         this.ConcurrentUnload = options.ConcurrentUnload;
         this.UnloadTimeout = options.UnloadTimeout;
         if (string.IsNullOrEmpty(this.RootDirectory))
@@ -109,8 +109,6 @@ public class Crystalizer
     public string RootDirectory { get; }
 
     public TimeSpan FilerTimeout { get; }
-
-    public long MemoryUsageLimit { get; }
 
     public int ConcurrentUnload { get; }
 
