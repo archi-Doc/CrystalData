@@ -298,8 +298,8 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
             return CrystalResult.NotPrepared;
         }
 
-        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory).ConfigureAwait(false);
-        return await this.mainFiler.DeleteDirectoryAsync(this.directory).ConfigureAwait(false);
+        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory, false).ConfigureAwait(false);
+        return await this.mainFiler.DeleteDirectoryAsync(this.directory, false).ConfigureAwait(false);
     }
 
     async Task<bool> IStorageInternal.TestJournal()

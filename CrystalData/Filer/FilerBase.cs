@@ -95,9 +95,10 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         return work.Result;
     }
 
-    async Task<CrystalResult> IRawFiler.DeleteDirectoryAsync(string path, TimeSpan timeToWait)
+    async Task<CrystalResult> IRawFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
     {
-        var work = new FilerWork(FilerWork.WorkType.DeleteDirectory, path);
+        var workType = recursive ? FilerWork.WorkType.DeleteDirectory : FilerWork.WorkType.DeleteEmptyDirectory;
+        var work = new FilerWork(workType, path);
         var workInterface = this.AddLast(work);
         await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
         return work.Result;

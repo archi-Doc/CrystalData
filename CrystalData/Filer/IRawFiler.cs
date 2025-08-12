@@ -32,7 +32,7 @@ public interface IRawFiler
 
     Task<CrystalResult> DeleteAsync(string path, TimeSpan timeout);
 
-    Task<CrystalResult> DeleteDirectoryAsync(string path, TimeSpan timeout);
+    Task<CrystalResult> DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeout);
 
     /// <summary>
     /// List files and directories matching the path.
@@ -55,8 +55,8 @@ public interface IRawFiler
     Task<CrystalResult> DeleteAsync(string path)
         => this.DeleteAsync(path, TimeSpan.MinValue);
 
-    Task<CrystalResult> DeleteDirectoryAsync(string path)
-        => this.DeleteDirectoryAsync(path, TimeSpan.MinValue);
+    Task<CrystalResult> DeleteDirectoryAsync(string path, bool recursive)
+        => this.DeleteDirectoryAsync(path, recursive, TimeSpan.MinValue);
 
     Task<List<PathInformation>> ListAsync(string path)
     => this.ListAsync(path, TimeSpan.MinValue);

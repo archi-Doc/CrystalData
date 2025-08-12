@@ -468,7 +468,7 @@ Exit:
 
             // Delete storage
             this.ResolveAndPrepareStorage();
-            await this.storage.DeleteStorageAsync().ConfigureAwait(false);//
+            await this.storage.DeleteStorageAsync().ConfigureAwait(false);
 
             // Journal/Waypoint
             this.Crystalizer.RemovePlane(this.waypoint);

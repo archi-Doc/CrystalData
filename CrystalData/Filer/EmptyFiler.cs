@@ -29,7 +29,7 @@ public partial class EmptyFiler : IRawFiler
     Task<CrystalResult> IRawFiler.DeleteAsync(string path, TimeSpan timeout)
         => Task.FromResult(CrystalResult.Success);
 
-    Task<CrystalResult> IRawFiler.DeleteDirectoryAsync(string path, TimeSpan timeout)
+    Task<CrystalResult> IRawFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeout)
         => Task.FromResult(CrystalResult.Success);
 
     Task<List<PathInformation>> IRawFiler.ListAsync(string path, TimeSpan timeout)
