@@ -8,6 +8,35 @@ namespace CrystalData;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
+public record struct LockedData<TData> : IDisposable
+    where TData : notnull
+{
+    private readonly StorageObject storageObject;
+    private TData? data;
+
+    // public StoragePoint<TData> StoragePoint => this.storagePoint;
+
+    public TData? Data => this.data;
+
+    [MemberNotNullWhen(true, nameof(data))]
+    public bool IsValid => this.data is not null;
+
+    internal LockedData(StorageObject storageObject, TData? data)
+    {
+        this.storageObject = storageObject;
+        this.data = data;
+    }
+
+    public void Dispose()
+    {
+        if (this.data is not null)
+        {
+            this.storageObject.Unlock();
+            this.data = default;
+        }
+    }
+}
+
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
 /// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
@@ -114,6 +143,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
+
+    public ValueTask<LockedData<TData>> TryLock2() => this.GetOrCreateStorageObject().TryLock2<TData>();
 
     public bool DataEquals(StoragePoint<TData> other)
     {
