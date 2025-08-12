@@ -22,6 +22,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     private ulong pointId; // Lock:StorageControl
     private StorageObject? storageObject; // Lock:StorageControl
 
+    /// <summary>
+    /// Gets the <see langword="uint"/> type identifier used by TinyhandSerializer.
+    /// </summary>
     public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>

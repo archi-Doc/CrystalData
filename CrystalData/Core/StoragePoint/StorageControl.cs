@@ -92,6 +92,13 @@ public partial class StorageControl
         }
     }
 
+    /// <summary>
+    /// Moves the specified <see cref="StorageObject"/> to the most recently used position in the list.
+    /// Updates the object's size and the total memory usage if <paramref name="newSize"/> is non-negative.
+    /// If the storage map is disabled, only updates its size.
+    /// </summary>
+    /// <param name="node">The <see cref="StorageObject"/> to move.</param>
+    /// <param name="newSize">The new size of the object. If negative, the size is not updated.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
         if (node.storageMap.IsDisabled)
