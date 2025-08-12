@@ -3,7 +3,6 @@
 #pragma warning disable SA1202
 
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using CrystalData.Internal;
 
 namespace CrystalData;
@@ -18,6 +17,7 @@ public partial class StorageControl
 
     #region FiendAndProperty
 
+    private readonly Crystalizer? crystalizer;
     /// <summary>
     /// A lock object used for exclusive control for StorageControl, StorageMap, StoragePoint, and StorageObject.<br/>
     /// To prevent deadlocks, do not call external functions while holding this lock.
@@ -37,6 +37,8 @@ public partial class StorageControl
     public bool IsRip => this.isRip;
 
     public long MemoryUsage => this.memoryUsage;
+
+    public bool StorageReleaseRequired => this.memoryUsage > this.crystalizer.MemoryUsageLimit;
 
     public long StorageUsage
     {
@@ -90,6 +92,28 @@ public partial class StorageControl
                 }
             }
         }
+    }
+
+    internal void SetStorageSize(StorageObject node, int newSize)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (node.storageMap.IsEnabled)
+            {
+                this.memoryUsage += newSize - node.size;
+            }
+
+            node.size = newSize;
+        }
+
+        if (newSize >= 0 && this.StorageReleaseRequired)
+        {
+            this.ReleaseStorage(false);
+        }
+    }
+
+    internal void ReleaseStorage(bool rip)
+    {
     }
 
     /// <summary>
@@ -153,6 +177,11 @@ public partial class StorageControl
             this.head.previous!.next = node;
             this.head.previous = node;
             this.head = node;
+        }
+
+        if (newSize >= 0 && this.StorageReleaseRequired)
+        {
+            this.ReleaseStorage(false);
         }
     }
 

@@ -312,6 +312,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         var dataSize = rentMemory.Span.Length;
         var hash = FarmHash.Hash64(rentMemory.Span);
+        if (storeMode != StoreMode.Release)
+        {
+            this.storageControl.SetStorageSize(this, dataSize);
+        }
 
         if (hash != this.storageId0.Hash)
         {// Different data
