@@ -38,7 +38,7 @@ public class SecondExample
         data.Name = "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await this.crystal.Save(); // Save data.
+        await this.crystal.Store(); // Save data.
 
         var firstCrystal = this.crystalizer.CreateCrystal<FirstData>(new(SaveFormat.Utf8, SavePolicy.Manual, new LocalFileConfiguration("Local/SecondExample/FirstData.tinyhand")));
         firstCrystal.Data.Id++;

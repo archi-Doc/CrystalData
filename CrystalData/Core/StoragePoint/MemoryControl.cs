@@ -37,7 +37,7 @@ public partial class MemoryControl
 
             while (!core.IsTerminated)
             {
-                if (memoryControl.MemoryUsage < crystalizer.MemoryUsageLimit)
+                if (memoryControl.MemoryUsage < StorageControl.Default.MemoryUsageLimit)
                 {// Sleep
                     await core.Delay(UnloadIntervalInMilliseconds);
                     continue;
@@ -137,16 +137,6 @@ public partial class MemoryControl
     #endregion
 
     public long MemoryUsage => Volatile.Read(ref this.memoryUsage);
-
-    public long AvailableMemory
-    {
-        get
-        {
-            var available = this.crystalizer.MemoryUsageLimit - this.MemoryUsage;
-            available = available > 0 ? available : 0;
-            return available;
-        }
-    }
 
     public (long MemoryUsage, int MemoryCount) GetStat()
     {

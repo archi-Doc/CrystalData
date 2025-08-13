@@ -3,13 +3,15 @@
 #pragma warning disable SA1202
 
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using CrystalData.Internal;
 
 namespace CrystalData;
 
 public partial class StorageControl
 {
+    private const int MinimumDataSize = 1024;
+    private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
+
     /// <summary>
     /// This is the default instance of StorageControl.<br/>
     /// I know it’s not ideal to use it as a static, but...
@@ -36,7 +38,20 @@ public partial class StorageControl
 
     public bool IsRip => this.isRip;
 
+    public long MemoryUsageLimit { get; internal set; } = DefaultMemoryLimit;
+
     public long MemoryUsage => this.memoryUsage;
+
+    public long AvailableMemory
+    {
+        get
+        {
+            var available = this.MemoryUsageLimit - this.MemoryUsage;
+            return available > 0 ? available : 0;
+        }
+    }
+
+    public bool StorageReleaseRequired => this.memoryUsage > this.MemoryUsageLimit;
 
     public long StorageUsage
     {
@@ -92,13 +107,86 @@ public partial class StorageControl
         }
     }
 
+    internal void SetStorageSize(StorageObject node, int newSize)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (node.storageMap.IsEnabled)
+            {
+                this.memoryUsage += newSize - node.size;
+            }
+
+            node.size = newSize;
+        }
+    }
+
+    internal async Task ReleaseAllStorage(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            List<StorageObject> list = new();
+            using (this.lowestLockObject.EnterScope())
+            {
+                if (this.head is null)
+                {// No storage objects to release.
+                    return;
+                }
+
+                StorageObject node = this.head;
+                while (true)
+                {
+                    list.Add(node);
+                    node = node.next!;
+                    if (node == this.head)
+                    {// Reached back to the head.
+                        break;
+                    }
+                }
+            }
+
+            foreach (var x in list)
+            {
+                await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
+            }
+
+            try
+            {
+                await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    internal async Task ReleaseStorage(CancellationToken cancellationToken)
+    {
+        while (this.StorageReleaseRequired &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            StorageObject? node;
+            using (this.lowestLockObject.EnterScope())
+            {
+                node = this.head?.previous; // Get the least recently used node.
+                if (node is null)
+                {// No storage objects to release.
+                    break;
+                }
+
+                this.MoveToRecentInternal(node);
+            }
+
+            await node.StoreData(StoreMode.TryRelease);
+        }
+    }
+
     /// <summary>
     /// Moves the specified <see cref="StorageObject"/> to the most recently used position in the list.
     /// Updates the object's size and the total memory usage if <paramref name="newSize"/> is non-negative.
     /// If the storage map is disabled, only updates its size.
     /// </summary>
     /// <param name="node">The <see cref="StorageObject"/> to move.</param>
-    /// <param name="newSize">The new size of the object. If negative, the size is not updated.</param>
+    /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
         if (node.storageMap.IsDisabled)
@@ -122,37 +210,20 @@ public partial class StorageControl
                 node.size = newSize;
             }
 
-            if (node.next is null ||
-                node.previous is null)
-            {// Not added to the list.
-                if (this.head is null)
-                {// First node
-                    this.head = node;
-                    node.next = node;
-                    node.previous = node;
-                    return;
-                }
-            }
-            else
-            {// Remove the node from the list.
-                if (node.next == node)
-                {// Only one node in the list.
-                    return;
-                }
+            this.MoveToRecentInternal(node);
+        }
+    }
 
-                node.next.previous = node.previous;
-                node.previous.next = node.next;
-                if (this.head == node)
-                {
-                    this.head = node.next;
-                }
-            }
+    internal void MoveToRecent(StorageObject node)
+    {
+        if (node.storageMap.IsDisabled)
+        {
+            return;
+        }
 
-            node.next = this.head;
-            node.previous = this.head!.previous;
-            this.head.previous!.next = node;
-            this.head.previous = node;
-            this.head = node;
+        using (this.lowestLockObject.EnterScope())
+        {
+            this.MoveToRecentInternal(node);
         }
     }
 
@@ -323,5 +394,40 @@ public partial class StorageControl
                 storage.DeleteAndForget(ref id3);
             }*/
         }
+    }
+
+    private void MoveToRecentInternal(StorageObject node)
+    {
+        if (node.next is null ||
+            node.previous is null)
+        {// Not added to the list.
+            if (this.head is null)
+            {// First node
+                this.head = node;
+                node.next = node;
+                node.previous = node;
+                return;
+            }
+        }
+        else
+        {// Remove the node from the list.
+            if (node.next == node)
+            {// Only one node in the list.
+                return;
+            }
+
+            node.next.previous = node.previous;
+            node.previous.next = node.next;
+            if (this.head == node)
+            {
+                this.head = node.next;
+            }
+        }
+
+        node.next = this.head;
+        node.previous = this.head!.previous;
+        this.head.previous!.next = node;
+        this.head.previous = node;
+        this.head = node;
     }
 }

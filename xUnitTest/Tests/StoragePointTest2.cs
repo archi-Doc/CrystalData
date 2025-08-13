@@ -80,7 +80,14 @@ public class StoragePointTest2
             root.FirstClassStorage.Unlock();
         }
 
-        await crystal.Store(StoreMode.Release);
+        using (var x = await root.FirstClassStorage.TryLock2())
+        {
+            if (x.Data is not null)
+            {
+            }
+        }
+
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
         await this.CheckData(crystal.Data);
 

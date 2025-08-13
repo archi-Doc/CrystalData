@@ -20,7 +20,7 @@ public partial record CreditData
     private int credit;
 
     [Key(3, AddProperty = "Borrowers", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<Borrower.GoshujinClass> borrowers = new();
+    private StoragePoint<Borrower.GoshujinClass> borrowers = new();
 }
 
 [TinyhandObject(Structual = true)]
@@ -44,7 +44,7 @@ public class CrystalTest
         var crystal = await TestHelper.CreateAndStartCrystal<CreditData.GoshujinClass>(true);
 
         var g = crystal.Data;
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
 
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
@@ -55,18 +55,18 @@ public class CrystalTest
             creditData = w.Commit()!;
         }
 
-        var borrowers = await creditData.Borrowers.Get();
+        var borrowers = await creditData.Borrowers.GetOrCreate();
         using (var w2 = borrowers.TryLock(22, TryLockMode.Create)!)
         {
             w2.Commit();
         }
 
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
 
         var ww = g.TryGet(1);
-        var ww2 = await ww!.Borrowers.Get();
+        var ww2 = await ww!.Borrowers.GetOrCreate();
         var ww3 = ww2.TryGet(22);
         ww3.IsNotNull();
 
@@ -79,7 +79,7 @@ public class CrystalTest
         var crystal = await TestHelper.CreateAndStartCrystal2<CreditData.GoshujinClass>();
 
         var g = crystal.Data;
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
 
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
@@ -90,18 +90,18 @@ public class CrystalTest
             creditData = w.Commit()!;
         }
 
-        var borrowers = await creditData.Borrowers.Get();
+        var borrowers = await creditData.Borrowers.GetOrCreate();
         using (var w2 = borrowers.TryLock(22, TryLockMode.Create)!)
         {
             w2.Commit();
         }
 
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
 
         var ww = g.TryGet(1);
-        var ww2 = await ww!.Borrowers.Get();
+        var ww2 = await ww!.Borrowers.GetOrCreate();
         var ww3 = ww2.TryGet(22);
         ww3.IsNotNull();
 

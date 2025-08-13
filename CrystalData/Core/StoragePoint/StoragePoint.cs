@@ -8,6 +8,35 @@ namespace CrystalData;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
+public record struct LockedData<TData> : IDisposable
+    where TData : notnull
+{
+    private readonly StorageObject storageObject;
+    private TData? data;
+
+    // public StoragePoint<TData> StoragePoint => this.storagePoint;
+
+    public TData? Data => this.data;
+
+    [MemberNotNullWhen(true, nameof(data))]
+    public bool IsValid => this.data is not null;
+
+    internal LockedData(StorageObject storageObject, TData? data)
+    {
+        this.storageObject = storageObject;
+        this.data = data;
+    }
+
+    public void Dispose()
+    {
+        if (this.data is not null)
+        {
+            this.storageObject.Unlock();
+            this.data = default;
+        }
+    }
+}
+
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
 /// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
@@ -75,7 +104,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Sets the data instance for this storage point.<br/>
     /// This function is not recommended, as instance replacement may cause data inconsistencies.
     /// </summary>
-    /// <param name="data">The data to set.</param>
+    /// <param name="data">The data to set.</param>]
     public void Set(TData data)
         => this.GetOrCreateStorageObject().Set(data);
 
@@ -115,6 +144,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
 
+    public ValueTask<LockedData<TData>> TryLock2() => this.GetOrCreateStorageObject().TryLock2<TData>();
+
     public bool DataEquals(StoragePoint<TData> other)
     {
         var data = this.TryGet().Result;
@@ -150,7 +181,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     int IStructualObject.StructualKey { get; set; }
 
-    Task<bool> IStructualObject.StoreData(StoreMode storeMode)
+    public Task<bool> StoreData(StoreMode storeMode)
     {
         if (this.storageObject is { } storageObject)
         {
@@ -162,7 +193,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }
 
-    void IStructualObject.Erase()
+    /// <summary>
+    /// Erases the data associated with this storage point.<br/>
+    /// This operation removes the data from storage and memory.
+    /// </summary>
+    public void Erase()
         => this.GetOrCreateStorageObject().Erase();
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)

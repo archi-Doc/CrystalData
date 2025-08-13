@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using Arc.Crypto;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -25,13 +24,13 @@ public partial record StorageDataClass : IEquatableObject<StorageDataClass>, IEq
     private string name = string.Empty;
 
     [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<StorageDataClass> child = new();
+    private StoragePoint<StorageDataClass> child = new();
 
     [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<StorageDataClass.GoshujinClass> children = new();
+    private StoragePoint<StorageDataClass.GoshujinClass> children = new();
 
     [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<byte[]> byteArray = new();
+    private StoragePoint<byte[]> byteArray = new();
 
     bool IEquatableObject<StorageDataClass>.ObjectEquals(StorageDataClass other)
         => ((IEquatable<StorageDataClass>)this).Equals(other);
@@ -45,9 +44,9 @@ public partial record StorageDataClass : IEquatableObject<StorageDataClass>, IEq
 
         return this.id == other.id &&
             this.name == other.name &&
-            this.child.Get().Result.Equals(other.child.Get().Result) &&
-            this.children.Get().Result.GoshujinEquals(other.children.Get().Result) &&
-            this.byteArray.Get().Result.SequenceEqual(other.byteArray.Get().Result);
+            this.child.DataEquals(other.child) &&
+            this.children.DataEquals(other.children) &&
+            this.byteArray.DataEquals(other.byteArray);
     }
 }
 
@@ -59,7 +58,7 @@ public class StorageDataTest
         var crystal = await TestHelper.CreateAndStartCrystal<StorageDataClass.GoshujinClass>(true);
 
         var g = crystal.Data;
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
 
         // g2: empty
@@ -68,7 +67,7 @@ public class StorageDataTest
         g2.GoshujinEquals(g).IsTrue();
 
         // Save & Test journal
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
         var result = await crystal.Crystalizer.TestJournalAll();
         result.IsTrue();
@@ -84,7 +83,7 @@ public class StorageDataTest
         }
 
         var r = g3.TryGet(1)!;
-        var children = await r.Children.Get();
+        var children = await r.Children.GetOrCreate();
         using (var w2 = children.TryLock(2, TryLockMode.GetOrCreate)!)
         {
             w2.Commit();
@@ -96,12 +95,12 @@ public class StorageDataTest
             w2.Commit();
         }
 
-        await r.Children.Save(UnloadMode.ForceUnload);
+        await r.Children.StoreData(StoreMode.ForceRelease);
 
         r.Children.Erase();
 
         // Save & Test journal
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
         result = await crystal.Crystalizer.TestJournalAll();
         result.IsTrue();

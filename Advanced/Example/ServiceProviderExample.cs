@@ -59,7 +59,7 @@ public partial class Program
         data.Age += 1000d;
         Console.WriteLine($"Save {data.ToString()}");
 
-        await crystalizer.SaveAll(); // Save all data.
+        await crystalizer.StoreAll(); // Save all data.
 
         return unit;
     }

@@ -129,7 +129,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this, -1);
+            this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
 
@@ -158,7 +158,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is { } data)
         {
-            this.storageControl.MoveToRecent(this, -1);
+            this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
 
@@ -176,6 +176,34 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             this.Exit();
         }
+    }
+
+    internal async ValueTask<LockedData<TData>> TryLock2<TData>()
+        where TData : notnull
+    {
+        if (this.storageControl.IsRip || this.IsRip)
+        {
+            return default;
+        }
+
+        await this.EnterAsync().ConfigureAwait(false);
+        if (this.storageControl.IsRip || this.IsRip)
+        {
+            this.Exit();
+            return default;
+        }
+
+        if (this.data is null)
+        {// PrepareAndLoad
+            await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
+        }
+
+        if (this.data is null)
+        {// Reconstruct
+            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+        }
+
+        return new LockedData<TData>(this, (TData)this.data);
     }
 
     internal async ValueTask<TData?> TryLock<TData>()
@@ -233,7 +261,32 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         object? data;
         ICrystal? crystal;
 
-        if (storeMode == StoreMode.Release)
+        if (storeMode == StoreMode.TryRelease)
+        {
+            if (!this.TryEnter())
+            {// Already locked
+                return false;
+            }
+
+            try
+            {
+                data = this.data;
+                crystal = this.StructualRoot as ICrystal;
+                if (data is null || crystal is null)
+                {// No data
+                    return true;
+                }
+
+                // Release
+                this.storageControl.Release(this, false);
+                this.data = default;
+            }
+            finally
+            {
+                this.Exit();
+            }
+        }
+        else if (storeMode == StoreMode.ForceRelease)
         {
             await this.EnterAsync().ConfigureAwait(false);
             try
@@ -255,7 +308,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             }
         }
         else
-        {
+        {// Store data
             data = this.data;
             crystal = this.StructualRoot as ICrystal;
             if (data is null || crystal is null)
@@ -284,6 +337,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         var dataSize = rentMemory.Span.Length;
         var hash = FarmHash.Hash64(rentMemory.Span);
+        if (storeMode == StoreMode.StoreOnly)
+        {
+            this.storageControl.SetStorageSize(this, dataSize);
+        }
 
         if (hash != this.storageId0.Hash)
         {// Different data
