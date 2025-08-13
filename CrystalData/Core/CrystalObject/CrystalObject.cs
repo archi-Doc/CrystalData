@@ -63,7 +63,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 else if (this.State == CrystalState.Deleted)
                 {// Deleted
                     TinyhandSerializer.ReconstructObject<TData>(ref this.data);
-                    this.SetupStructure();
+                    this.SetupData();
                     return this.data;
                 }
 
@@ -332,6 +332,7 @@ Exit:
 
             // Clear
             TinyhandSerializer.DeserializeObject(TinyhandSerializer.SerializeObject(TinyhandSerializer.ReconstructObject<TData>()), ref this.data);
+            this.SetupData();
             // this.obj = default;
             // TinyhandSerializer.ReconstructObject<TData>(ref this.obj);
 
@@ -687,14 +688,12 @@ Exit:
         if (loadResult.Data is { } data)
         {// Loaded
             this.data = data;
-            this.SetupStructure();
             this.waypoint = loadResult.Waypoint;
             if (this.CrystalConfiguration.HasFileHistories)
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
                     this.Crystalizer.SetPlane(this, ref this.waypoint);
-                    this.SetupStructure();
                 }
                 else
                 {// Invalid waypoint
@@ -703,6 +702,7 @@ Exit:
             }
 
             // this.LogWaypoint("Load");
+            this.SetupData();
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
@@ -711,6 +711,7 @@ Exit:
             this.ResetWaypoint(true);
 
             // this.LogWaypoint("Reconstruct");
+            this.SetupData();
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
@@ -805,18 +806,15 @@ Exit:
         this.waypoint = default;
         this.Crystalizer.UpdateWaypoint(this, ref this.waypoint, hash);
 
-        this.SetupStructure();
-
         // Save immediately to fix the waypoint.
         _ = this.crystalFiler?.Save(rentMemory.ReadOnly, this.waypoint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetupStructure()
+    private void SetupData()
     {//
         if (this.data is IStructualObject structualObject)
         {
-            // journalObject.Journal = this;
             structualObject.SetupStructure(this);
         }
     }

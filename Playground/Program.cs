@@ -143,6 +143,8 @@ internal class Program
         Console.WriteLine($"Crystal {crystal.Data.ToString()}");
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
+        var doubleStorage = data2.DoubleStorage;
+        var d = await doubleStorage.GetOrCreate();
         data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
         data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
         Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
