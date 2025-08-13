@@ -474,9 +474,7 @@ Exit:
                     break;
                 }
 
-                this.Crystalizer.Memory.IsActive = false;
                 this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane);
-                this.Crystalizer.Memory.IsActive = true;
 
                 previousObject = currentObject;
             }

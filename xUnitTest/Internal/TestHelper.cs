@@ -74,9 +74,7 @@ public static class TestHelper
     {
         var crystalizer = crystal.Crystalizer;
         await crystalizer.StoreAndReleaseAll();
-        var stat = crystalizer.Memory.GetStat();
-        stat.MemoryUsage.Is(0);
-        stat.MemoryCount.Is(0);
+        StorageControl.Default.MemoryUsage.Is(0);
         await crystalizer.DeleteAll();
 
         if (crystal.Crystalizer.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)

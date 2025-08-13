@@ -51,11 +51,11 @@ public partial record AdvancedExample
     private string name = string.Empty;
 
     [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedExample> child = new();
+    private StoragePoint<AdvancedExample> child = new();
 
     [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedExample.GoshujinClass> children = new();
+    private StoragePoint<AdvancedExample.GoshujinClass> children = new();
 
     [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<byte[]> byteArray = new();
+    private StoragePoint<byte[]> byteArray = new();
 }
