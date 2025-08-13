@@ -149,12 +149,12 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
         if (this.storageCrystal is not null)
         {
-            await this.storageCrystal.Save().ConfigureAwait(false);
+            await this.storageCrystal.Store().ConfigureAwait(false);
         }
 
         if (this.mapCrystal is not null)
         {
-            await this.mapCrystal.Save().ConfigureAwait(false);
+            await this.mapCrystal.Store().ConfigureAwait(false);
         }
     }
 

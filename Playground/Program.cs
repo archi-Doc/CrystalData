@@ -104,7 +104,7 @@ internal class Program
         data.Id += 1;
         Console.WriteLine($"Crystal {data.ToString()}");
 
-        await crystal.Save(UnloadMode.ForceUnload);
+        await crystal.Store(StoreMode.ForceRelease);
         Console.WriteLine($"Unload {crystal.Data.ToString()}");
         crystal.Data.Id++;
         Console.WriteLine($"Unload++ {crystal.Data.ToString()}");
@@ -115,6 +115,6 @@ internal class Program
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         Console.WriteLine($"Crystal {crystal.Data.ToString()}");
 
-        await crystalizer.SaveAll(); // Save all data.
+        await crystalizer.StoreAll(); // Save all data.
     }
 }

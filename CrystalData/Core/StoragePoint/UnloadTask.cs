@@ -2,9 +2,9 @@
 
 namespace CrystalData.Unload;
 
-internal static class UnloadTaskExtension
+internal static class ReleaseTaskExtension
 {
-    public static async Task UnloadTask(Crystalizer crystalizer, UnloadTask.GoshujinClass goshujin)
+    public static async Task ReleaseTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin)
     {
         while (true)
         {
@@ -20,10 +20,10 @@ internal static class UnloadTaskExtension
         }
     }
 
-    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(Crystalizer crystalizer, UnloadTask.GoshujinClass goshujin)
+    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin)
     {
         var unloaded = 0;
-        UnloadTask? task;
+        ReleaseTask? task;
         DateTime utc;
 
         while (true)
@@ -52,13 +52,13 @@ internal static class UnloadTaskExtension
 
             if ((utc - task.FirstProcessed) > crystalizer.UnloadTimeout)
             {// Force
-                await task.Crystal.Save(UnloadMode.ForceUnload).ConfigureAwait(false);
+                await task.Crystal.Store(StoreMode.ForceRelease).ConfigureAwait(false);
                 crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.Crystal.DataType.FullName!);
                 unloaded++;
             }
             else
             {// Try
-                var result = await task.Crystal.Save(UnloadMode.TryUnload).ConfigureAwait(false);
+                var result = await task.Crystal.Store(StoreMode.TryRelease).ConfigureAwait(false);
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.Crystal.DataType.FullName!);
@@ -80,9 +80,9 @@ internal static class UnloadTaskExtension
 }
 
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-internal partial class UnloadTask : IEquatable<UnloadTask>
+internal partial class ReleaseTask : IEquatable<ReleaseTask>
 {
-    public UnloadTask(ICrystal crystal)
+    public ReleaseTask(ICrystal crystal)
     {
         this.Crystal = crystal;
         this.GoshujinSemaphore = crystal as IRepeatableSemaphore;
@@ -103,7 +103,7 @@ internal partial class UnloadTask : IEquatable<UnloadTask>
 
     public override int GetHashCode() => this.Crystal.GetHashCode();
 
-    public bool Equals(UnloadTask? other)
+    public bool Equals(ReleaseTask? other)
     {
         if (other == null)
         {

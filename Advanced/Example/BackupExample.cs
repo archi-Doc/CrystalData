@@ -75,7 +75,7 @@ public partial class Program
         data2.Name += "Up";
         Console.WriteLine($"Save {data2.ToString()}");
 
-        await crystalizer.SaveAll(); // Save all data.
+        await crystalizer.StoreAll(); // Save all data.
 
         return unit;
     }
