@@ -51,6 +51,20 @@ public partial class FirstData
         => $"Id: {this.Id}, Name: {this.Name}";
 }
 
+[TinyhandObject(Structual = true)]
+public partial class SecondData
+{
+    public SecondData()
+    {
+    }
+
+    [Key(0)]
+    public StoragePoint<double> DoubleStorage { get; set; } = new();
+
+    public override string ToString()
+        => $"Second: {this.DoubleStorage.GetOrCreate()}";
+}
+
 internal class Program
 {
     public static async Task Main(string[] args)
@@ -61,6 +75,7 @@ internal class Program
             {
                 // context.AddTransient<FirstData>();
                 context.AddSingleton<FirstData>();
+                context.AddSingleton<SecondData>();
             })
             .SetupOptions<CrystalizerOptions>((context, options) =>
             {
@@ -86,6 +101,18 @@ internal class Program
                             new GlobalDirectoryConfiguration("MainStorage"),
                             new GlobalDirectoryConfiguration("BackupStorage")),
                     });
+
+                context.AddCrystal<SecondData>(
+                    new CrystalConfiguration()
+                    {
+                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
+                        SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
+                        NumberOfFileHistories = 0, // No history file.
+                        FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                        StorageConfiguration = new SimpleStorageConfiguration(
+                            new GlobalDirectoryConfiguration("MainStorage"),
+                            new GlobalDirectoryConfiguration("BackupStorage")),
+                    });
             });
 
         var unit = builder.Build(); // Build.
@@ -93,7 +120,7 @@ internal class Program
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
         await crystalizer.PrepareAndLoadAll(true); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>(); // Retrieve a data instance from the service provider.
+        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
@@ -114,6 +141,12 @@ internal class Program
 
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         Console.WriteLine($"Crystal {crystal.Data.ToString()}");
+
+        var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
+        data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
+        data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
+        Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
+        Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
 
         await crystalizer.StoreAll(); // Save all data.
     }

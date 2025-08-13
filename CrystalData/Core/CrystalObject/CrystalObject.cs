@@ -63,7 +63,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 else if (this.State == CrystalState.Deleted)
                 {// Deleted
                     TinyhandSerializer.ReconstructObject<TData>(ref this.data);
-                    this.SetJournal();
+                    this.SetupStructure();
                     return this.data;
                 }
 
@@ -689,13 +689,14 @@ Exit:
         if (loadResult.Data is { } data)
         {// Loaded
             this.data = data;
+            this.SetupStructure();
             this.waypoint = loadResult.Waypoint;
             if (this.CrystalConfiguration.HasFileHistories)
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
                     this.Crystalizer.SetPlane(this, ref this.waypoint);
-                    this.SetJournal();
+                    this.SetupStructure();
                 }
                 else
                 {// Invalid waypoint
@@ -806,19 +807,19 @@ Exit:
         this.waypoint = default;
         this.Crystalizer.UpdateWaypoint(this, ref this.waypoint, hash);
 
-        this.SetJournal();
+        this.SetupStructure();
 
         // Save immediately to fix the waypoint.
         _ = this.crystalFiler?.Save(rentMemory.ReadOnly, this.waypoint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetJournal()
-    {
-        if (this.data is IStructualObject journalObject)
+    private void SetupStructure()
+    {//
+        if (this.data is IStructualObject structualObject)
         {
             // journalObject.Journal = this;
-            journalObject.SetupStructure(this);
+            structualObject.SetupStructure(this);
         }
     }
 
