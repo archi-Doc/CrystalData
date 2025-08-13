@@ -3,6 +3,7 @@
 #pragma warning disable SA1202
 
 using CrystalData.Internal;
+using Tinyhand.IO;
 
 namespace CrystalData;
 
@@ -86,6 +87,15 @@ public sealed partial class StorageMap : IStructualObject
     IStructualObject? IStructualObject.StructualParent { get; set; }
 
     int IStructualObject.StructualKey { get; set; }
+
+    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    {
+        return false;
+    }
+
+    void IStructualObject.WriteLocator(ref TinyhandWriter writer)
+    {
+    }
 
     #endregion
 

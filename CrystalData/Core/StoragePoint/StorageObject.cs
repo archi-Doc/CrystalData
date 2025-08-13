@@ -422,7 +422,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is IStructualObject structualObject)
         {
-            structualObject.SetupStructure(this, 0);
+            structualObject.SetupStructure(this);
         }
     }
 
