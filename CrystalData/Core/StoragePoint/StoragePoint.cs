@@ -181,7 +181,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     int IStructualObject.StructualKey { get; set; }
 
-    Task<bool> IStructualObject.StoreData(StoreMode storeMode)
+    public Task<bool> StoreData(StoreMode storeMode)
     {
         if (this.storageObject is { } storageObject)
         {
@@ -193,7 +193,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }
 
-    void IStructualObject.Erase()
+    /// <summary>
+    /// Erases the data associated with this storage point.<br/>
+    /// This operation removes the data from storage and memory.
+    /// </summary>
+    public void Erase()
         => this.GetOrCreateStorageObject().Erase();
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
