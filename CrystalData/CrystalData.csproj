@@ -28,8 +28,8 @@
     <PackageReference Include="AWSSDK.S3" Version="4.0.6.4" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
     <PackageReference Include="SimpleCommandLine" Version="0.27.1" />
-    <PackageReference Include="Tinyhand" Version="0.117.1" />
-    <PackageReference Include="ValueLink" Version="0.84.0" />
+    <PackageReference Include="Tinyhand" Version="0.117.2" />
+    <PackageReference Include="ValueLink" Version="0.84.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -120,25 +120,49 @@ public partial class StorageControl
         }
     }
 
-    internal async Task ReleaseStorage(bool rip)
+    internal async Task ReleaseAllStorage(CancellationToken cancellationToken)
     {
-        while (true)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            if (rip)
+            List<StorageObject> list = new();
+            using (this.lowestLockObject.EnterScope())
             {
                 if (this.head is null)
                 {// No storage objects to release.
-                    break;
+                    return;
                 }
-            }
-            else
-            {
-                if (!this.StorageReleaseRequired)
+
+                StorageObject node = this.head;
+                while (true)
                 {
-                    break;
+                    list.Add(node);
+                    node = node.next!;
+                    if (node == this.head)
+                    {// Reached back to the head.
+                        break;
+                    }
                 }
             }
 
+            foreach (var x in list)
+            {
+                await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
+            }
+
+            try
+            {
+                await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    internal async Task ReleaseStorage()
+    {
+        while (this.StorageReleaseRequired)
+        {
             StorageObject? node;
             using (this.lowestLockObject.EnterScope())
             {
@@ -151,7 +175,7 @@ public partial class StorageControl
                 this.MoveToRecentInternal(node);
             }
 
-            await node.StoreData(StoreMode.Release);
+            await node.StoreData(StoreMode.TryRelease);
         }
     }
 

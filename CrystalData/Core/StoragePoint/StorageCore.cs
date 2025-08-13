@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 namespace CrystalData;
 
 public partial class StorageControl
 {
+    private const int IntervalInMilliseconds = 100;
+
     private class StorageCore : TaskCore
     {
-        private const int IntervalInMilliseconds = 100;
         private readonly StorageControl storageControl;
 
         public StorageCore(StorageControl storageControl)

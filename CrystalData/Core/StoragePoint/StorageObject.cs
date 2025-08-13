@@ -261,7 +261,32 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         object? data;
         ICrystal? crystal;
 
-        if (storeMode == StoreMode.Release)
+        if (storeMode == StoreMode.TryRelease)
+        {
+            if (!this.TryEnter())
+            {// Already locked
+                return false;
+            }
+
+            try
+            {
+                data = this.data;
+                crystal = this.StructualRoot as ICrystal;
+                if (data is null || crystal is null)
+                {// No data
+                    return true;
+                }
+
+                // Release
+                this.storageControl.Release(this, false);
+                this.data = default;
+            }
+            finally
+            {
+                this.Exit();
+            }
+        }
+        else if (storeMode == StoreMode.ForceRelease)
         {
             await this.EnterAsync().ConfigureAwait(false);
             try
@@ -283,7 +308,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             }
         }
         else
-        {
+        {// Store data
             data = this.data;
             crystal = this.StructualRoot as ICrystal;
             if (data is null || crystal is null)
