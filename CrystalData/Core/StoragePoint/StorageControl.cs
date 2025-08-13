@@ -159,9 +159,10 @@ public partial class StorageControl
         }
     }
 
-    internal async Task ReleaseStorage()
+    internal async Task ReleaseStorage(CancellationToken cancellationToken)
     {
-        while (this.StorageReleaseRequired)
+        while (this.StorageReleaseRequired &&
+            !cancellationToken.IsCancellationRequested)
         {
             StorageObject? node;
             using (this.lowestLockObject.EnterScope())

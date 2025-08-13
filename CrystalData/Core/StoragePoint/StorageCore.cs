@@ -28,33 +28,9 @@ public partial class StorageControl
                     await core.Delay(IntervalInMilliseconds);
                     continue;
                 }
-
-                IStorageData? storageData;
-                using (memoryControl.lockObject.EnterScope())
-                {// Get the first item.
-                    if (memoryControl.items.UnloadQueueChain.TryPeek(out var item))
-                    {
-                        memoryControl.items.UnloadQueueChain.Remove(item);
-                        memoryControl.items.UnloadQueueChain.Enqueue(item);
-                        storageData = item.StorageData;
-                    }
-                    else
-                    {// No item
-                        storageData = null;
-                    }
-                }
-
-                if (storageData is null)
-                {// Sleep
-                    await core.Delay(UnloadIntervalInMilliseconds);
-                    continue;
-                }
-
-                if (await storageData.Save(UnloadMode.TryUnload))
-                {// Success (deletion will be done via ReportUnload() from StorageData)
-                }
                 else
-                {// Failure
+                {
+                    await storageControl.ReleaseStorage(core.CancellationToken);
                 }
             }
         }

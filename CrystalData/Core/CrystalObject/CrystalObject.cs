@@ -160,8 +160,8 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.Volatile)
         {// Volatile
-            if (storeMode == StoreMode.Release)
-            {// Unload
+            if (storeMode != StoreMode.StoreOnly)
+            {// Release
                 using (this.semaphore.EnterScope())
                 {
                     this.data = null;
@@ -192,7 +192,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         var semaphore = obj as IRepeatableSemaphore;
         if (semaphore is not null)
         {
-            if (storeMode == StoreMode.Release)
+            if (storeMode == StoreMode.TryRelease)
             {
                 semaphore.LockAndTryRelease(out var state);
                 if (state == GoshujinState.Valid)
@@ -211,11 +211,10 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                     return CrystalResult.DataIsObsolete;
                 }
             }
-
-            /*else if (unloadMode == UnloadMode.ForceUnload)
+            else if (storeMode == StoreMode.ForceRelease)
             {
-                semaphore.LockAndForceUnload();
-            }*/
+                semaphore.LockAndForceRelease();
+            }
         }
 
         if (obj is IStructualObject structualObject)
@@ -279,7 +278,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
-            if (storeMode == StoreMode.Release)
+            if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
                 this.State = CrystalState.Initial;
@@ -293,7 +292,7 @@ Exit:
         using (this.semaphore.EnterScope())
         {
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
-            if (storeMode == StoreMode.Release)
+            if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
                 this.State = CrystalState.Initial;

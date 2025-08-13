@@ -87,7 +87,7 @@ public class StoragePointTest2
             }
         }
 
-        await crystal.Store(StoreMode.Release);
+        await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
         await this.CheckData(crystal.Data);
 
