@@ -102,4 +102,13 @@ public sealed partial class StorageMap : IStructualObject
 
     private void UpdateStorageUsageInternal(long size)
         => this.storageUsage += size;
+
+    [TinyhandOnDeserialized]
+    private void OnDeserialized()
+    {
+        foreach (var x in this.StorageObjects)
+        {
+            x.storageMap = this;
+        }
+    }
 }

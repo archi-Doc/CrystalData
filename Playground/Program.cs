@@ -44,8 +44,8 @@ public partial class FirstData
     [DefaultValue("Hoge")] // The default value for the name property.
     public string Name { get; set; } = string.Empty;
 
-    [Key(2)]
-    public StoragePoint<int> IntStorage { get; set; } = new();
+    //[Key(2)]
+    //public StoragePoint<int> IntStorage { get; set; } = new();
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";
@@ -145,9 +145,9 @@ internal class Program
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var doubleStorage = data2.DoubleStorage;
         var d = await doubleStorage.GetOrCreate();
-        data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
+        //data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
         data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
-        Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
+        //Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
 
         await crystalizer.Store(); // Save all data.

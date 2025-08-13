@@ -225,10 +225,10 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             }
         }
 
-        if (this.storage is { } storage && storage is not EmptyStorage)
-        {
+        /*if (this.storage is { } storage && storage is not EmptyStorage)
+        {// Because multiple Crystals may share a single Storage, saving the Storage is handled separately.
             await storage.SaveStorage(this).ConfigureAwait(false);
-        }
+        }*/
 
         this.lastSavedTime = DateTime.UtcNow;
 
@@ -812,7 +812,7 @@ Exit:
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetupData()
-    {//
+    {
         if (this.data is IStructualObject structualObject)
         {
             structualObject.SetupStructure(this);

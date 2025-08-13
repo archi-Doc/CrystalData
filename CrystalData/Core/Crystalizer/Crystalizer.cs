@@ -510,6 +510,12 @@ public class Crystalizer
             await x.Store(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
+        var storages = this.configurationToStorage.Values.ToArray();
+        foreach (var x in storages)
+        {
+            await x.SaveStorage(default);//
+        }
+
         this.CrystalCheck.Save();
     }
 
