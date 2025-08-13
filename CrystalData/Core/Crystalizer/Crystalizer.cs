@@ -502,7 +502,7 @@ public class Crystalizer
         return CrystalResult.Success;
     }
 
-    public async Task StoreAll()
+    public async Task Store(CancellationToken cancellationToken = default)
     {
         var crystals = this.crystals.Keys.ToArray();
         foreach (var x in crystals)
@@ -513,7 +513,7 @@ public class Crystalizer
         this.CrystalCheck.Save();
     }
 
-    public async Task StoreAndReleaseAll()
+    public async Task StoreAndRelease(CancellationToken cancellationToken = default)
     {
         var goshujin = new ReleaseTask.GoshujinClass();
         foreach (var x in this.crystals.Keys)
@@ -521,8 +521,9 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
-        var releaseTasks = new Task[this.ConcurrentUnload];
-        for (var i = 0; i < this.ConcurrentUnload; i++)
+        var releaseTasks = new Task[1 + this.ConcurrentUnload];
+        releaseTasks[0] = StorageControl.Default.ReleaseAllStorage(cancellationToken); // StorageControl
+        for (var i = 1; i <= this.ConcurrentUnload; i++)
         {
             releaseTasks[i] = ReleaseTaskExtension.ReleaseTask(this, goshujin);
         }
@@ -532,9 +533,10 @@ public class Crystalizer
         this.CrystalCheck.Save();
     }
 
-    public async Task SaveAllAndTerminate()
+    public async Task SaveAndRip(CancellationToken cancellationToken = default)
     {
-        await this.StoreAndReleaseAll();
+        StorageControl.Default.Rip();
+        await this.StoreAndRelease();
 
         // Save/Terminate journal
         if (this.Journal is { } journal)

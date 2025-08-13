@@ -51,7 +51,7 @@ public partial class StorageControl
         }
     }
 
-    public bool StorageReleaseRequired => this.memoryUsage > this.MemoryUsageLimit;
+    public bool StorageReleaseRequired => this.MemoryUsage > this.MemoryUsageLimit;
 
     public long StorageUsage
     {
@@ -88,6 +88,10 @@ public partial class StorageControl
             this.storageMaps[length] = storageMap;
         }
     }
+
+    internal void Rip() => this.isRip = true;
+
+    internal void ResurrectForTesting() => this.isRip = false;
 
     internal void ConfigureStorage(StorageObject storageObject, bool disableStorage)
     {
@@ -149,8 +153,13 @@ public partial class StorageControl
                 await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
 
+            if (this.head is null)
+            {// No storage objects to release.
+                return;
+            }
+
             try
-            {
+            {// Since a locked object cannot be released, wait briefly and then attempt to store and release it again.
                 await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
             }
             catch
@@ -292,6 +301,8 @@ public partial class StorageControl
                 {
                     this.memoryUsage -= node.Size;
                 }
+
+                node.size = 0;
 
                 if (node.next == node)
                 {

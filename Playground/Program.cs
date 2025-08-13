@@ -148,6 +148,6 @@ internal class Program
         Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
 
-        await crystalizer.StoreAll(); // Save all data.
+        await crystalizer.Store(); // Save all data.
     }
 }

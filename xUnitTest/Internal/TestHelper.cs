@@ -73,7 +73,7 @@ public static class TestHelper
     public static async Task UnloadAndDeleteAll(ICrystal crystal)
     {
         var crystalizer = crystal.Crystalizer;
-        await crystalizer.StoreAndReleaseAll();
+        await crystalizer.StoreAndRelease();
         StorageControl.Default.MemoryUsage.Is(0);
         await crystalizer.DeleteAll();
 
