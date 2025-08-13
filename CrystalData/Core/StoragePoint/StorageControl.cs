@@ -107,7 +107,7 @@ public partial class StorageControl
         }
     }
 
-    internal Task SetStorageSize(StorageObject node, int newSize)
+    internal void SetStorageSize(StorageObject node, int newSize)
     {
         using (this.lowestLockObject.EnterScope())
         {
@@ -118,13 +118,6 @@ public partial class StorageControl
 
             node.size = newSize;
         }
-
-        if (newSize >= 0 && this.StorageReleaseRequired)
-        {
-            return this.ReleaseStorage(false);
-        }
-
-        return Task.CompletedTask;
     }
 
     internal async Task ReleaseStorage(bool rip)
@@ -193,11 +186,6 @@ public partial class StorageControl
             }
 
             this.MoveToRecentInternal(node);
-        }
-
-        if (newSize >= 0 && this.StorageReleaseRequired)
-        {
-            this.ReleaseStorage(false);
         }
     }
 
