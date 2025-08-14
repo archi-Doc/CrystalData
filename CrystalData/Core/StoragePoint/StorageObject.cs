@@ -66,7 +66,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int StructualKey
     {
-        get => default;
+        get => -1;
         set { }
     }
 

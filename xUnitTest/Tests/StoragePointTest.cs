@@ -5,6 +5,7 @@ using CrystalData;
 using Tinyhand;
 using ValueLink;
 using Xunit;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace xUnitTest.CrystalDataTest;
 
@@ -162,6 +163,10 @@ public class StoragePointTest
 
         st = await g.StringStorage.TryGet();
         st.Is("Test String");
+
+        await crystal.Crystalizer.StoreJournal();
+        var jr = await crystal.Crystalizer.TestJournalAll();
+        jr.IsTrue();
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }

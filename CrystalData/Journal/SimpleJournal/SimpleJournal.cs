@@ -39,15 +39,15 @@ public partial class SimpleJournal : IJournal
     private IRawFiler? backupFiler;
     private SimpleJournalTask? task;
 
-    // Record buffer
-    private Lock lockRecordBuffer = new(); // syncRecordBuffer -> syncBooks
+    // Record buffer: lockRecordBuffer
+    private Lock lockRecordBuffer = new(); // lockBooks > lockRecordBuffer 
     private byte[] recordBuffer = new byte[RecordBufferLength];
     private ulong recordBufferPosition = 1; // JournalPosition
     private int recordBufferLength = 0;
 
     private int recordBufferRemaining => RecordBufferLength - this.recordBufferLength;
 
-    // Books
+    // Books: lockBooks
     private Lock lockBooks = new();
     private Book.GoshujinClass books = new();
     private int memoryUsage;
@@ -215,8 +215,11 @@ public partial class SimpleJournal : IJournal
 
             this.books.Clear();
 
-            this.recordBufferPosition = position;
-            this.recordBufferLength = 0;
+            using (this.lockRecordBuffer.EnterScope())
+            {
+                this.recordBufferPosition = position;
+                this.recordBufferLength = 0;
+            }
         }
     }
 
@@ -358,8 +361,10 @@ Load:
     {
         using (this.lockBooks.EnterScope())
         {
-            // Flush record buffer
-            this.FlushRecordBufferInternal();
+            using (this.lockRecordBuffer.EnterScope())
+            {// Flush record buffer
+                this.FlushRecordBufferInternal();
+            }
 
             // Save all books
             Book? book = this.books.PositionChain.Last;
