@@ -215,6 +215,20 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }*/
 
+    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    {
+        if (reader.TryRead(out JournalRecord record))
+        {
+            if (record == JournalRecord.Value)
+            {
+                this.pointId = reader.ReadUInt64();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     #endregion
 
     #region Tinyhand
@@ -290,6 +304,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
 
         StorageControl.Default.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
+        if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+        {
+            writer.Write(JournalRecord.Value);
+            writer.Write(this.pointId);
+            root.AddJournal(ref writer);
+        }
+
         return this.storageObject;
     }
 }
