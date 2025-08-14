@@ -12,7 +12,7 @@ using ValueLink;
 
 namespace Sandbox;
 
-[TinyhandObject(Structual = true)]
+/*[TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public partial record SpSecondClass
 {
@@ -27,10 +27,9 @@ public partial record SpSecondClass
 
     [Key(1)]
     public StoragePoint<FirstData> FirstDataStorage { get; set; } = new();
-}
+}*/
 
-// First, create a class to represent the data content.
-[TinyhandObject(Structual = true)] // Annotate TinyhandObject attribute to make this class serializable.
+/*[TinyhandObject(Structual = true)]
 public partial class FirstData
 {
     public FirstData()
@@ -49,9 +48,10 @@ public partial class FirstData
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";
-}
+}*/
 
 [TinyhandObject(Structual = true)]
+// [TinyhandObject(Structual = true, UseServiceProvider = true)]
 public partial class SecondData
 {
     public SecondData()
@@ -73,8 +73,7 @@ internal class Program
         var builder = new CrystalControl.Builder()
             .Configure(context =>
             {
-                // context.AddTransient<FirstData>();
-                context.AddSingleton<FirstData>();
+                // context.AddSingleton<FirstData>();
                 context.AddSingleton<SecondData>();
             })
             .SetupOptions<CrystalizerOptions>((context, options) =>
@@ -88,7 +87,7 @@ internal class Program
             .ConfigureCrystal(context =>
             {
                 // Register FirstData configuration.
-                context.AddCrystal<FirstData>(
+                /*context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
                         RequiredForLoading = true,
@@ -100,7 +99,7 @@ internal class Program
                         StorageConfiguration = new SimpleStorageConfiguration(
                             new GlobalDirectoryConfiguration("MainStorage"),
                             new GlobalDirectoryConfiguration("BackupStorage")),
-                    });
+                    });*/
 
                 context.AddCrystal<SecondData>(
                     new CrystalConfiguration()
@@ -120,7 +119,7 @@ internal class Program
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
         await crystalizer.PrepareAndLoadAll(true); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
+        /*var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
@@ -140,12 +139,13 @@ internal class Program
         Console.WriteLine($"Data {data.ToString()}");
 
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        Console.WriteLine($"Crystal {crystal.Data.ToString()}");
+        Console.WriteLine($"Crystal {crystal.Data.ToString()}");*/
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var doubleStorage = data2.DoubleStorage;
         var d = await doubleStorage.GetOrCreate();
-        //data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
+        // Console.WriteLine($"{doubleStorage.PointId}");
+        // data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
         data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
         //Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");

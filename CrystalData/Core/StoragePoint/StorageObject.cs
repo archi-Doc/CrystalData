@@ -16,6 +16,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     private const uint DisabledStateBit = 1u << 31;
     private const uint RipStateBit = 1u << 30;
+    // private const uint ValueSetStateBit = 1u << 29;
     // private const uint PendingReleaseStateBit = 1u << 29;
     // private const uint PendingRipStateBit = 1u << 28;
     // private const uint LockedStateBit = 1u << 0;
@@ -254,7 +255,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is null ||
             this.StructualRoot is not ICrystal)
-        {// No data
+        {// No dataqqq
             return true;
         }
 
@@ -587,6 +588,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     internal void SetDisableStateBit() => this.state |= DisabledStateBit;
 
     internal void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
+
+    /*internal void SetValueSetStateBit() => this.state |= ValueSetStateBit;
+
+    internal void ClearValueSetStateBit() => this.state &= ~ValueSetStateBit;
+
+    internal bool CheckValueSetStateBit => (this.state & ValueSetStateBit) != 0;*/
 
     /*private void SetRipStateBit() => this.state |= RipStateBit;
 

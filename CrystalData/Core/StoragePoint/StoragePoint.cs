@@ -6,6 +6,8 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+#pragma warning disable SA1204 // Static elements should appear before instance elements
+
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
 /// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
@@ -19,6 +21,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     private ulong pointId; // Lock:StorageControl
     private StorageObject? storageObject; // Lock:StorageControl
+
+    public ulong PointId => this.pointId;
 
     /// <summary>
     /// Gets the <see langword="uint"/> type identifier used by TinyhandSerializer.

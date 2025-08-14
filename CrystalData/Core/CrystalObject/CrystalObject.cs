@@ -708,6 +708,7 @@ Exit:
         }
         else
         {// Reconstruct
+            this.data = singletonData;
             this.ResetWaypoint(true);
 
             // this.LogWaypoint("Reconstruct");

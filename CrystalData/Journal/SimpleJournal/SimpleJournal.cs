@@ -40,7 +40,7 @@ public partial class SimpleJournal : IJournal
     private SimpleJournalTask? task;
 
     // Record buffer: lockRecordBuffer
-    private Lock lockRecordBuffer = new(); // lockBooks > lockRecordBuffer 
+    private Lock lockRecordBuffer = new(); // lockBooks > lockRecordBuffer
     private byte[] recordBuffer = new byte[RecordBufferLength];
     private ulong recordBufferPosition = 1; // JournalPosition
     private int recordBufferLength = 0;
