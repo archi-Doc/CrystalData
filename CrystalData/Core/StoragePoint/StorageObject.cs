@@ -178,7 +178,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<LockedData<TData>> TryLock2<TData>()
+    internal async ValueTask<DataScope<TData>> EnterScope<TData>()
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
@@ -203,7 +203,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return new LockedData<TData>(this, (TData)this.data);
+        return new DataScope<TData>(this, (TData)this.data);
     }
 
     internal async ValueTask<TData?> TryLock<TData>()

@@ -80,9 +80,9 @@ public class StoragePointTest2
             root.FirstClassStorage.Unlock();
         }
 
-        using (var x = await root.FirstClassStorage.TryLock2())
+        using (var firstClassScope = await root.FirstClassStorage.EnterScope())
         {
-            if (x.Data is not null)
+            if (firstClassScope.Data is not null)
             {
             }
         }
