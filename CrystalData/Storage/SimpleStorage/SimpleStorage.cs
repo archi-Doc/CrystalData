@@ -194,7 +194,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
 
         if (this.storageData != null)
         {
-            if (this.storageData.Remove(file))
+            if (!this.storageData.Remove(file))
             {// Not found
                 fileId = 0;
                 return CrystalResult.NotFound;
