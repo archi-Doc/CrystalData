@@ -150,7 +150,7 @@ public class Crystalizer
     private Lock lockObject = new();
     private IRawFiler? localFiler;
     private Dictionary<string, IRawFiler> bucketToS3Filer = new();
-    private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new();
+    private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new(StorageConfiguration.MainDirectoryComparer.Instance);
 
     #endregion
 
