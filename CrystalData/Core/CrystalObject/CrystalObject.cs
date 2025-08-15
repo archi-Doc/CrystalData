@@ -156,7 +156,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         }
     }
 
-    async Task<CrystalResult> ICrystal.Store(StoreMode storeMode)
+    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode)
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.Volatile)
         {// Volatile

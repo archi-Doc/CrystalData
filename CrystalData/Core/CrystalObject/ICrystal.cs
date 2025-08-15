@@ -2,15 +2,20 @@
 
 namespace CrystalData;
 
-public interface ICrystal : IStructualRoot
+public interface IPersistable
+{
+    Type DataType { get; }
+
+    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly);
+}
+
+public interface ICrystal : IStructualRoot, IPersistable
 {
     Crystalizer Crystalizer { get; }
 
     CrystalConfiguration CrystalConfiguration { get; }
 
     bool IsConfigured => this.CrystalConfiguration != CrystalConfiguration.Default;
-
-    Type DataType { get; }
 
     object Data { get; }
 
@@ -29,8 +34,6 @@ public interface ICrystal : IStructualRoot
     // IStorageObsolete GetStorage(StorageConfiguration? configuration);
 
     Task<CrystalResult> PrepareAndLoad(bool useQuery);
-
-    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly);
 
     Task<CrystalResult> Delete();
 

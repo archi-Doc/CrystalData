@@ -52,16 +52,16 @@ internal static class ReleaseTaskExtension
 
             if ((utc - task.FirstProcessed) > crystalizer.UnloadTimeout)
             {// Force
-                await task.Crystal.Store(StoreMode.ForceRelease).ConfigureAwait(false);
-                crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.Crystal.DataType.FullName!);
+                await task.PersistableObject.Store(StoreMode.ForceRelease).ConfigureAwait(false);
+                crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
                 unloaded++;
             }
             else
             {// Try
-                var result = await task.Crystal.Store(StoreMode.TryRelease).ConfigureAwait(false);
+                var result = await task.PersistableObject.Store(StoreMode.TryRelease).ConfigureAwait(false);
                 if (result == CrystalResult.DataIsLocked)
                 {
-                    crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.Crystal.DataType.FullName!);
+                    crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);
                     task.GoshujinSemaphore?.LockAndForceRelease();
                     using (goshujin.LockObject.EnterScope())
                     {
@@ -71,7 +71,7 @@ internal static class ReleaseTaskExtension
                 }
                 else
                 {
-                    crystalizer.Logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.Unload.Unloaded, task.Crystal.DataType.FullName!);
+                    crystalizer.Logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.Unload.Unloaded, task.PersistableObject.DataType.FullName!);
                     unloaded++;
                 }
             }
@@ -82,15 +82,15 @@ internal static class ReleaseTaskExtension
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 internal partial class ReleaseTask : IEquatable<ReleaseTask>
 {
-    public ReleaseTask(ICrystal crystal)
+    public ReleaseTask(IPersistable persistableObject)
     {
-        this.Crystal = crystal;
-        this.GoshujinSemaphore = crystal as IRepeatableSemaphore;
+        this.PersistableObject = persistableObject;
+        this.GoshujinSemaphore = persistableObject as IRepeatableSemaphore;
     }
 
     #region FieldAndProperty
 
-    public ICrystal Crystal { get; }
+    public IPersistable PersistableObject { get; }
 
     public IRepeatableSemaphore? GoshujinSemaphore { get; }
 
@@ -101,7 +101,7 @@ internal partial class ReleaseTask : IEquatable<ReleaseTask>
 
     #endregion
 
-    public override int GetHashCode() => this.Crystal.GetHashCode();
+    public override int GetHashCode() => this.PersistableObject.GetHashCode();
 
     public bool Equals(ReleaseTask? other)
     {
@@ -110,6 +110,6 @@ internal partial class ReleaseTask : IEquatable<ReleaseTask>
             return false;
         }
 
-        return this.Crystal == other.Crystal;
+        return this.PersistableObject == other.PersistableObject;
     }
 }
