@@ -4,7 +4,7 @@ using System.Linq.Expressions;
 
 namespace CrystalData.Storage;
 
-public partial class EmptyStorage : IStorage, IStorageInternal
+public partial class EmptyStorage : IStorage
 {
     public static readonly EmptyStorage Default = new();
 
@@ -18,10 +18,12 @@ public partial class EmptyStorage : IStorage, IStorageInternal
     Task<CrystalResult> IStorage.PrepareAndCheck(PrepareParam param, StorageConfiguration storageConfiguration)
         => Task.FromResult(CrystalResult.Success);
 
-    Task IStorageInternal.PersistStorage(ICrystal? callingCrystal)
-        => Task.CompletedTask;
+    Type IPersistable.DataType => throw new NotImplementedException();
 
-    Task<bool> IStorageInternal.TestJournal()
+    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+        => Task.FromResult(CrystalResult.Success);
+
+    Task<bool> IPersistable.TestJournal()
         => Task.FromResult(true);
 
     Task<CrystalMemoryOwnerResult> IStorage.GetAsync(ref ulong fileId)

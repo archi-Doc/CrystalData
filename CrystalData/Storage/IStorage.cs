@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-public interface IStorage
+public interface IStorage : IPersistable
 {
     StorageMap StorageMap { get; }
 
