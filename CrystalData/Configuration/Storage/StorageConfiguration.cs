@@ -10,8 +10,16 @@ namespace CrystalData;
 [TinyhandUnion("GlobalStorage", typeof(GlobalStorageConfiguration))]
 public abstract partial record StorageConfiguration
 {
+    /// <summary>
+    /// Provides equality comparison for <see cref="StorageConfiguration"/> instances based on their
+    /// <see cref="DirectoryConfiguration"/> values (main directory only).<br/>
+    /// If multiple Crystals reference multiple storage configurations, treat them as the same storage when their MainDirectory is identical.
+    /// </summary>
     public class MainDirectoryComparer : IEqualityComparer<StorageConfiguration>
     {
+        /// <summary>
+        /// Gets the singleton instance of <see cref="MainDirectoryComparer"/>.
+        /// </summary>
         public static readonly MainDirectoryComparer Instance = new();
 
         public bool Equals(StorageConfiguration? x, StorageConfiguration? y)
@@ -19,6 +27,10 @@ public abstract partial record StorageConfiguration
             if (x is null || y is null)
             {
                 return false;
+            }
+            else if (ReferenceEquals(x, y))
+            {
+                return true;
             }
 
             return x.DirectoryConfiguration.Equals(y.DirectoryConfiguration);
