@@ -158,11 +158,16 @@ public class StoragePointTest
 
         g.StringStorage.Set("Test String");
 
-        await crystal.Store(StoreMode.ForceRelease);
+        // await crystal.Store(StoreMode.ForceRelease);
+        await crystal.Crystalizer.StoreAndRelease();
+
+        g.StringStorage.Set("Test String2");
+        await crystal.Crystalizer.StoreAndRelease();
+
         await crystal.Crystalizer.StoreJournal();
 
         st = await g.StringStorage.TryGet();
-        st.Is("Test String");
+        st.Is("Test String2");
 
         await crystal.Crystalizer.StoreJournal();
         var jr = await crystal.Crystalizer.TestJournalAll();

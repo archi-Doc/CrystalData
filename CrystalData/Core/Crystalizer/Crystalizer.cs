@@ -671,6 +671,15 @@ public class Crystalizer
             }
         }
 
+        var storages = this.configurationToStorage.Values.ToArray();
+        foreach (var x in storages)
+        {
+            if (await x.TestJournal().ConfigureAwait(false) == false)
+            {
+                result = false;
+            }
+        }
+
         return result;
     }
 
