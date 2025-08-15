@@ -7,6 +7,8 @@ public interface IPersistable
     Type DataType { get; }
 
     Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly, CancellationToken cancellationToken = default);
+
+    Task<bool> TestJournal();
 }
 
 public interface ICrystal : IStructualRoot, IPersistable
@@ -55,8 +57,6 @@ internal interface ICrystalInternal : ICrystal
     void SetStorage(IStorage storage);
 
     Task? TryPeriodicSave(DateTime utc);
-
-    Task<bool> TestJournal();
 }
 
 internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal

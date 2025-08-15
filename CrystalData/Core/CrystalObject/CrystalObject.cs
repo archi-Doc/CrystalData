@@ -379,7 +379,7 @@ Exit:
         writer.Write(this.waypoint.Plane);
     }*/
 
-    async Task<bool> ICrystalInternal.TestJournal()
+    async Task<bool> IPersistable.TestJournal()
     {
         if (this.Crystalizer.Journal is not CrystalData.Journal.SimpleJournal journal)
         {// No journaling

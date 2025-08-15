@@ -545,7 +545,7 @@ public class Crystalizer
         StorageControl.Default.Rip();
         await this.StoreAndRelease();
 
-        // Save/Terminate journal
+        // Store/Terminate journal
         if (this.Journal is { } journal)
         {
             await journal.StoreJournalAsync().ConfigureAwait(false);
