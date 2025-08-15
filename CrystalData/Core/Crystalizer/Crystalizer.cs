@@ -494,7 +494,7 @@ public class Crystalizer
         await this.ReadJournal().ConfigureAwait(false);
 
         // Save crystal check
-        this.CrystalCheck.Save();
+        this.CrystalCheck.Store();
         this.CrystalCheck.ClearShortcutPosition();
 
         // this.logger.TryGet()?.Log($"Prepared - {string.Join(", ", list)}");
@@ -516,7 +516,7 @@ public class Crystalizer
             await x.SaveStorage(default);//
         }
 
-        this.CrystalCheck.Save();
+        this.CrystalCheck.Store();
     }
 
     public async Task StoreAndRelease(CancellationToken cancellationToken = default)
@@ -536,10 +536,10 @@ public class Crystalizer
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
-        this.CrystalCheck.Save();
+        this.CrystalCheck.Store();
     }
 
-    public async Task SaveAndRip(CancellationToken cancellationToken = default)
+    public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         StorageControl.Default.Rip();
         await this.StoreAndRelease();

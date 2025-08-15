@@ -45,7 +45,7 @@ internal class CrystalCheck
         }
     }
 
-    public void Save()
+    public void Store()
     {
         /*if (!this.SuccessfullyLoaded)
         {
