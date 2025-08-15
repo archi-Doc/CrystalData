@@ -6,7 +6,7 @@ public interface IPersistable
 {
     Type DataType { get; }
 
-    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly);
+    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly, CancellationToken cancellationToken = default);
 }
 
 public interface ICrystal : IStructualRoot, IPersistable

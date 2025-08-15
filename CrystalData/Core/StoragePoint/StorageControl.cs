@@ -7,7 +7,7 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
-public partial class StorageControl
+public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 1024;
     private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
@@ -68,6 +68,8 @@ public partial class StorageControl
         }
     }
 
+    Type IPersistable.DataType => typeof(StorageControl);
+
     #endregion
 
     public StorageControl()
@@ -122,6 +124,12 @@ public partial class StorageControl
 
             node.size = newSize;
         }
+    }
+
+    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    {//
+        await this.ReleaseStorage(cancellationToken).ConfigureAwait(false);
+        return CrystalResult.Success;
     }
 
     internal async Task ReleaseAllStorage(CancellationToken cancellationToken)

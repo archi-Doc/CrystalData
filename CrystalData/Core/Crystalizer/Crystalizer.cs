@@ -896,7 +896,7 @@ public class Crystalizer
         {
             if (x.State == CrystalState.Prepared)
             {
-                tasks.Add(x.Store());
+                tasks.Add(x.Store(StoreMode.StoreOnly));
             }
         }
 
