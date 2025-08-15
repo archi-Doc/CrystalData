@@ -19,8 +19,6 @@ public interface IStorage
     /// <returns><see cref="CrystalResult"/>.</returns>
     Task<CrystalResult> PrepareAndCheck(PrepareParam param, StorageConfiguration storageConfiguration);
 
-    Task SaveStorage(ICrystal? callingCrystal);
-
     Task<CrystalMemoryOwnerResult> GetAsync(ref ulong fileId);
 
     CrystalResult PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory memoryToBeShared);

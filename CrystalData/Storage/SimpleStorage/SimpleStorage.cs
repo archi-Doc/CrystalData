@@ -140,7 +140,7 @@ internal partial class SimpleStorage : IStorage, IStorageInternal
         return CrystalResult.Success;
     }
 
-    async Task IStorage.SaveStorage(ICrystal? callingCrystal)
+    async Task IStorageInternal.PersistStorage(ICrystal? callingCrystal)
     {
         if (!StorageHelper.CheckPrimaryCrystal(ref this.primaryCrystal, ref callingCrystal))
         {

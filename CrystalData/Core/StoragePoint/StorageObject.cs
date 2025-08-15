@@ -144,7 +144,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.data is null)
             {// Reconstruct
-                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+                if (typeof(TData) == typeof(object))
+                {// If the type is object, use the TypeIdentifier instead.
+                    this.SetDataInternal(TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier), false, default);
+                }
+                else
+                {
+                    this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+                }
             }
 
             return (TData)this.data;
@@ -459,7 +466,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is null)
         {
-            this.data = this.TryGet<object>().Result;
+            this.data = this.GetOrCreate<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -517,7 +524,23 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         // Deserialize
         try
         {
-            var data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+            TData? data;
+            if (typeof(TData) == typeof(object))
+            {// // If the type is object, use the TypeIdentifier instead.
+                if (TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span) is { } obj)
+                {
+                    data = (TData)obj;
+                }
+                else
+                {
+                    return;
+                }
+            }
+            else
+            {
+                data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+            }
+
             this.SetDataInternal(data, false, result.Data);
         }
         finally
@@ -540,7 +563,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             if (original.IsEmpty)
             {
-                rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                if (typeof(TData) == typeof(object))
+                {
+                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data!);
+                }
+                else
+                {
+                    rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                }
+
                 original = rentMemory.ReadOnly;
             }
 
@@ -552,7 +583,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             if (original.IsEmpty)
             {
-                rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                if (typeof(TData) == typeof(object))
+                {
+                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data!);
+                }
+                else
+                {
+                    rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                }
+
                 original = rentMemory.ReadOnly;
             }
 

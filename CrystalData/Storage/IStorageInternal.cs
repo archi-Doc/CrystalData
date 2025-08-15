@@ -4,5 +4,7 @@ namespace CrystalData;
 
 internal interface IStorageInternal
 {
+    Task PersistStorage(ICrystal? callingCrystal);
+
     Task<bool> TestJournal();
 }
