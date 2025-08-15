@@ -128,7 +128,7 @@ public partial class StorageControl : IPersistable
 
     async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
     {//
-        await this.ReleaseStorage(cancellationToken).ConfigureAwait(false);
+        await this.ReleaseAllStorage(cancellationToken).ConfigureAwait(false);
         return CrystalResult.Success;
     }
 

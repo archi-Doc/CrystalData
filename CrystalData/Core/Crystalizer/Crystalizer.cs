@@ -527,9 +527,10 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
-        var releaseTasks = new Task[1 + this.ConcurrentUnload];
-        releaseTasks[0] = StorageControl.Default.ReleaseAllStorage(cancellationToken); // StorageControl
-        for (var i = 1; i <= this.ConcurrentUnload; i++)
+        goshujin.Add(new(StorageControl.Default));
+
+        var releaseTasks = new Task[this.ConcurrentUnload];
+        for (var i = 0; i < this.ConcurrentUnload; i++)
         {
             releaseTasks[i] = ReleaseTaskExtension.ReleaseTask(this, goshujin);
         }
