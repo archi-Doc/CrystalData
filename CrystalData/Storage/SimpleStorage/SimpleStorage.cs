@@ -17,7 +17,7 @@ internal partial class SimpleStorage : IStorage
     {
         this.crystalizer = crystalizer;
         this.timeout = TimeSpan.MinValue;
-        this.storageMap = StorageControl.Default.DisabledMap;
+        this.storageMap = crystalizer.StorageControl.DisabledMap;
     }
 
     public override string ToString()

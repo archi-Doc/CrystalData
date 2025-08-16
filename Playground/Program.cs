@@ -156,6 +156,6 @@ internal class Program
 
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
-        Console.WriteLine($"MemoryUsage: {StorageControl.Default.MemoryUsage}");
+        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
     }
 }

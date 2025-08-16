@@ -61,7 +61,8 @@ public class Crystalizer
         this.EnableFilerLogger = options.EnableFilerLogger;
         this.RootDirectory = options.DataDirectory;
         this.FilerTimeout = options.FilerTimeout;
-        StorageControl.Default.MemoryUsageLimit = options.MemoryUsageLimit;
+        this.StorageControl = StorageControl.Default;
+        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
         this.ConcurrentUnload = options.ConcurrentUnload;
         this.TimeoutUntilForcedRelease = options.TimeoutUntilForcedRelease;
         if (string.IsNullOrEmpty(this.RootDirectory))
@@ -81,7 +82,6 @@ public class Crystalizer
         this.ServiceProvider = serviceProvider;
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
         this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
-        // this.StorageControl = new();
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -96,6 +96,8 @@ public class Crystalizer
     }
 
     #region FieldAndProperty
+
+    public StorageControl StorageControl { get; }
 
     public DirectoryConfiguration GlobalDirectory { get; }
 
@@ -510,7 +512,7 @@ public class Crystalizer
 
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
-        StorageControl.Default.Rip();
+        this.StorageControl.Rip();
 
         await this.Store(StoreMode.TryRelease, cancellationToken);
 
@@ -540,7 +542,7 @@ public class Crystalizer
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
-        this.Logger.TryGet()?.Log($"Terminated - {StorageControl.Default.MemoryUsage})");
+        this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
     }
 
     public void AddToSaveQueue(ICrystal crystal)
@@ -1070,7 +1072,7 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
-        goshujin.Add(new(StorageControl.Default)); // StorageControl
+        goshujin.Add(new(this.StorageControl)); // StorageControl
 
         var releaseTasks = new Task[this.ConcurrentUnload];
         for (var i = 0; i < this.ConcurrentUnload; i++)
