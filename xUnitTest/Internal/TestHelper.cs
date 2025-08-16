@@ -10,13 +10,18 @@ namespace xUnitTest;
 
 public static class TestHelper
 {
+    private const int DefaultNumberOfFileHistories = 3;
+
     public static async Task<ICrystal<TData>> CreateAndStartCrystal<TData>(bool addStorage = false)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var directory = $"Crystal[{RandomVault.Default.NextUInt32():x4}]";
         StorageConfiguration storageConfiguration = addStorage ?
-            new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Storage"))) :
-            EmptyStorageConfiguration.Default;
+            new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Storage")))
+            {
+                NumberOfHistoryFiles = DefaultNumberOfFileHistories,
+            }
+            : EmptyStorageConfiguration.Default;
 
         var builder = new CrystalControl.Builder();
         builder.ConfigureCrystal(context =>
@@ -26,7 +31,7 @@ public static class TestHelper
                 new(SavePolicy.Manual, new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
                 {
                     SaveFormat = SaveFormat.Utf8,
-                    NumberOfFileHistories = 5,
+                    NumberOfFileHistories = DefaultNumberOfFileHistories,
                     StorageConfiguration = storageConfiguration,
                 });
         });
@@ -53,7 +58,7 @@ public static class TestHelper
                 new(SavePolicy.Manual, new GlobalFileConfiguration("Test.tinyhand"))
                 {
                     SaveFormat = SaveFormat.Utf8,
-                    NumberOfFileHistories = 5,
+                    NumberOfFileHistories = DefaultNumberOfFileHistories,
                     StorageConfiguration = new SimpleStorageConfiguration(new GlobalDirectoryConfiguration("Storage")),
                 });
         });

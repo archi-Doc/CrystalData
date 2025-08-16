@@ -441,7 +441,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryPeek(out JournalRecord record))
+        if (!reader.TryRead(out JournalRecord record))
         {
             return false;
         }
@@ -451,6 +451,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             this.EraseStorage(false);
             return true;
         }
+        else if (record == JournalRecord.Value)
+        {
+            this.data ??= TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+        }
         else if (record == JournalRecord.AddStorage)
         {
             if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
@@ -458,15 +462,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
                 return true;
             }
 
-            reader.TryRead(out record);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
             return true;
-        }
-
-        if (this.data is null)
-        {
-            this.data = this.GetOrCreate<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)

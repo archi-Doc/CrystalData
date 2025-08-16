@@ -90,6 +90,33 @@ public sealed partial class StorageMap : IStructualObject
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
+        if (!reader.TryRead(out JournalRecord record))
+        {
+            return false;
+        }
+
+        if (record == JournalRecord.Add)
+        {
+            var pointId = reader.ReadUInt64();
+            var typeIdentifier = reader.ReadUInt32();
+            if (!this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
+            {
+                storageObject = new();
+                storageObject.Initialize(pointId, typeIdentifier, this);
+                storageObject.Goshujin = this.StorageObjects;
+            }
+
+            return true;
+        }
+        else if (record == JournalRecord.Locator)
+        {
+            var pointId = reader.ReadUInt64();
+            if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
+            {
+                return ((IStructualObject)storageObject).ReadRecord(ref reader);
+            }
+        }
+
         return false;
     }
 

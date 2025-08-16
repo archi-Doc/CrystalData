@@ -4,6 +4,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
+using Tinyhand.IO;
 
 namespace CrystalData;
 
@@ -298,6 +299,14 @@ public partial class StorageControl : IPersistable
 
             storageObject.Initialize(pointId, typeIdentifier, storageMap);
             storageObject.Goshujin = storageMap.StorageObjects;
+
+            if (((IStructualObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
+            {
+                writer.Write(JournalRecord.Add);
+                writer.Write(pointId);
+                writer.Write(typeIdentifier);
+                root.AddJournal(ref writer);
+            }
         }
     }
 

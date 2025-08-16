@@ -163,8 +163,6 @@ public class StoragePointTest
         g.StringStorage.Set("Test String2");
         await crystal.Crystalizer.StoreAndRelease();
 
-        await crystal.Crystalizer.StoreJournal();
-
         st = await g.StringStorage.TryGet();
         st.Is("Test String2");
 
