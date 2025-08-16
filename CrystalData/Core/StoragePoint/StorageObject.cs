@@ -93,7 +93,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public StorageObject()
     {
-        this.storageMap = StorageControl.Default.DisabledMap;
+        this.storageMap = StorageMap.Disabled;
     }
 
     internal void Initialize(ulong pointId, uint typeIdentifier, StorageMap storageMap)

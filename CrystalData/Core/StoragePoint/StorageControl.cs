@@ -36,11 +36,6 @@ public partial class StorageControl : IPersistable
     private long memoryUsage;
     private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
 
-    /// <summary>
-    /// Gets <see cref="StorageMap" /> for <see cref="StorageObject" /> with storage disabled.
-    /// </summary>
-    public StorageMap DisabledMap { get; }
-
     public bool IsRip => this.isRip;
 
     public long MemoryUsageLimit { get; internal set; } = DefaultMemoryLimit;
@@ -81,9 +76,6 @@ public partial class StorageControl : IPersistable
     {
         this.lowestLockObject = new();
         this.storageMaps = [];
-
-        this.DisabledMap = new(this);
-        this.DisabledMap.DisableStorageMap();
     }
 
     public void AddStorageMap(StorageMap storageMap)

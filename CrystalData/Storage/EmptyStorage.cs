@@ -8,7 +8,7 @@ public partial class EmptyStorage : IStorage
 {
     public static readonly EmptyStorage Default = new();
 
-    StorageMap IStorage.StorageMap => StorageControl.Default.DisabledMap;
+    StorageMap IStorage.StorageMap => StorageMap.Disabled;
 
     long IStorage.StorageUsage => 0;
 

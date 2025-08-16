@@ -12,13 +12,13 @@ public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
 
-    public static readonly StorageMap Disabled = new(StorageControl.Disabled);
+    public static readonly StorageMap Disabled = new();
 
     #region FiendAndProperty
 
     public StorageControl StorageControl { get; }
 
-    private bool enabledStorageMap = true;
+    private bool enabledStorageMap;
 
     [Key(0)]
     private StorageObject.GoshujinClass storageObjects = new(); // Lock:StorageControl
@@ -102,11 +102,13 @@ public sealed partial class StorageMap : IStructualObject
     public StorageMap(StorageControl storageControl)
     {
         this.StorageControl = storageControl;
+        this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
     }
 
-    internal void DisableStorageMap()
+    private StorageMap()
     {
+        this.StorageControl = StorageControl.Disabled;
         this.enabledStorageMap = false;
     }
 
