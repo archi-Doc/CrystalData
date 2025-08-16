@@ -209,8 +209,21 @@ public partial class StorageControl : IPersistable
     /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
-        if (node.storageMap.IsDisabled)
-        {
+        if (node.storageMap.IsEnabled)
+        {// If the storage map is enabled, update the size and move to recent.
+            using (this.lowestLockObject.EnterScope())
+            {
+                if (newSize >= 0)
+                {
+                    this.memoryUsage += newSize - node.size;
+                    node.size = newSize;
+                }
+
+                this.MoveToRecentInternal(node);
+            }
+        }
+        else
+        {// If the storage map is disabled, only update the size.
             if (newSize >= 0)
             {
                 using (this.lowestLockObject.EnterScope())
@@ -218,32 +231,17 @@ public partial class StorageControl : IPersistable
                     node.size = newSize;
                 }
             }
-
-            return;
-        }
-
-        using (this.lowestLockObject.EnterScope())
-        {
-            if (newSize >= 0)
-            {
-                this.memoryUsage += newSize - node.size;
-                node.size = newSize;
-            }
-
-            this.MoveToRecentInternal(node);
         }
     }
 
     internal void MoveToRecent(StorageObject node)
     {
-        if (node.storageMap.IsDisabled)
-        {
-            return;
-        }
-
-        using (this.lowestLockObject.EnterScope())
-        {
-            this.MoveToRecentInternal(node);
+        if (node.storageMap.IsEnabled)
+        {// If the storage map is enabled, move to recent.
+            using (this.lowestLockObject.EnterScope())
+            {
+                this.MoveToRecentInternal(node);
+            }
         }
     }
 

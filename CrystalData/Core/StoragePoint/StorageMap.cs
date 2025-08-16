@@ -27,8 +27,6 @@ public sealed partial class StorageMap : IStructualObject
 
     public bool IsEnabled => this.enabledStorageMap;
 
-    public bool IsDisabled => !this.enabledStorageMap;
-
     public long StorageUsage => this.storageUsage;
 
     #endregion

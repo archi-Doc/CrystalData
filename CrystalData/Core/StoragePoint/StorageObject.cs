@@ -101,7 +101,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
         this.storageMap = storageMap;
-        if (storageMap.IsDisabled)
+        if (!storageMap.IsEnabled)
         {// Disable storage
             this.SetDisableStateBit();
         }
@@ -116,7 +116,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if ((this.storageMap.IsDisabled || this.IsDisabled) && this.data is not null)
+        if ((!this.storageMap.IsEnabled || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
