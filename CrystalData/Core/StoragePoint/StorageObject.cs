@@ -359,7 +359,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             var storageId = new StorageId(currentPosition, fileId, hash);
 
             // Update storage id
-            StorageControl.Default.AddStorage(this, crystal, storageId);
+            this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
 
             // Journal
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
@@ -460,7 +460,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             reader.TryRead(out record);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
-            StorageControl.Default.AddStorage(this, crystal, storageId);
+            this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
             return true;
         }
 

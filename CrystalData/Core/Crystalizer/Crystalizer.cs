@@ -52,7 +52,7 @@ public class Crystalizer
         private Crystalizer crystalizer;
     }
 
-    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, ICrystalDataQuery query, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey, IServiceProvider serviceProvider)
+    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey, IServiceProvider serviceProvider)
     {
         this.configuration = configuration;
         this.GlobalDirectory = options.GlobalDirectory;
@@ -61,7 +61,7 @@ public class Crystalizer
         this.EnableFilerLogger = options.EnableFilerLogger;
         this.RootDirectory = options.DataDirectory;
         this.FilerTimeout = options.FilerTimeout;
-        this.StorageControl = StorageControl.Default;
+        this.StorageControl = storageControl;
         this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
         this.ConcurrentUnload = options.ConcurrentUnload;
         this.TimeoutUntilForcedRelease = options.TimeoutUntilForcedRelease;

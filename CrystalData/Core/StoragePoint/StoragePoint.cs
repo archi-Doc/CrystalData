@@ -270,7 +270,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        var storageMap = StorageMap.Disabled;//
+        var storageMap = StorageMap.Disabled;
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
             storageMap = crystal.Storage.StorageMap;

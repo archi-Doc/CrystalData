@@ -13,12 +13,6 @@ public partial class StorageControl : IPersistable
     private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
 
     /// <summary>
-    /// This is the default instance of StorageControl.<br/>
-    /// I know it’s not ideal to use it as a static, but...
-    /// </summary>
-    public static readonly StorageControl Default = new();
-
-    /// <summary>
     /// Represents the disabled storage control.
     /// </summary>
     internal static readonly StorageControl Disabled = new();
