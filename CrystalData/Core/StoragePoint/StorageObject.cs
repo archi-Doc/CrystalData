@@ -454,6 +454,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         else if (record == JournalRecord.Value)
         {
             this.data ??= TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+            return this.data is not null;
         }
         else if (record == JournalRecord.AddStorage)
         {
@@ -594,7 +595,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             }
 
             writer.Write(JournalRecord.Value);
-            writer.Write(original.Span);
+            writer.WriteSpan(original.Span);
             root.AddJournal(ref writer);
         }
 
@@ -614,6 +615,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             {
                 structualObject.Erase();
             }
+
+            this.data = default;
         }
 
         if (recordJournal)
