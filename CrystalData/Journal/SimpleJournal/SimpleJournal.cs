@@ -154,10 +154,10 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    async Task IJournal.StoreJournalAsync()
-    {
-        await this.SaveJournalAsync(true).ConfigureAwait(false);
-    }
+    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+        => this.StoreJournalAsync(true, storeMode, cancellationToken);
+
+    Type IPersistable.DataType => typeof(SimpleJournal);
 
     async Task IJournal.TerminateAsync()
     {
@@ -357,7 +357,10 @@ Load:
         }
     }
 
-    internal async Task SaveJournalAsync(bool merge)
+    Task<bool> IPersistable.TestJournal()
+        => Task.FromResult(true);
+
+    internal async Task<CrystalResult> StoreJournalAsync(bool mergeBooks, StoreMode storeMode, CancellationToken cancellationToken)
     {
         using (this.lockBooks.EnterScope())
         {
@@ -391,26 +394,28 @@ Load:
                 }
             }
 
-            if (!merge)
+            if (!mergeBooks)
             {
-                return;
+                return CrystalResult.Success;
             }
 
             if (this.books.IncompleteChain.Count >= MergeThresholdNumber ||
             this.incompleteSize >= (ulong)this.SimpleJournalConfiguration.CompleteBookLength)
             {
-                merge = true;
+                mergeBooks = true;
             }
             else
             {
-                merge = false;
+                mergeBooks = false;
             }
         }
 
-        if (merge)
+        if (mergeBooks)
         { // Merge books
             await this.Merge(false).ConfigureAwait(false);
         }
+
+        return CrystalResult.Success;
     }
 
     internal async Task Merge(bool forceMerge)

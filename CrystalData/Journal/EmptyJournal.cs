@@ -23,10 +23,13 @@ public class EmptyJournal : IJournal
         writer = default(TinyhandWriter);
     }
 
-    Task IJournal.StoreJournalAsync()
-    {
-        return Task.CompletedTask;
-    }
+    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+        => Task.FromResult(CrystalResult.Success);
+
+    Type IPersistable.DataType => typeof(EmptyJournal);
+
+    Task<bool> IPersistable.TestJournal()
+        => Task.FromResult(true);
 
     Task IJournal.TerminateAsync()
     {
