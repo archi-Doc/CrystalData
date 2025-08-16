@@ -13,6 +13,7 @@ public static class TestHelper
     public static async Task<ICrystal<TData>> CreateAndStartCrystal<TData>(bool addStorage = false)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
+        StorageControl.Default.MemoryUsage.Is(0);
         var directory = $"Crystal[{RandomVault.Default.NextUInt32():x4}]";
         StorageConfiguration storageConfiguration = addStorage ?
             new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Storage"))) :
@@ -44,6 +45,7 @@ public static class TestHelper
     public static async Task<ICrystal<TData>> CreateAndStartCrystal2<TData>()
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
+        StorageControl.Default.MemoryUsage.Is(0);
         var builder = new CrystalControl.Builder();
         builder.ConfigureCrystal(context =>
         {

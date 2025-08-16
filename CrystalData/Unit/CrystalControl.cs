@@ -11,7 +11,6 @@ global using ValueLink;
 using CrystalData.Storage;
 using CrystalData.UserInterface;
 using Microsoft.Extensions.DependencyInjection;
-using static CrystalData.CrystalControl;
 
 namespace CrystalData;
 

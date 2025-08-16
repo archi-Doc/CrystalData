@@ -5,7 +5,6 @@ using CrystalData;
 using Tinyhand;
 using ValueLink;
 using Xunit;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace xUnitTest.CrystalDataTest;
 
