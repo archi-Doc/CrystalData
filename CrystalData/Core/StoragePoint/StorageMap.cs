@@ -12,6 +12,8 @@ public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
 
+    public static readonly StorageMap Disabled = new(StorageControl.Disabled);
+
     #region FiendAndProperty
 
     public StorageControl StorageControl { get; }

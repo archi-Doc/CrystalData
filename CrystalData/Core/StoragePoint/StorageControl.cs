@@ -18,6 +18,11 @@ public partial class StorageControl : IPersistable
     /// </summary>
     public static readonly StorageControl Default = new();
 
+    /// <summary>
+    /// Represents the disabled storage control.
+    /// </summary>
+    public static readonly StorageControl Disabled = new();
+
     #region FiendAndProperty
 
     /// <summary>
