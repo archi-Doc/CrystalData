@@ -86,7 +86,7 @@ internal class Program
             })
             .ConfigureCrystal(context =>
             {
-                context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                // context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 // Register FirstData configuration.
                 context.AddCrystal<FirstData>(
@@ -156,6 +156,6 @@ internal class Program
 
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
-        Console.WriteLine(StorageControl.Default.MemoryUsage);
+        Console.WriteLine($"MemoryUsage: {StorageControl.Default.MemoryUsage}");
     }
 }

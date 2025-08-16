@@ -527,6 +527,12 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
+        var storages = this.configurationToStorage.Values.ToArray();
+        foreach (var x in storages)
+        {
+            goshujin.Add(new(x));
+        }
+
         goshujin.Add(new(StorageControl.Default));
 
         var releaseTasks = new Task[this.ConcurrentUnload];
