@@ -238,7 +238,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
         else
         {
-            StorageControl.Default.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
+            StorageMap.Disabled.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options) ?? TinyhandSerializer.Reconstruct<TData>(options);
             v.storageObject.Set(data);
         }
@@ -277,7 +277,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
 
         var previousPointId = this.pointId;
-        StorageControl.Default.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
+        storageMap.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
         if (this.pointId != previousPointId &&
             ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {

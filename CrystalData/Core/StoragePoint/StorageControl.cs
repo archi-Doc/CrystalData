@@ -21,7 +21,7 @@ public partial class StorageControl : IPersistable
     /// <summary>
     /// Represents the disabled storage control.
     /// </summary>
-    public static readonly StorageControl Disabled = new();
+    internal static readonly StorageControl Disabled = new();
 
     #region FiendAndProperty
 
@@ -255,6 +255,18 @@ public partial class StorageControl : IPersistable
     {
         using (this.lowestLockObject.EnterScope())
         {
+            if (!storageMap.IsEnabled)
+            {// StorageMap is disabled.
+                if (storageObject is null)
+                {
+                    storageObject = new();
+                    storageObject.Initialize(pointId, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), storageMap);
+                    // storageObject.Goshujin = storageMap.StorageObjects;
+                }
+
+                return;
+            }
+
             uint typeIdentifier;
             if (storageObject is null)
             {// Create a new object.
