@@ -9,7 +9,7 @@ public class CrystalizerOptions
     public CrystalizerOptions()
     {
         this.FilerTimeout = TimeSpan.MinValue; // TimeSpan.FromSeconds(3);
-        this.UnloadTimeout = TimeSpan.FromSeconds(10);
+        this.TimeoutUntilForcedRelease = TimeSpan.FromSeconds(10);
         this.DefaultSaveInterval = CrystalConfiguration.DefaultSaveInterval;
     }
 
@@ -23,7 +23,7 @@ public class CrystalizerOptions
 
     public int ConcurrentUnload { get; set; } = 8;
 
-    public TimeSpan UnloadTimeout { get; set; }
+    public TimeSpan TimeoutUntilForcedRelease { get; set; }
 
     public SaveFormat DefaultSaveFormat { get; set; } = SaveFormat.Binary;
 

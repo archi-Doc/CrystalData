@@ -4,23 +4,25 @@ namespace CrystalData.Unload;
 
 internal static class ReleaseTaskExtension
 {
-    public static async Task ReleaseTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin)
+    private const int WaitTimeInMilliseconds = 1_000;
+
+    public static async Task ReleaseTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
     {
         while (true)
         {
-            var result = await ProcessGoshujin(crystalizer, goshujin).ConfigureAwait(false);
+            var result = await ProcessGoshujin(crystalizer, goshujin, storeMode).ConfigureAwait(false);
             if (result.Remaining == 0)
             {
                 return;
             }
             else if (result.Unloaded == 0)
             {
-                await Task.Delay(1_000);
+                await Task.Delay(WaitTimeInMilliseconds);
             }
         }
     }
 
-    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin)
+    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
     {
         var unloaded = 0;
         ReleaseTask? task;
@@ -33,11 +35,11 @@ internal static class ReleaseTaskExtension
             {
                 task = goshujin.LastProcessedChain.First;
                 if (task is null)
-                {
+                {// No remaining tasks.
                     return (unloaded, 0);
                 }
 
-                if ((utc - task.LastProcessed) < TimeSpan.FromSeconds(1))
+                if ((utc - task.LastProcessed) < TimeSpan.FromMilliseconds(WaitTimeInMilliseconds))
                 {
                     return (unloaded, goshujin.LastProcessedChain.Count);
                 }
@@ -50,19 +52,25 @@ internal static class ReleaseTaskExtension
                 task.FirstProcessed = utc;
             }
 
-            if ((utc - task.FirstProcessed) > crystalizer.UnloadTimeout)
-            {// Force
+            if (storeMode == StoreMode.StoreOnly)
+            {// Store only
+                await task.PersistableObject.Store(StoreMode.StoreOnly).ConfigureAwait(false);
+                unloaded++;
+            }
+            else if (storeMode == StoreMode.ForceRelease ||
+                (utc - task.FirstProcessed) > crystalizer.TimeoutUntilForcedRelease)
+            {// Force release
                 await task.PersistableObject.Store(StoreMode.ForceRelease).ConfigureAwait(false);
                 crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
                 unloaded++;
             }
             else
-            {// Try
+            {// Try release
                 var result = await task.PersistableObject.Store(StoreMode.TryRelease).ConfigureAwait(false);
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);
-                    task.GoshujinSemaphore?.LockAndForceRelease();
+                    task.RepeatableSemaphore?.LockAndForceRelease();
                     using (goshujin.LockObject.EnterScope())
                     {
                         task.LastProcessed = utc;
@@ -85,14 +93,14 @@ internal partial class ReleaseTask : IEquatable<ReleaseTask>
     public ReleaseTask(IPersistable persistableObject)
     {
         this.PersistableObject = persistableObject;
-        this.GoshujinSemaphore = persistableObject as IRepeatableSemaphore;
+        this.RepeatableSemaphore = persistableObject as IRepeatableSemaphore;
     }
 
     #region FieldAndProperty
 
     public IPersistable PersistableObject { get; }
 
-    public IRepeatableSemaphore? GoshujinSemaphore { get; }
+    public IRepeatableSemaphore? RepeatableSemaphore { get; }
 
     public DateTime FirstProcessed { get; set; }
 
