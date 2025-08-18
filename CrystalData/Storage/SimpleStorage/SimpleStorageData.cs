@@ -159,7 +159,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
     bool ITinyhandCustomJournal.ReadCustomRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryRead(out JournalRecord record))
+        if (!reader.TryReadJournalRecord(out var record))
         {
             return false;
         }

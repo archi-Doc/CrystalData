@@ -170,11 +170,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     }
 
     /// <summary>
-    /// Erases the data associated with this storage point.<br/>
+    /// Deletes the data associated with this storage point.<br/>
     /// This operation removes the data from storage and memory.
     /// </summary>
-    public void Erase()
-        => this.GetOrCreateStorageObject().Erase();
+    public void Delete()
+        => this.GetOrCreateStorageObject().Delete();
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -193,7 +193,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
-        if (reader.TryRead(out JournalRecord record))
+        if (reader.TryReadJournalRecord(out JournalRecord record))
         {
             if (record == JournalRecord.Value)
             {

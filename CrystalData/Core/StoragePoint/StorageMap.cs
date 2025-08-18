@@ -90,7 +90,7 @@ public sealed partial class StorageMap : IStructualObject
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryRead(out JournalRecord record))
+        if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
             return false;
         }

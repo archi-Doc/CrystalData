@@ -434,21 +434,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal void Erase()
+    internal void Delete()
     {
-        this.EraseStorage(true);
+        this.DeleteStorage(true);
     }
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryRead(out JournalRecord record))
+        if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
             return false;
         }
 
         if (record == JournalRecord.EraseStorage)
-        {// Erase storage
-            this.EraseStorage(false);
+        {// Delete storage
+            this.DeleteStorage(false);
             return true;
         }
         else if (record == JournalRecord.Value)
@@ -605,7 +605,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    private void EraseStorage(bool recordJournal)
+    private void DeleteStorage(bool recordJournal)
     {
         this.storageControl.EraseStorage(this);
 
@@ -613,7 +613,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             if (this.data is IStructualObject structualObject)
             {
-                structualObject.Erase();
+                structualObject.Delete();
             }
 
             this.data = default;

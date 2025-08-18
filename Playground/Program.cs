@@ -199,12 +199,12 @@ internal class Program
         var g = new SpClassPoint.GoshujinClass();
         SpClass sp = default;
         // var p = g.TryGet(123);
-        using (var dataScope = await g.TryLock(123))
+        /*using (var dataScope = await g.TryLock(123))
         {// DataScope<SpClass>
             // dataScope.Result
             // dataScope.Data
             // dataScope.Writer
-        }
+        }*/
 
         using (g.LockObject.EnterScope())
         {
@@ -212,12 +212,12 @@ internal class Program
             //sp.Goshujin = g;
         }
 
-        using (var dataScope = await sp.FirstDataStorage.EnterScope())
+        /*using (var dataScope = await sp.FirstDataStorage.EnterScope())
         {
             if (dataScope.IsValid)
             {
             }
-        }
+        }*/
 
 
         //await crystalizer.Store(); // Save all data.
