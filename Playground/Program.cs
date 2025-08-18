@@ -65,12 +65,13 @@ public partial class SecondData
         => $"Second: {this.DoubleStorage.GetOrCreate()}";
 }
 
-[TinyhandObject(Structual = true, UseServiceProvider = true)]
-[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-public partial class SpClass
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.StoragePoint)]
+public partial class SpClassStorage
 {
-    public SpClass()
+    public SpClassStorage(int id)
     {
+        this.Id = id;
     }
 
     [Key(0)]
@@ -170,18 +171,23 @@ internal class Program
         Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
 
-        var g = new SpClass.GoshujinClass();
-        SpClass tc;
+        var g = new SpClassStorage.GoshujinClass();
+        SpClassStorage sp;
+        // var c = g.TryGet(123);
         using (g.LockObject.EnterScope())
         {
-            tc = new SpClass();
-            tc.Goshujin = g;
+            sp = new SpClassStorage(2);
+            sp.Goshujin = g;
         }
 
-        using (var dataScope = await tc.FirstDataStorage.EnterScope())
+        using (var dataScope = await sp.FirstDataStorage.EnterScope())
         {
-            dataScope.Data;
+            if (dataScope.IsValid)
+            {
+                dataScope.Data.
+            }
         }
+
 
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
