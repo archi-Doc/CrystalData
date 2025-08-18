@@ -9,6 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
 using Tinyhand.IO;
 using ValueLink;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using static Sandbox.SpClass;
 
 namespace Sandbox;
 
@@ -65,21 +67,44 @@ public partial class SecondData
         => $"Second: {this.DoubleStorage.GetOrCreate()}";
 }
 
+/// <summary>
+/// A class at the isolation level of StoragePoint that inherits from <see cref="StoragePoint{TData}" />.
+/// It maintains relationship information between classes and owns data of type TData as storage.
+/// </summary>
 [TinyhandObject(Structual = true)]
-[ValueLinkObject(Isolation = IsolationLevel.StoragePoint)]
-public partial class SpClassStorage
-{
-    public SpClassStorage(int id)
-    {
-        this.Id = id;
-    }
-
-    [Key(0)]
+[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+public partial class SpClassPoint : StoragePoint<SpClass>
+{// Value, Link
+    [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
 
-    [Key(1)]
-    public StoragePoint<FirstData> FirstDataStorage { get; set; } = new();
+    public void Test()
+    {
+        this.TryLock();
+    }
+}
+
+[TinyhandObject(Structual = true)]
+public partial class SpClass : Writer
+{
+    public interface Writer
+    {
+        public string Name { get; set; }
+    }
+
+    string Writer.Name
+    {
+        get => this.Name;
+        set => this.Name = value;
+    }
+
+    public SpClass()
+    {
+    }
+
+    [Key(0)]
+    public string Name { get; private set; } = string.Empty;
 }
 
 internal class Program
@@ -171,20 +196,26 @@ internal class Program
         Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
 
-        var g = new SpClassStorage.GoshujinClass();
-        SpClassStorage sp;
-        // var c = g.TryGet(123);
+        var g = new SpClassPoint.GoshujinClass();
+        SpClass sp = default;
+        // var p = g.TryGet(123);
+        using (var dataScope = await g.TryLock(123))
+        {// DataScope<SpClass>
+            // dataScope.Result
+            // dataScope.Data
+            // dataScope.Writer
+        }
+
         using (g.LockObject.EnterScope())
         {
-            sp = new SpClassStorage(2);
-            sp.Goshujin = g;
+            //sp = new SpClass(2);
+            //sp.Goshujin = g;
         }
 
         using (var dataScope = await sp.FirstDataStorage.EnterScope())
         {
             if (dataScope.IsValid)
             {
-                dataScope.Data.
             }
         }
 

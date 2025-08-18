@@ -7,6 +7,7 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
+#pragma warning disable SA1401 // Fields should be private
 
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
@@ -19,7 +20,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 {
     #region FiendAndProperty
 
-    private ulong pointId; // Lock:StorageControl
+    [Key(0)]
+    protected ulong pointId; // Lock:StorageControl
+
     private StorageObject? storageObject; // Lock:StorageControl
 
     public ulong PointId => this.pointId;
