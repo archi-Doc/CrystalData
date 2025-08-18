@@ -15,7 +15,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IDataLock<TData>, IStructualObject
     where TData : notnull
 {
     #region FiendAndProperty
@@ -112,7 +112,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<TData?> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
+    public ValueTask<(DataLockResult Result, TData? Data)> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock"/>.<br/>

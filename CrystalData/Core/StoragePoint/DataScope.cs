@@ -5,6 +5,7 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
+/*
 /// <summary>
 /// Represents a scope over a locked data instance of type <typeparamref name="TData"/>,<br/>
 /// providing controlled access and automatic lock management for the underlying storage object.<br/>
@@ -56,4 +57,4 @@ public record struct DataScope<TData> : IDisposable
             this.data = default;
         }
     }
-}
+}*/

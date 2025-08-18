@@ -91,7 +91,7 @@ public class StorageDataTest
 
         using (var w2 = children.TryLock(2, TryLockMode.GetOrCreate)!)
         {
-            w2.RemoveAndErase();
+            w2.DeleteAndErase();
             w2.Commit();
         }
 

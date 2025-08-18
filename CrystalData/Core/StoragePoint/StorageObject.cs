@@ -10,7 +10,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlock
 {// Disabled, Rip, PendingRelease
     public const int MaxHistories = 3; // 4
 
@@ -211,21 +211,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return new DataScope<TData>(this, (TData)this.data);
+        return new DataScope<TData>(DataLockResult.Success, this, (TData)this.data);
     }
 
-    internal async ValueTask<TData?> TryLock<TData>()
+    internal async ValueTask<(DataLockResult Result, TData? Data)> TryLock<TData>()
     {
         if (this.storageControl.IsRip || this.IsRip)
         {
-            return default;
+            return (DataLockResult.Obsolete, default);
         }
 
         await this.EnterAsync().ConfigureAwait(false);
         if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();
-            return default;
+            return (DataLockResult.Obsolete, default);
         }
 
         if (this.data is null)
@@ -238,10 +238,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return (TData?)this.data;
+        return (DataLockResult.Success, (TData?)this.data);
     }
 
-    internal void Unlock()
+    public void Unlock()
     {// Lock:this
         // this.ReleaseIfPendingInternal();
         this.Exit();
@@ -446,7 +446,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return false;
         }
 
-        if (record == JournalRecord.EraseStorage)
+        if (record == JournalRecord.DeleteStorage)
         {// Delete storage
             this.DeleteStorage(false);
             return true;
@@ -621,7 +621,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (recordJournal)
         {
-            ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
+            ((IStructualObject)this).AddJournalRecord(JournalRecord.DeleteStorage);
         }
     }
 

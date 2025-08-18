@@ -150,7 +150,8 @@ public class StoragePointTest
         var st = await g.StringStorage.TryGet();
         st = await g.StringStorage.GetOrCreate();
 
-        if (await g.StringStorage.TryLock() is not null)
+        var t = await g.StringStorage.TryLock();
+        if (t.Data is not null)
         {
             g.StringStorage.Unlock();
         }
