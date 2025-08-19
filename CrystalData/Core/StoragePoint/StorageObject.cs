@@ -10,7 +10,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlock
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlockable
 {// Disabled, Rip, PendingRelease
     public const int MaxHistories = 3; // 4
 
@@ -214,18 +214,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         return new DataScope<TData>(DataLockResult.Success, this, (TData)this.data);
     }
 
-    internal async ValueTask<(DataLockResult Result, TData? Data)> TryLock<TData>()
+    internal async ValueTask<DataScope<TData>> TryLock<TData>()
+        where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
         {
-            return (DataLockResult.Obsolete, default);
+            return new(DataLockResult.Rip);
         }
 
         await this.EnterAsync().ConfigureAwait(false);
         if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();
-            return (DataLockResult.Obsolete, default);
+            return new(DataLockResult.Rip);
         }
 
         if (this.data is null)
@@ -238,7 +239,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return (DataLockResult.Success, (TData?)this.data);
+        return ((TData)this.data, this.data);
     }
 
     public void Unlock()

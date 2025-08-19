@@ -15,7 +15,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IDataLock<TData>, IStructualObject
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IDataLockable<TData>, IStructualObject
     where TData : notnull
 {
     #region FiendAndProperty
@@ -112,7 +112,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<(DataLockResult Result, TData? Data)> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
+    public ValueTask<DataScope<TData>> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock"/>.<br/>
@@ -120,7 +120,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
 
-    public ValueTask<DataScope<TData>> EnterScope() => this.GetOrCreateStorageObject().EnterScope<TData>();
+    // public ValueTask<DataScope<TData>> EnterScope() => this.GetOrCreateStorageObject().EnterScope<TData>();
 
     public bool DataEquals(StoragePoint<TData> other)
     {
