@@ -14,7 +14,7 @@ namespace CrystalData;
 /// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
-[TinyhandObject(ExplicitKeyOnly = true)]
+[TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
 public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, ILockableData<TData>, IStructualObject
     where TData : notnull
 {
