@@ -10,7 +10,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlockable
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IUnlockableData
 {// Disabled, Rip, PendingRelease
     public const int MaxHistories = 3; // 4
 
@@ -162,7 +162,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    internal async ValueTask<TData?> TryGet<TData>()
+    internal async ValueTask<TData?> TryGet<TData>(TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (this.data is { } data)
         {
@@ -170,7 +170,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return (TData)data;
         }
 
-        await this.EnterAsync().ConfigureAwait(false);
+        await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false);
         try
         {
             if (this.data is null)
@@ -214,7 +214,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         return new DataScope<TData>((TData)this.data, this);
     }
 
-    internal async ValueTask<DataScope<TData>> TryLock<TData>()
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(TimeSpan timeout, CancellationToken cancellationToken)
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
@@ -222,7 +222,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return new(DataLockResult.Rip);
         }
 
-        await this.EnterAsync().ConfigureAwait(false);
+        await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false);
         if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();

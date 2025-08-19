@@ -15,7 +15,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IDataLockable<TData>, IStructualObject
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, ILockableData<TData>, IStructualObject
     where TData : notnull
 {
     #region FiendAndProperty
@@ -87,11 +87,18 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <summary>
     /// Asynchronously gets the data associated with this storage point.
     /// </summary>
+    /// <param name="timeout">The maximum time to wait for the acquisition. If <see cref="TimeSpan.Zero"/>, the method returns immediately.</param>
+    /// <param name="cancellationToken">
+    /// A <see cref="CancellationToken"/> to observe while waiting to acquire the data.
+    /// </param>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if available; otherwise, <c>null</c>.
     /// </returns>
+    public ValueTask<TData?> TryGet(TimeSpan timeout, CancellationToken cancellationToken)
+        => this.GetOrCreateStorageObject().TryGet<TData>(timeout, cancellationToken);
+
     public ValueTask<TData?> TryGet()
-        => this.GetOrCreateStorageObject().TryGet<TData>();
+        => this.GetOrCreateStorageObject().TryGet<TData>(Timeout.InfiniteTimeSpan, default);
 
     /// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
@@ -109,13 +116,19 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// This is for storage operation locks only. Please use a different mechanism for object-level locks.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
+    /// <param name="timeout">The maximum time to wait for the lock. If <see cref="TimeSpan.Zero"/>, the method returns immediately.</param>
+    /// <param name="cancellationToken">
+    /// A <see cref="CancellationToken"/> to observe while waiting to acquire the lock.
+    /// </param>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<DataScope<TData>> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
+    public ValueTask<DataScope<TData>> TryLock(TimeSpan timeout, CancellationToken cancellationToken) => this.GetOrCreateStorageObject().TryLock<TData>(timeout, cancellationToken);
+
+    public ValueTask<DataScope<TData>> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>(Timeout.InfiniteTimeSpan, default);
 
     /// <summary>
-    /// Releases the lock previously acquired by <see cref="TryLock"/>.<br/>
+    /// Releases the lock previously acquired by <see cref="TryLock()"/>.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
