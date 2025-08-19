@@ -211,7 +211,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return new DataScope<TData>(DataLockResult.Success, this, (TData)this.data);
+        return new DataScope<TData>((TData)this.data, this);
     }
 
     internal async ValueTask<DataScope<TData>> TryLock<TData>()
@@ -239,7 +239,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return ((TData)this.data, this.data);
+        return new((TData)this.data, this);
     }
 
     public void Unlock()
