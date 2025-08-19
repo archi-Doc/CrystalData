@@ -10,8 +10,8 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IUnlockableData
-{// Disabled, Rip, PendingRelease
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ILockableData
+{
     public const int MaxHistories = 3; // 4
 
     private const uint DisabledStateBit = 1u << 31;
@@ -25,6 +25,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IUn
 
 #pragma warning disable SA1401 // Fields should be private
 #pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
+
+    LockableDataState ILockableData.State { get; set; }
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
@@ -186,7 +188,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IUn
         }
     }
 
-    internal async ValueTask<DataScope<TData>> EnterScope<TData>()
+    /*internal async ValueTask<DataScope<TData>> EnterScope<TData>()
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
@@ -212,21 +214,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IUn
         }
 
         return new DataScope<TData>((TData)this.data, this);
-    }
+    }*/
 
     internal async ValueTask<DataScope<TData>> TryLock<TData>(TimeSpan timeout, CancellationToken cancellationToken)
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
         {
-            return new(DataLockResult.Rip);
+            return new(DataScopeResult.Rip);
         }
 
         await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false);
         if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();
-            return new(DataLockResult.Rip);
+            return new(DataScopeResult.Rip);
         }
 
         if (this.data is null)
@@ -244,7 +246,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IUn
 
     public void Unlock()
     {// Lock:this
-        // this.ReleaseIfPendingInternal();
         this.Exit();
     }
 

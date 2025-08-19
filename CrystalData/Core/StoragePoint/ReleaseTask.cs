@@ -70,7 +70,7 @@ internal static class ReleaseTaskExtension
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);
-                    task.RepeatableSemaphore?.LockAndForceRelease();
+                    task.RepeatableReadSemaphore?.LockAndForceRelease();
                     using (goshujin.LockObject.EnterScope())
                     {
                         task.LastProcessed = utc;
@@ -93,14 +93,14 @@ internal partial class ReleaseTask : IEquatable<ReleaseTask>
     public ReleaseTask(IPersistable persistableObject)
     {
         this.PersistableObject = persistableObject;
-        this.RepeatableSemaphore = persistableObject as IRepeatableSemaphore;
+        this.RepeatableReadSemaphore = persistableObject as IRepeatableReadSemaphore;
     }
 
     #region FieldAndProperty
 
     public IPersistable PersistableObject { get; }
 
-    public IRepeatableSemaphore? RepeatableSemaphore { get; }
+    public IRepeatableReadSemaphore? RepeatableReadSemaphore { get; }
 
     public DateTime FirstProcessed { get; set; }
 

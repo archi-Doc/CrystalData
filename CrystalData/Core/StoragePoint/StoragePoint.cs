@@ -15,7 +15,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, ILockableData<TData>, IStructualObject
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
     where TData : notnull
 {
     #region FiendAndProperty
