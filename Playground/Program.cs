@@ -9,8 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
 using Tinyhand.IO;
 using ValueLink;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using static Sandbox.SpClass;
 
 namespace Sandbox;
 
@@ -63,6 +61,9 @@ public partial class SecondData
     [Key(0)]
     public StoragePoint<double> DoubleStorage { get; set; } = new();
 
+    [Key(1)]
+    public SpClassPoint.GoshujinClass SpClassGoshujin { get; set; } = new();
+
     public override string ToString()
         => $"Second: {this.DoubleStorage.GetOrCreate()}";
 }
@@ -72,7 +73,7 @@ public partial class SecondData
 /// It maintains relationship information between classes and owns data of type TData as storage.
 /// </summary>
 [TinyhandObject(Structual = true)]
-[ValueLinkObject(Isolation = IsolationLevel.Serializable)]
+[ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SpClassPoint : StoragePoint<SpClass>
 {// Value, Link
     [Key(1)]
@@ -86,25 +87,14 @@ public partial class SpClassPoint : StoragePoint<SpClass>
 }
 
 [TinyhandObject(Structual = true)]
-public partial class SpClass : Writer
+public partial class SpClass
 {
-    public interface Writer
-    {
-        public string Name { get; set; }
-    }
-
-    string Writer.Name
-    {
-        get => this.Name;
-        set => this.Name = value;
-    }
-
     public SpClass()
     {
     }
 
     [Key(0)]
-    public string Name { get; private set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 }
 
 internal class Program
@@ -196,29 +186,17 @@ internal class Program
         Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
 
-        var g = new SpClassPoint.GoshujinClass();
-        SpClass sp = default;
-        // var p = g.TryGet(123);
-        /*using (var dataScope = await g.TryLock(123))
-        {// DataScope<SpClass>
-            // dataScope.Result
-            // dataScope.Data
-            // dataScope.Writer
-        }*/
-
-        using (g.LockObject.EnterScope())
+        var spClassGoshujin = data2.SpClassGoshujin;
+        using (var scope = await spClassGoshujin.TryLock(1, LockMode.GetOrCreate))
         {
-            //sp = new SpClass(2);
-            //sp.Goshujin = g;
+            if (scope.Data is { } spClass)
+            {
+                spClass.Name += "ox";
+                Console.WriteLine(spClass.Name);
+            }
         }
 
-        /*using (var dataScope = await sp.FirstDataStorage.EnterScope())
-        {
-            if (dataScope.IsValid)
-            {
-            }
-        }*/
-
+        spClassGoshujin.Delete(1);
 
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
