@@ -70,7 +70,7 @@ public partial class Program
             Console.WriteLine(x.ToString());
         }
 
-        using (var w = await goshujin.TryLockAsync(0, TryLockMode.GetOrCreate))
+        using (var w = await goshujin.TryLockAsync(0, LockMode.GetOrCreate))
         {
             if (w is not null)
             {

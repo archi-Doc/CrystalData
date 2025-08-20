@@ -3,6 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
+using ValueLink;
 
 namespace CrystalData;
 
@@ -15,7 +16,7 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IDataLocker<TData>
     where TData : notnull
 {
     #region FiendAndProperty
@@ -26,6 +27,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     private StorageObject? storageObject; // Lock:StorageControl
 
     public ulong PointId => this.pointId;
+
+    ref int IDataLocker<TData>.GetProtectionCounterRef() => ref this.GetOrCreateStorageObject().protectionCount;
 
     /// <summary>
     /// Gets the <see langword="uint"/> type identifier used by TinyhandSerializer.

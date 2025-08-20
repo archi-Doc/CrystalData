@@ -10,7 +10,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ILockableData
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlocker
 {
     public const int MaxHistories = 3; // 4
 
@@ -26,7 +26,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ILo
 #pragma warning disable SA1401 // Fields should be private
 #pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
 
-    LockableDataState ILockableData.State { get; set; }
+    internal int protectionCount;
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
@@ -246,6 +246,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ILo
 
     public void Unlock()
     {// Lock:this
+        Interlocked.Decrement(ref this.protectionCount);
         this.Exit();
     }
 

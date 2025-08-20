@@ -189,7 +189,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return CrystalResult.NotPrepared;
         }
 
-        var semaphore = obj as IRepeatableSemaphore;
+        var semaphore = obj as IRepeatableReadSemaphore;
         if (semaphore is not null)
         {
             if (storeMode == StoreMode.TryRelease)

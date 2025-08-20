@@ -130,7 +130,7 @@ public class StoragePointTest
     public async Task Test2()
     {
         var g = new StoragePointClass1.GoshujinClass();
-        using (var writer = g.TryLock(1, TryLockMode.GetOrCreate))
+        using (var writer = g.TryLock(1, LockMode.GetOrCreate))
         {
             if (writer is not null)
             {

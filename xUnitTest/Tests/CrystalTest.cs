@@ -50,13 +50,13 @@ public class CrystalTest
         g = crystal.Data;
 
         CreditData creditData;
-        using (var w = g.TryLock(1, TryLockMode.GetOrCreate)!)
+        using (var w = g.TryLock(1, LockMode.GetOrCreate)!)
         {
             creditData = w.Commit()!;
         }
 
         var borrowers = await creditData.Borrowers.GetOrCreate();
-        using (var w2 = borrowers.TryLock(22, TryLockMode.Create)!)
+        using (var w2 = borrowers.TryLock(22, LockMode.Create)!)
         {
             w2.Commit();
         }
@@ -85,13 +85,13 @@ public class CrystalTest
         g = crystal.Data;
 
         CreditData creditData;
-        using (var w = g.TryLock(1, TryLockMode.GetOrCreate)!)
+        using (var w = g.TryLock(1, LockMode.GetOrCreate)!)
         {
             creditData = w.Commit()!;
         }
 
         var borrowers = await creditData.Borrowers.GetOrCreate();
-        using (var w2 = borrowers.TryLock(22, TryLockMode.Create)!)
+        using (var w2 = borrowers.TryLock(22, LockMode.Create)!)
         {
             w2.Commit();
         }
