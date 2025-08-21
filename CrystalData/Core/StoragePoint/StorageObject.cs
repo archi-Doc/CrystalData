@@ -172,7 +172,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return (TData)data;
         }
 
-        await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false);
+        if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
+        {// Timeout or cancellation
+            return default;
+        }
+
         try
         {
             if (this.data is null)
@@ -224,7 +228,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return new(DataScopeResult.Rip);
         }
 
-        await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false);
+        if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
+        {// Timeout or cancellation
+            return default;
+        }
+
         if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();

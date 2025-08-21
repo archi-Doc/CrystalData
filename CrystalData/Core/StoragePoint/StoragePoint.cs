@@ -101,7 +101,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         => this.GetOrCreateStorageObject().TryGet<TData>(timeout, cancellationToken);
 
     public ValueTask<TData?> TryGet()
-        => this.GetOrCreateStorageObject().TryGet<TData>(Timeout.InfiniteTimeSpan, default);
+        => this.GetOrCreateStorageObject().TryGet<TData>(ValueLinkGlobal.LockTimeout, default);
 
     /// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
@@ -126,9 +126,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<DataScope<TData>> TryLock(TimeSpan timeout, CancellationToken cancellationToken) => this.GetOrCreateStorageObject().TryLock<TData>(timeout, cancellationToken);
+    public ValueTask<DataScope<TData>> TryLock(TimeSpan timeout, CancellationToken cancellationToken)
+        => this.GetOrCreateStorageObject().TryLock<TData>(timeout, cancellationToken);
 
-    public ValueTask<DataScope<TData>> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>(Timeout.InfiniteTimeSpan, default);
+    public ValueTask<DataScope<TData>> TryLock()
+        => this.GetOrCreateStorageObject().TryLock<TData>(ValueLinkGlobal.LockTimeout, default);
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock()"/>.<br/>

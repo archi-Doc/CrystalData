@@ -64,6 +64,9 @@ public partial class SecondData
     [Key(1)]
     public SpClassPoint.GoshujinClass SpClassGoshujin { get; set; } = new();
 
+    [Key(2)]
+    public StoragePoint<SpClassPoint.GoshujinClass> GoshujinStorage { get; set; } = new();
+
     public override string ToString()
         => $"Second: {this.DoubleStorage.GetOrCreate()}";
 }
@@ -196,10 +199,64 @@ internal class Program
             }
         }
 
-        spClassGoshujin.Delete(1);
+        await spClassGoshujin.TryDelete(1);
+        var spc = new SpClassPoint();
+        // spc = spClassGoshujin.FindFirst(1);
+
+        var goshujinStorage = data2.GoshujinStorage;
+        using (var gs = await goshujinStorage.TryLock())
+        {
+            if (gs.Data is { } gs2)
+            {
+                using (var gs3 = await gs2.TryLock(12, LockMode.GetOrCreate))
+                {
+                }
+            }
+        }
+
+        using (var sc = await goshujinStorage.TryLock(123, LockMode.GetOrCreate))
+        {
+        }
 
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
         Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+    }
+}
+
+public static class Helper
+{
+    public static async ValueTask<DataScope<SpClass>> TryLock(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, LockMode lockMode, CancellationToken cancellationToken = default)
+    {
+        /*var gs = await storagePoint.TryGet().ConfigureAwait(false);
+        if (gs is null)
+        {
+            return new(DataScopeResult.Timeout);
+        }
+
+        return await gs.TryLock(id, lockMode, cancellationToken);*/
+
+        using (var scope = await storagePoint.TryLock())
+        {//
+            if (scope.Data is { } spClass)
+            {
+                return await spClass.TryLock(id, lockMode, cancellationToken);
+            }
+            else
+            {
+                return new(scope.Result);
+            }
+        }
+    }
+
+    public static async ValueTask<SpClass?> TryGet(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, LockMode lockMode, CancellationToken cancellationToken = default)
+    {
+        var gs = await storagePoint.TryGet().ConfigureAwait(false);
+        if (gs is null)
+        {
+            return default;
+        }
+
+        return await gs.TryGet(id, cancellationToken);
     }
 }
