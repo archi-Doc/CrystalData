@@ -230,6 +230,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
         {// Timeout or cancellation
+            //
             return default;
         }
 
