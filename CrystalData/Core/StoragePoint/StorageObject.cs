@@ -128,8 +128,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    internal async ValueTask<TData> GetOrCreate<TData>()
-    {
+    /*internal async ValueTask<TData> GetOrCreate<TData>()
+    {// Even if creation is attempted, the object may already have been deleted (ObjectProtectionState.Deleted), so this function was abandoned.
         if (this.data is { } data)
         {
             this.storageControl.MoveToRecent(this);
@@ -162,7 +162,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {
             this.Exit();
         }
-    }
+    }*/
 
     internal async ValueTask<TData?> TryGet<TData>(TimeSpan timeout, CancellationToken cancellationToken)
     {
@@ -179,6 +179,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         try
         {
+            if (this.protectionState == ObjectProtectionState.Deleted)
+            {// Deleted
+                return default;
+            }
+
             if (this.data is null)
             {// PrepareAndLoad
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
@@ -220,7 +225,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         return new DataScope<TData>((TData)this.data, this);
     }*/
 
-    internal async ValueTask<DataScope<TData>> TryLock<TData>(TimeSpan timeout, CancellationToken cancellationToken)
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(LockMode lockMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
@@ -230,7 +235,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
         {// Timeout or cancellation
-            return default;
+            return new(DataScopeResult.Timeout);
         }
 
         if (this.storageControl.IsRip || this.IsRip)
@@ -246,14 +251,41 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return new(DataScopeResult.Obsolete);
         }
 
+        if (lockMode == LockMode.Get)
+        {
+
+        }
+        else if (lockMode == LockMode.Create)
+        {
+
+        }
+
         if (this.data is null)
         {// PrepareAndLoad
             await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
         }
 
-        if (this.data is null)
-        {// Reconstruct
-            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+        if (this.data is not null)
+        {// Already exists
+            if (lockMode == LockMode.Create)
+            {
+                this.Exit();
+                return new(DataScopeResult.AlreadyExists);
+            }
+
+            // Get or GetOrCreate
+        }
+        else
+        {
+            if (lockMode == LockMode.Get)
+            {// Get only
+                this.Exit();
+                return new(DataScopeResult.NotFound);
+            }
+            else
+            {// Create or GetOrCreate -> Reconstruct
+                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+            }
         }
 
         return new((TData)this.data, this);
@@ -272,6 +304,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     {
         using (this.EnterScope())
         {
+            if (this.protectionState != ObjectProtectionState.Unprotected)
+            {
+                return;
+            }
+
             this.SetDataInternal(data, true, default);
         }
     }

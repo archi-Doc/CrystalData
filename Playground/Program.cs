@@ -68,7 +68,7 @@ public partial class SecondData
     public StoragePoint<SpClassPoint.GoshujinClass> GoshujinStorage { get; set; } = new();
 
     public override string ToString()
-        => $"Second: {this.DoubleStorage.GetOrCreate()}";
+        => $"Second: {this.DoubleStorage.TryGet()}";
 }
 
 /// <summary>
@@ -82,11 +82,6 @@ public partial class SpClassPoint : StoragePoint<SpClass>
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
-
-    public void Test()
-    {
-        this.TryLock();
-    }
 }
 
 [TinyhandObject(Structual = true)]
@@ -183,8 +178,11 @@ internal class Program
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var doubleStorage = data2.DoubleStorage;
-        var d = await doubleStorage.GetOrCreate();
-        data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
+        using (var d = await doubleStorage.TryLock(LockMode.GetOrCreate))
+        {
+        }
+
+        data.IntStorage.Set(await data.IntStorage.TryLock() + 1);
         data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
         Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");

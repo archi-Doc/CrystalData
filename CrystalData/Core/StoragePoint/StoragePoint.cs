@@ -103,14 +103,14 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public ValueTask<TData?> TryGet()
         => this.GetOrCreateStorageObject().TryGet<TData>(ValueLinkGlobal.LockTimeout, default);
 
-    /// <summary>
+    /*/// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
     /// </summary>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data.
     /// </returns>
     public ValueTask<TData> GetOrCreate()
-        => this.GetOrCreateStorageObject().GetOrCreate<TData>();
+        => this.GetOrCreateStorageObject().GetOrCreate<TData>();*/
 
     /// <summary>
     /// Attempts to acquire a lock on the storage object and returns the data if successful.<br/>
@@ -120,6 +120,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// This is for storage operation locks only. Please use a different mechanism for object-level locks.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
+    /// <param name="lockMode">The lock mode specifying get, create, or get-or-create behavior.</param>
     /// <param name="timeout">The maximum time to wait for the lock. If <see cref="TimeSpan.Zero"/>, the method returns immediately.</param>
     /// <param name="cancellationToken">
     /// A <see cref="CancellationToken"/> to observe while waiting to acquire the lock.
@@ -127,14 +128,14 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<DataScope<TData>> TryLock(TimeSpan timeout, CancellationToken cancellationToken)
-        => this.GetOrCreateStorageObject().TryLock<TData>(timeout, cancellationToken);
+    public ValueTask<DataScope<TData>> TryLock(LockMode lockMode, TimeSpan timeout, CancellationToken cancellationToken)
+        => this.GetOrCreateStorageObject().TryLock<TData>(lockMode, timeout, cancellationToken);
 
-    public ValueTask<DataScope<TData>> TryLock()
-        => this.GetOrCreateStorageObject().TryLock<TData>(ValueLinkGlobal.LockTimeout, default);
+    public ValueTask<DataScope<TData>> TryLock(LockMode lockMode = LockMode.GetOrCreate)
+        => this.GetOrCreateStorageObject().TryLock<TData>(lockMode, ValueLinkGlobal.LockTimeout, default);
 
     /// <summary>
-    /// Releases the lock previously acquired by <see cref="TryLock()"/>.<br/>
+    /// Releases the lock previously acquired by <see cref="TryLock(LockMode)"/>.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
