@@ -208,6 +208,7 @@ internal class Program
         {
             if (gs.Data is { } gs2)
             {
+                // await gs2.TryLock(12, LockMode.GetOrCreate);
                 using (var gs3 = await gs2.TryLock(12, LockMode.GetOrCreate))
                 {
                 }
@@ -242,7 +243,7 @@ public static class Helper
         {// Lock: StoragePoint
             if (scope.Data is { } spClass)
             {// Goshujin Enter/Exit
-                point = spClass.FindFirst(id, true);
+                point = spClass.FindFirst(id);
             }
             else
             {

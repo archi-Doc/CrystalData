@@ -26,7 +26,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 #pragma warning disable SA1401 // Fields should be private
 #pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
 
-    internal int protectionCount;
+    internal ObjectProtectionState protectionState;
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
@@ -230,7 +230,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
         {// Timeout or cancellation
-            //
             return default;
         }
 
@@ -238,6 +237,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {
             this.Exit();
             return new(DataScopeResult.Rip);
+        }
+
+        // Unprotected -> Protected
+        if (Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Protected, ObjectProtectionState.Unprotected) != ObjectProtectionState.Unprotected)
+        {// Protected(?) or Deleted
+            this.Exit();
+            return new(DataScopeResult.Obsolete);
         }
 
         if (this.data is null)
@@ -255,7 +261,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     public void Unlock()
     {// Lock:this
-        Interlocked.Decrement(ref this.protectionCount);
+        // Protected -> Unprotected
+        Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Unprotected, ObjectProtectionState.Protected);
+
         this.Exit();
     }
 
