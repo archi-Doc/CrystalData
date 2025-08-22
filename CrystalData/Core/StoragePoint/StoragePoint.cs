@@ -116,6 +116,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Attempts to acquire a lock on the storage object and returns the data if successful.<br/>
     /// If storage is shutting down, return <c>null</c>.<br/>
     /// Since data may be saved and released during storage operations, always lock the data when making changes.<br/>
+    /// This TryLock/Unlock mechanism provides exclusive control over both the storage lifecycle (loading and deletion) and the data itself.
     /// This is for storage operation locks only. Please use a different mechanism for object-level locks.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>

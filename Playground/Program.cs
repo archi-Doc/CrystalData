@@ -236,16 +236,27 @@ public static class Helper
 
         return await gs.TryLock(id, lockMode, cancellationToken);*/
 
+        // StoragePoint/Enter -> Goshujin/Enter -> Goshujin/Exit -> StoragePoint/Exit
+        SpClassPoint? point = default;
         using (var scope = await storagePoint.TryLock())
-        {//
+        {// Lock: StoragePoint
             if (scope.Data is { } spClass)
-            {
-                return await spClass.TryLock(id, lockMode, cancellationToken);
+            {// Goshujin Enter/Exit
+                point = spClass.FindFirst(id, true);
             }
             else
             {
                 return new(scope.Result);
             }
+        }
+
+        if (point is null)
+        {
+            return new(DataScopeResult.NotFound);
+        }
+        else
+        {
+            return await point.TryLock().ConfigureAwait(false);
         }
     }
 
