@@ -202,7 +202,8 @@ internal class Program
         Console.WriteLine($"Data {data.ToString()}");
 
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        Console.WriteLine($"Crystal {crystal.Data.ToString()}");
+        var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
+        Console.WriteLine($"{crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles}, {crystal2.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles}");
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var doubleStorage = data2.DoubleStorage;
@@ -234,16 +235,20 @@ internal class Program
         {
             if (gs.Data is { } gs2)
             {
+
                 // await gs2.TryLock(12, AcquisitionMode.GetOrCreate);
                 using (var gs3 = await gs2.TryLock(12, AcquisitionMode.GetOrCreate))
                 {
                 }
+
+                await gs2.TryDelete(12);
             }
         }
 
         using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))
         {
         }
+
 
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();

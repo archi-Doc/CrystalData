@@ -328,7 +328,7 @@ public partial class StorageControl : IPersistable
 
     internal void AddStorage(StorageObject storageObject, ICrystal crystal, StorageId storageId)
     {
-        var numberOfHistories = crystal.CrystalConfiguration.NumberOfFileHistories;
+        var numberOfHistories = crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles;
         ulong fileIdToDelete = default;
 
         using (this.lowestLockObject.EnterScope())
@@ -368,7 +368,7 @@ public partial class StorageControl : IPersistable
 
         using (this.lowestLockObject.EnterScope())
         {
-            this.ReleaseInternal(storageObject, false);
+            this.ReleaseInternal(storageObject, false);//
 
             id0 = storageObject.storageId0.FileId;
             id1 = storageObject.storageId1.FileId;
