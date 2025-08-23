@@ -182,10 +182,10 @@ internal class Program
         {
         }
 
-        data.IntStorage.Set(await data.IntStorage.TryLock() + 1);
-        data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
-        Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
-        Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
+        data.IntStorage.Set(await data.IntStorage.TryGet() + 1);
+        data2.DoubleStorage.Set(await data2.DoubleStorage.TryGet() + 1.2);
+        Console.WriteLine($"First: {await data.IntStorage.TryGet()}");
+        Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
 
         var spClassGoshujin = data2.SpClassGoshujin;
         using (var scope = await spClassGoshujin.TryLock(1, LockMode.GetOrCreate))

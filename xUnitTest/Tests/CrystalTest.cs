@@ -55,10 +55,12 @@ public class CrystalTest
             creditData = w.Commit()!;
         }
 
-        var borrowers = await creditData.Borrowers.GetOrCreate();
-        using (var w2 = borrowers.TryLock(22, LockMode.Create)!)
+        using (var borrowers = await creditData.Borrowers.TryLock())
         {
-            w2.Commit();
+            using (var w2 = borrowers.Data!.TryLock(22, LockMode.Create)!)
+            {
+                w2.Commit();
+            }
         }
 
         await crystal.Store(StoreMode.ForceRelease);
@@ -66,9 +68,11 @@ public class CrystalTest
         g = crystal.Data;
 
         var ww = g.TryGet(1);
-        var ww2 = await ww!.Borrowers.GetOrCreate();
-        var ww3 = ww2.TryGet(22);
-        ww3.IsNotNull();
+        using (var ww2 = await ww!.Borrowers.TryLock())
+        {
+            var ww3 = ww2.Data!.TryGet(22);
+            ww3.IsNotNull();
+        }
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }
@@ -90,10 +94,12 @@ public class CrystalTest
             creditData = w.Commit()!;
         }
 
-        var borrowers = await creditData.Borrowers.GetOrCreate();
-        using (var w2 = borrowers.TryLock(22, LockMode.Create)!)
+        using (var borrowers = await creditData.Borrowers.TryLock())
         {
-            w2.Commit();
+            using (var w2 = borrowers.Data!.TryLock(22, LockMode.Create)!)
+            {
+                w2.Commit();
+            }
         }
 
         await crystal.Store(StoreMode.ForceRelease);
@@ -101,9 +107,11 @@ public class CrystalTest
         g = crystal.Data;
 
         var ww = g.TryGet(1);
-        var ww2 = await ww!.Borrowers.GetOrCreate();
-        var ww3 = ww2.TryGet(22);
-        ww3.IsNotNull();
+        using (var ww2 = await ww!.Borrowers.TryLock())
+        {
+            var ww3 = ww2.Data!.TryGet(22);
+            ww3.IsNotNull();
+        }
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }

@@ -189,7 +189,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
             }
 
-            return (TData?)this.data;
+            return this.data is null ? default : (TData)this.data;
         }
         finally
         {
@@ -249,15 +249,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {// Protected(?) or Deleted
             this.Exit();
             return new(DataScopeResult.Obsolete);
-        }
-
-        if (lockMode == LockMode.Get)
-        {
-
-        }
-        else if (lockMode == LockMode.Create)
-        {
-
         }
 
         if (this.data is null)

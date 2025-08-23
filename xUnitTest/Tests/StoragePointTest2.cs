@@ -69,10 +69,9 @@ public class StoragePointTest2
             firstClass.Id = 123;
         }
 
-        firstClass = await root.FirstClassStorage.GetOrCreate();
         if (await root.FirstClassStorage.TryLock() is { } firstClass2)
         {
-            using (firstClass2.Data.LockObject.EnterScope())
+            using (firstClass2.Data!.LockObject.EnterScope())
             {
                 firstClass2.Data.Id = 456;
             }

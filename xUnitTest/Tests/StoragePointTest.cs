@@ -135,7 +135,7 @@ public class StoragePointTest
             if (writer is not null)
             {
                 writer.Name = "Test";
-                var c2 = await writer.Class2.GetOrCreate();
+                using var c2 = await writer.Class2.TryLock();
                 writer.Commit();
             }
         }
@@ -148,7 +148,6 @@ public class StoragePointTest
 
         var g = crystal.Data;
         var st = await g.StringStorage.TryGet();
-        st = await g.StringStorage.GetOrCreate();
 
         var t = await g.StringStorage.TryLock();
         if (t.Data is not null)

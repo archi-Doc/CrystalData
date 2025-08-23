@@ -83,16 +83,18 @@ public class StorageDataTest
         }
 
         var r = g3.TryGet(1)!;
-        var children = await r.Children.GetOrCreate();
-        using (var w2 = children.TryLock(2, LockMode.GetOrCreate)!)
+        using (var children = await r.Children.TryLock())
         {
-            w2.Commit();
-        }
+            using (var w2 = children.Data!.TryLock(2, LockMode.GetOrCreate)!)
+            {
+                w2.Commit();
+            }
 
-        using (var w2 = children.TryLock(2, LockMode.GetOrCreate)!)
-        {
-            w2.DeleteAndErase();
-            w2.Commit();
+            using (var w2 = children.Data!.TryLock(2, LockMode.GetOrCreate)!)
+            {
+                w2.DeleteAndErase();
+                w2.Commit();
+            }
         }
 
         await r.Children.StoreData(StoreMode.ForceRelease);
