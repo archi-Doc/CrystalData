@@ -52,6 +52,6 @@ internal class Program
         data.Name = "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.StoreAll(); // Save all data.
+        await crystalizer.Store(); // Save all data.
     }
 }

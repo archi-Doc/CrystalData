@@ -3,6 +3,7 @@
 #pragma warning disable SA1202
 
 using CrystalData.Internal;
+using Tinyhand.IO;
 
 namespace CrystalData;
 
@@ -11,11 +12,13 @@ public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
 
+    public static readonly StorageMap Disabled = new();
+
     #region FiendAndProperty
 
     public StorageControl StorageControl { get; }
 
-    private bool enabledStorageMap = true;
+    private bool enabledStorageMap;
 
     [Key(0)]
     private StorageObject.GoshujinClass storageObjects = new(); // Lock:StorageControl
@@ -25,8 +28,6 @@ public sealed partial class StorageMap : IStructualObject
     internal StorageObject.GoshujinClass StorageObjects => this.storageObjects; // Lock:StorageControl
 
     public bool IsEnabled => this.enabledStorageMap;
-
-    public bool IsDisabled => !this.enabledStorageMap;
 
     public long StorageUsage => this.storageUsage;
 
@@ -87,19 +88,66 @@ public sealed partial class StorageMap : IStructualObject
 
     int IStructualObject.StructualKey { get; set; }
 
+    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    {
+        if (!reader.TryReadJournalRecord(out JournalRecord record))
+        {
+            return false;
+        }
+
+        if (record == JournalRecord.Add)
+        {
+            var pointId = reader.ReadUInt64();
+            var typeIdentifier = reader.ReadUInt32();
+            if (!this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
+            {
+                storageObject = new();
+                storageObject.Initialize(pointId, typeIdentifier, this);
+                storageObject.Goshujin = this.StorageObjects;
+            }
+
+            return true;
+        }
+        else if (record == JournalRecord.Locator)
+        {
+            var pointId = reader.ReadUInt64();
+            if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
+            {
+                return ((IStructualObject)storageObject).ReadRecord(ref reader);
+            }
+        }
+
+        return false;
+    }
+
+    void IStructualObject.WriteLocator(ref TinyhandWriter writer)
+    {
+    }
+
     #endregion
 
     public StorageMap(StorageControl storageControl)
     {
         this.StorageControl = storageControl;
+        this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
     }
 
-    internal void DisableStorageMap()
+    private StorageMap()
     {
+        this.StorageControl = StorageControl.Disabled;
         this.enabledStorageMap = false;
     }
 
     private void UpdateStorageUsageInternal(long size)
         => this.storageUsage += size;
+
+    [TinyhandOnDeserialized]
+    private void OnDeserialized()
+    {
+        foreach (var x in this.StorageObjects)
+        {
+            x.storageMap = this;
+        }
+    }
 }

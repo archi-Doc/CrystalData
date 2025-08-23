@@ -63,7 +63,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
                 else if (this.State == CrystalState.Deleted)
                 {// Deleted
                     TinyhandSerializer.ReconstructObject<TData>(ref this.data);
-                    this.SetupStructure();
+                    this.SetupData();
                     return this.data;
                 }
 
@@ -156,7 +156,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         }
     }
 
-    async Task<CrystalResult> ICrystal.Store(StoreMode storeMode)
+    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.Volatile)
         {// Volatile
@@ -189,7 +189,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return CrystalResult.NotPrepared;
         }
 
-        var semaphore = obj as IRepeatableSemaphore;
+        var semaphore = obj as IRepeatableReadSemaphore;
         if (semaphore is not null)
         {
             if (storeMode == StoreMode.TryRelease)
@@ -225,10 +225,10 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             }
         }
 
-        if (this.storage is { } storage && storage is not EmptyStorage)
-        {
+        /*if (this.storage is { } storage && storage is not EmptyStorage)
+        {// Because multiple Crystals may share a single Storage, saving the Storage is handled separately.
             await storage.SaveStorage(this).ConfigureAwait(false);
-        }
+        }*/
 
         this.lastSavedTime = DateTime.UtcNow;
 
@@ -332,6 +332,7 @@ Exit:
 
             // Clear
             TinyhandSerializer.DeserializeObject(TinyhandSerializer.SerializeObject(TinyhandSerializer.ReconstructObject<TData>()), ref this.data);
+            this.SetupData();
             // this.obj = default;
             // TinyhandSerializer.ReconstructObject<TData>(ref this.obj);
 
@@ -378,7 +379,7 @@ Exit:
         writer.Write(this.waypoint.Plane);
     }*/
 
-    async Task<bool> ICrystalInternal.TestJournal()
+    async Task<bool> IPersistable.TestJournal()
     {
         if (this.Crystalizer.Journal is not CrystalData.Journal.SimpleJournal journal)
         {// No journaling
@@ -474,9 +475,7 @@ Exit:
                     break;
                 }
 
-                this.Crystalizer.Memory.IsActive = false;
                 this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane);
-                this.Crystalizer.Memory.IsActive = true;
 
                 previousObject = currentObject;
             }
@@ -689,14 +688,12 @@ Exit:
         if (loadResult.Data is { } data)
         {// Loaded
             this.data = data;
-            this.SetupStructure();
             this.waypoint = loadResult.Waypoint;
             if (this.CrystalConfiguration.HasFileHistories)
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
                     this.Crystalizer.SetPlane(this, ref this.waypoint);
-                    this.SetupStructure();
                 }
                 else
                 {// Invalid waypoint
@@ -705,14 +702,17 @@ Exit:
             }
 
             // this.LogWaypoint("Load");
+            this.SetupData();
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
         else
         {// Reconstruct
+            this.data = singletonData;
             this.ResetWaypoint(true);
 
             // this.LogWaypoint("Reconstruct");
+            this.SetupData();
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
@@ -807,18 +807,15 @@ Exit:
         this.waypoint = default;
         this.Crystalizer.UpdateWaypoint(this, ref this.waypoint, hash);
 
-        this.SetupStructure();
-
         // Save immediately to fix the waypoint.
         _ = this.crystalFiler?.Save(rentMemory.ReadOnly, this.waypoint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetupStructure()
-    {//
+    private void SetupData()
+    {
         if (this.data is IStructualObject structualObject)
         {
-            // journalObject.Journal = this;
             structualObject.SetupStructure(this);
         }
     }

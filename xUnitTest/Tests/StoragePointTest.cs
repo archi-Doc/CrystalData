@@ -130,12 +130,12 @@ public class StoragePointTest
     public async Task Test2()
     {
         var g = new StoragePointClass1.GoshujinClass();
-        using (var writer = g.TryLock(1, TryLockMode.GetOrCreate))
+        using (var writer = g.TryLock(1, AcquisitionMode.GetOrCreate))
         {
             if (writer is not null)
             {
                 writer.Name = "Test";
-                var c2 = await writer.Class2.GetOrCreate();
+                using var c2 = await writer.Class2.TryLock();
                 writer.Commit();
             }
         }
@@ -148,20 +148,28 @@ public class StoragePointTest
 
         var g = crystal.Data;
         var st = await g.StringStorage.TryGet();
-        st = await g.StringStorage.GetOrCreate();
 
-        if (await g.StringStorage.TryLock() is not null)
+        var t = await g.StringStorage.TryLock();
+        if (t.Data is not null)
         {
             g.StringStorage.Unlock();
         }
 
         g.StringStorage.Set("Test String");
+        g.StringStorage.Delete();
 
-        await crystal.Store(StoreMode.ForceRelease);
-        await crystal.Crystalizer.StoreJournal();
+        // await crystal.Store(StoreMode.ForceRelease);
+        await crystal.Crystalizer.StoreAndRelease();
+
+        g.StringStorage.Set("Test String2");
+        await crystal.Crystalizer.StoreAndRelease();
 
         st = await g.StringStorage.TryGet();
-        st.Is("Test String");
+        st.Is("Test String2");
+
+        await crystal.Crystalizer.StoreJournal();
+        var jr = await crystal.Crystalizer.TestJournalAll();
+        jr.IsTrue();
 
         await TestHelper.UnloadAndDeleteAll(crystal);
     }

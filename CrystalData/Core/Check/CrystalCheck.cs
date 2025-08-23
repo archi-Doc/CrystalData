@@ -25,9 +25,6 @@ internal class CrystalCheck
     public bool TryGetPlanePosition(Waypoint waypoint, out ulong position)
         => this.data.WaypointToShortcutPosition.TryGetValue(waypoint, out position);
 
-    public MemoryControl.Stat.GoshujinClass MemoryStats
-        => this.data.MemoryStats;
-
     public void Load(string filePath)
     {
         try
@@ -48,7 +45,7 @@ internal class CrystalCheck
         }
     }
 
-    public void Save()
+    public void Store()
     {
         /*if (!this.SuccessfullyLoaded)
         {

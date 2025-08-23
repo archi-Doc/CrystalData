@@ -69,14 +69,6 @@ public static class CrystalExtensions
         => result != CrystalResult.Success;
 
     /// <summary>
-    /// Determines whether the <see cref="UnloadMode"/> indicates an unload.
-    /// </summary>
-    /// <param name="unloadMode">The unload mode to check.</param>
-    /// <returns><c>true</c> if the unload mode is not <see cref="UnloadMode.NoUnload"/>; otherwise, <c>false</c>.</returns>
-    public static bool IsUnload(this UnloadMode unloadMode)
-        => unloadMode != UnloadMode.NoUnload;
-
-    /// <summary>
     /// Compares this value with a specified <see langword="ulong"/> value in a situation where the variables are cyclical (i.e., they reset to zero after reaching their maximum value).
     /// </summary>
     /// <param name="value1">The first value to compare.</param>

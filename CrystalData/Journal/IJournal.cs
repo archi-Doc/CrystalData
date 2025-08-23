@@ -4,7 +4,7 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-public interface IJournal
+public interface IJournal : IPersistable
 {
     int MaxRecordLength { get; }
 
@@ -13,8 +13,6 @@ public interface IJournal
     void GetWriter(JournalType recordType, out TinyhandWriter writer);
 
     ulong Add(ref TinyhandWriter writer);
-
-    Task StoreJournalAsync();
 
     Task TerminateAsync();
 

@@ -10,12 +10,13 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject
-{// Disabled, Rip, PendingRelease
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlocker
+{
     public const int MaxHistories = 3; // 4
 
     private const uint DisabledStateBit = 1u << 31;
     private const uint RipStateBit = 1u << 30;
+    // private const uint ValueSetStateBit = 1u << 29;
     // private const uint PendingReleaseStateBit = 1u << 29;
     // private const uint PendingRipStateBit = 1u << 28;
     // private const uint LockedStateBit = 1u << 0;
@@ -24,6 +25,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
 #pragma warning disable SA1401 // Fields should be private
 #pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
+
+    internal ObjectProtectionState protectionState;
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
@@ -66,7 +69,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public int StructualKey
     {
-        get => default;
+        get => -1;
         set { }
     }
 
@@ -92,7 +95,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
     public StorageObject()
     {
-        this.storageMap = StorageControl.Default.DisabledMap;
+        this.storageMap = StorageMap.Disabled;
     }
 
     internal void Initialize(ulong pointId, uint typeIdentifier, StorageMap storageMap)
@@ -100,7 +103,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
         this.storageMap = storageMap;
-        if (storageMap.IsDisabled)
+        if (!storageMap.IsEnabled)
         {// Disable storage
             this.SetDisableStateBit();
         }
@@ -115,7 +118,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return;
         }
 
-        if ((this.storageMap.IsDisabled || this.IsDisabled) && this.data is not null)
+        if ((!this.storageMap.IsEnabled || this.IsDisabled) && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
@@ -125,8 +128,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<TData> GetOrCreate<TData>()
-    {
+    /*internal async ValueTask<TData> GetOrCreate<TData>()
+    {// Even if creation is attempted, the object may already have been deleted (ObjectProtectionState.Deleted), so this function was abandoned.
         if (this.data is { } data)
         {
             this.storageControl.MoveToRecent(this);
@@ -143,7 +146,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
             if (this.data is null)
             {// Reconstruct
-                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+                if (typeof(TData) == typeof(object))
+                {// If the type is object, use the TypeIdentifier instead.
+                    this.SetDataInternal(TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier), false, default);
+                }
+                else
+                {
+                    this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+                }
             }
 
             return (TData)this.data;
@@ -152,9 +162,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             this.Exit();
         }
-    }
+    }*/
 
-    internal async ValueTask<TData?> TryGet<TData>()
+    internal async ValueTask<TData?> TryGet<TData>(TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (this.data is { } data)
         {
@@ -162,15 +172,24 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             return (TData)data;
         }
 
-        await this.EnterAsync().ConfigureAwait(false);
+        if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
+        {// Timeout or cancellation
+            return default;
+        }
+
         try
         {
+            if (this.protectionState == ObjectProtectionState.Deleted)
+            {// Deleted
+                return default;
+            }
+
             if (this.data is null)
             {// PrepareAndLoad
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
             }
 
-            return (TData?)this.data;
+            return this.data is null ? default : (TData)this.data;
         }
         finally
         {
@@ -178,7 +197,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    internal async ValueTask<LockedData<TData>> TryLock2<TData>()
+    /*internal async ValueTask<DataScope<TData>> EnterScope<TData>()
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
@@ -203,21 +222,33 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
         }
 
-        return new LockedData<TData>(this, (TData)this.data);
-    }
+        return new DataScope<TData>((TData)this.data, this);
+    }*/
 
-    internal async ValueTask<TData?> TryLock<TData>()
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
+        where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
         {
-            return default;
+            return new(DataScopeResult.Rip);
         }
 
-        await this.EnterAsync().ConfigureAwait(false);
+        if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
+        {// Timeout or cancellation
+            return new(DataScopeResult.Timeout);
+        }
+
         if (this.storageControl.IsRip || this.IsRip)
         {
             this.Exit();
-            return default;
+            return new(DataScopeResult.Rip);
+        }
+
+        // Unprotected -> Protected
+        if (Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Protected, ObjectProtectionState.Unprotected) != ObjectProtectionState.Unprotected)
+        {// Protected(?) or Deleted
+            this.Exit();
+            return new(DataScopeResult.Obsolete);
         }
 
         if (this.data is null)
@@ -225,17 +256,37 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
         }
 
-        if (this.data is null)
-        {// Reconstruct
-            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+        if (this.data is not null)
+        {// Already exists
+            if (acquisitionMode == AcquisitionMode.Create)
+            {
+                this.Exit();
+                return new(DataScopeResult.AlreadyExists);
+            }
+
+            // Get or GetOrCreate
+        }
+        else
+        {
+            if (acquisitionMode == AcquisitionMode.Get)
+            {// Get only
+                this.Exit();
+                return new(DataScopeResult.NotFound);
+            }
+            else
+            {// Create or GetOrCreate -> Reconstruct
+                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+            }
         }
 
-        return (TData?)this.data;
+        return new((TData)this.data, this);
     }
 
-    internal void Unlock()
+    public void Unlock()
     {// Lock:this
-        // this.ReleaseIfPendingInternal();
+        // Protected -> Unprotected
+        Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Unprotected, ObjectProtectionState.Protected);
+
         this.Exit();
     }
 
@@ -244,6 +295,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         using (this.EnterScope())
         {
+            if (this.protectionState != ObjectProtectionState.Unprotected)
+            {
+                return;
+            }
+
             this.SetDataInternal(data, true, default);
         }
     }
@@ -254,7 +310,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
     {
         if (this.data is null ||
             this.StructualRoot is not ICrystal)
-        {// No data
+        {// No dataqqq
             return true;
         }
 
@@ -351,7 +407,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
             var storageId = new StorageId(currentPosition, fileId, hash);
 
             // Update storage id
-            StorageControl.Default.AddStorage(this, crystal, storageId);
+            this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
 
             // Journal
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
@@ -422,26 +478,31 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
 
         if (this.data is IStructualObject structualObject)
         {
-            structualObject.SetupStructure(this, 0);
+            structualObject.SetupStructure(this);
         }
     }
 
-    internal void Erase()
+    internal void Delete()
     {
-        this.EraseStorage(true);
+        this.DeleteStorage(true);
     }
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryPeek(out JournalRecord record))
+        if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
             return false;
         }
 
-        if (record == JournalRecord.EraseStorage)
-        {// Erase storage
-            this.EraseStorage(false);
+        if (record == JournalRecord.DeleteStorage)
+        {// Delete storage
+            this.DeleteStorage(false);
             return true;
+        }
+        else if (record == JournalRecord.Value)
+        {
+            this.data ??= TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+            return this.data is not null;
         }
         else if (record == JournalRecord.AddStorage)
         {
@@ -450,15 +511,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
                 return true;
             }
 
-            reader.TryRead(out record);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
-            StorageControl.Default.AddStorage(this, crystal, storageId);
+            this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
             return true;
-        }
-
-        if (this.data is null)
-        {
-            this.data = this.TryGet<object>().Result;
         }
 
         if (this.data is IStructualObject structualObject)
@@ -516,7 +571,23 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         // Deserialize
         try
         {
-            var data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+            TData? data;
+            if (typeof(TData) == typeof(object))
+            {// // If the type is object, use the TypeIdentifier instead.
+                if (TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span) is { } obj)
+                {
+                    data = (TData)obj;
+                }
+                else
+                {
+                    return;
+                }
+            }
+            else
+            {
+                data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+            }
+
             this.SetDataInternal(data, false, result.Data);
         }
         finally
@@ -539,7 +610,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             if (original.IsEmpty)
             {
-                rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                if (typeof(TData) == typeof(object))
+                {
+                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data!);
+                }
+                else
+                {
+                    rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                }
+
                 original = rentMemory.ReadOnly;
             }
 
@@ -551,12 +630,20 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             if (original.IsEmpty)
             {
-                rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                if (typeof(TData) == typeof(object))
+                {
+                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data!);
+                }
+                else
+                {
+                    rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                }
+
                 original = rentMemory.ReadOnly;
             }
 
             writer.Write(JournalRecord.Value);
-            writer.Write(original.Span);
+            writer.WriteSpan(original.Span);
             root.AddJournal(ref writer);
         }
 
@@ -566,7 +653,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         }
     }
 
-    private void EraseStorage(bool recordJournal)
+    private void DeleteStorage(bool recordJournal)
     {
         this.storageControl.EraseStorage(this);
 
@@ -574,19 +661,27 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject
         {
             if (this.data is IStructualObject structualObject)
             {
-                structualObject.Erase();
+                structualObject.Delete();
             }
+
+            this.data = default;
         }
 
         if (recordJournal)
         {
-            ((IStructualObject)this).AddJournalRecord(JournalRecord.EraseStorage);
+            ((IStructualObject)this).AddJournalRecord(JournalRecord.DeleteStorage);
         }
     }
 
     internal void SetDisableStateBit() => this.state |= DisabledStateBit;
 
     internal void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
+
+    /*internal void SetValueSetStateBit() => this.state |= ValueSetStateBit;
+
+    internal void ClearValueSetStateBit() => this.state &= ~ValueSetStateBit;
+
+    internal bool CheckValueSetStateBit => (this.state & ValueSetStateBit) != 0;*/
 
     /*private void SetRipStateBit() => this.state |= RipStateBit;
 

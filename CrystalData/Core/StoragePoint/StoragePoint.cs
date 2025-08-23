@@ -3,53 +3,32 @@
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
+using ValueLink;
 
 namespace CrystalData;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
-
-public record struct LockedData<TData> : IDisposable
-    where TData : notnull
-{
-    private readonly StorageObject storageObject;
-    private TData? data;
-
-    // public StoragePoint<TData> StoragePoint => this.storagePoint;
-
-    public TData? Data => this.data;
-
-    [MemberNotNullWhen(true, nameof(data))]
-    public bool IsValid => this.data is not null;
-
-    internal LockedData(StorageObject storageObject, TData? data)
-    {
-        this.storageObject = storageObject;
-        this.data = data;
-    }
-
-    public void Dispose()
-    {
-        if (this.data is not null)
-        {
-            this.storageObject.Unlock();
-            this.data = default;
-        }
-    }
-}
+#pragma warning disable SA1401 // Fields should be private
 
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
 /// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
-[TinyhandObject(ExplicitKeyOnly = true)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject
+[TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IDataLocker<TData>
     where TData : notnull
 {
     #region FiendAndProperty
 
-    private ulong pointId; // Lock:StorageControl
+    [Key(0)]
+    protected ulong pointId; // Lock:StorageControl
+
     private StorageObject? storageObject; // Lock:StorageControl
+
+    public ulong PointId => this.pointId;
+
+    ref ObjectProtectionState IDataLocker<TData>.GetProtectionStateRef() => ref this.GetOrCreateStorageObject().protectionState;
 
     /// <summary>
     /// Gets the <see langword="uint"/> type identifier used by TinyhandSerializer.
@@ -108,43 +87,64 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public void Set(TData data)
         => this.GetOrCreateStorageObject().Set(data);
 
+    #region IDataLocker
+
     /// <summary>
     /// Asynchronously gets the data associated with this storage point.
     /// </summary>
+    /// <param name="timeout">The maximum time to wait for the acquisition. If <see cref="TimeSpan.Zero"/>, the method returns immediately.</param>
+    /// <param name="cancellationToken">
+    /// A <see cref="CancellationToken"/> to observe while waiting to acquire the data.
+    /// </param>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if available; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<TData?> TryGet()
-        => this.GetOrCreateStorageObject().TryGet<TData>();
+    public ValueTask<TData?> TryGet(TimeSpan timeout, CancellationToken cancellationToken)
+        => this.GetOrCreateStorageObject().TryGet<TData>(timeout, cancellationToken);
 
-    /// <summary>
+    public ValueTask<TData?> TryGet()
+        => this.GetOrCreateStorageObject().TryGet<TData>(ValueLinkGlobal.LockTimeout, default);
+
+    /*/// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
     /// </summary>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data.
     /// </returns>
     public ValueTask<TData> GetOrCreate()
-        => this.GetOrCreateStorageObject().GetOrCreate<TData>();
+        => this.GetOrCreateStorageObject().GetOrCreate<TData>();*/
 
     /// <summary>
     /// Attempts to acquire a lock on the storage object and returns the data if successful.<br/>
-    /// If storage is shutting down, return <c>null</c>.<br/>
+    /// If storage is deleted or shutting down, return <c>null</c>.<br/>
     /// Since data may be saved and released during storage operations, always lock the data when making changes.<br/>
-    /// This is for storage operation locks only. Please use a different mechanism for object-level locks.<br/>
-    /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
+    /// This TryLock/Unlock mechanism provides exclusive control over both the storage lifecycle (loading and deletion) and the data itself.<br/>
+    /// <b>To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.</b>
     /// </summary>
+    /// <param name="acquisitionMode">The data acquisition mode specifying get, create, or get-or-create behavior.</param>
+    /// <param name="timeout">The maximum time to wait for the lock. If <see cref="TimeSpan.Zero"/>, the method returns immediately.</param>
+    /// <param name="cancellationToken">
+    /// A <see cref="CancellationToken"/> to observe while waiting to acquire the lock.
+    /// </param>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<TData?> TryLock() => this.GetOrCreateStorageObject().TryLock<TData>();
+    public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
+        => this.GetOrCreateStorageObject().TryLock<TData>(acquisitionMode, timeout, cancellationToken);
+
+    public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate)
+        => this.GetOrCreateStorageObject().TryLock<TData>(acquisitionMode, ValueLinkGlobal.LockTimeout, default);
+
+    ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
+        => this.GetOrCreateStorageObject().TryLock<TData>(AcquisitionMode.GetOrCreate, timeout, cancellationToken);
 
     /// <summary>
-    /// Releases the lock previously acquired by <see cref="TryLock"/>.<br/>
+    /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
 
-    public ValueTask<LockedData<TData>> TryLock2() => this.GetOrCreateStorageObject().TryLock2<TData>();
+    #endregion
 
     public bool DataEquals(StoragePoint<TData> other)
     {
@@ -194,11 +194,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     }
 
     /// <summary>
-    /// Erases the data associated with this storage point.<br/>
+    /// Deletes the data associated with this storage point.<br/>
     /// This operation removes the data from storage and memory.
     /// </summary>
-    public void Erase()
-        => this.GetOrCreateStorageObject().Erase();
+    public void Delete()
+        => this.GetOrCreateStorageObject().Delete();
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -214,6 +214,20 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             ((IStructualObject)this.storageObject).SetupStructure(parent, key);
         }
     }*/
+
+    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    {
+        if (reader.TryReadJournalRecord(out JournalRecord record))
+        {
+            if (record == JournalRecord.Value)
+            {
+                this.pointId = reader.ReadUInt64();
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     #endregion
 
@@ -251,7 +265,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
         else
         {
-            StorageControl.Default.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageControl.Default.DisabledMap);
+            StorageMap.Disabled.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options) ?? TinyhandSerializer.Reconstruct<TData>(options);
             v.storageObject.Set(data);
         }
@@ -283,13 +297,22 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        StorageMap storageMap = StorageControl.Default.DisabledMap;
+        var storageMap = StorageMap.Disabled;
         if (((IStructualObject)this).StructualRoot is ICrystal crystal)
         {
             storageMap = crystal.Storage.StorageMap;
         }
 
-        StorageControl.Default.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
+        var previousPointId = this.pointId;
+        storageMap.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
+        if (this.pointId != previousPointId &&
+            ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+        {
+            writer.Write(JournalRecord.Value);
+            writer.Write(this.pointId);
+            root.AddJournal(ref writer);
+        }
+
         return this.storageObject;
     }
 }

@@ -39,15 +39,15 @@ public partial class SimpleJournal : IJournal
     private IRawFiler? backupFiler;
     private SimpleJournalTask? task;
 
-    // Record buffer
-    private Lock lockRecordBuffer = new(); // syncRecordBuffer -> syncBooks
+    // Record buffer: lockRecordBuffer
+    private Lock lockRecordBuffer = new(); // lockBooks > lockRecordBuffer
     private byte[] recordBuffer = new byte[RecordBufferLength];
     private ulong recordBufferPosition = 1; // JournalPosition
     private int recordBufferLength = 0;
 
     private int recordBufferRemaining => RecordBufferLength - this.recordBufferLength;
 
-    // Books
+    // Books: lockBooks
     private Lock lockBooks = new();
     private Book.GoshujinClass books = new();
     private int memoryUsage;
@@ -154,10 +154,10 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    async Task IJournal.StoreJournalAsync()
-    {
-        await this.SaveJournalAsync(true).ConfigureAwait(false);
-    }
+    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+        => this.StoreJournalAsync(true, storeMode, cancellationToken);
+
+    Type IPersistable.DataType => typeof(SimpleJournal);
 
     async Task IJournal.TerminateAsync()
     {
@@ -215,8 +215,11 @@ public partial class SimpleJournal : IJournal
 
             this.books.Clear();
 
-            this.recordBufferPosition = position;
-            this.recordBufferLength = 0;
+            using (this.lockRecordBuffer.EnterScope())
+            {
+                this.recordBufferPosition = position;
+                this.recordBufferLength = 0;
+            }
         }
     }
 
@@ -354,12 +357,17 @@ Load:
         }
     }
 
-    internal async Task SaveJournalAsync(bool merge)
+    Task<bool> IPersistable.TestJournal()
+        => Task.FromResult(true);
+
+    internal async Task<CrystalResult> StoreJournalAsync(bool mergeBooks, StoreMode storeMode, CancellationToken cancellationToken)
     {
         using (this.lockBooks.EnterScope())
         {
-            // Flush record buffer
-            this.FlushRecordBufferInternal();
+            using (this.lockRecordBuffer.EnterScope())
+            {// Flush record buffer
+                this.FlushRecordBufferInternal();
+            }
 
             // Save all books
             Book? book = this.books.PositionChain.Last;
@@ -386,26 +394,28 @@ Load:
                 }
             }
 
-            if (!merge)
+            if (!mergeBooks)
             {
-                return;
+                return CrystalResult.Success;
             }
 
             if (this.books.IncompleteChain.Count >= MergeThresholdNumber ||
             this.incompleteSize >= (ulong)this.SimpleJournalConfiguration.CompleteBookLength)
             {
-                merge = true;
+                mergeBooks = true;
             }
             else
             {
-                merge = false;
+                mergeBooks = false;
             }
         }
 
-        if (merge)
+        if (mergeBooks)
         { // Merge books
             await this.Merge(false).ConfigureAwait(false);
         }
+
+        return CrystalResult.Success;
     }
 
     internal async Task Merge(bool forceMerge)

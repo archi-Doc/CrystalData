@@ -2,6 +2,7 @@
 
 namespace CrystalData;
 
+/*
 public enum ProbeMode
 {
     /// <summary>
@@ -44,21 +45,4 @@ public interface IStoragePoint
     /// A <see cref="Task{Boolean}"/> representing the asynchronous save operation. Returns <c>true</c> if the save was successful; otherwise, <c>false</c>.
     /// </returns>
     Task<bool> StoreData(StoreMode storeMode);
-
-    /*
-    /// <summary>
-    /// Probes the storage point and its child elements using the specified probe mode.
-    /// </summary>
-    /// <param name="probeMode">
-    /// The <see cref="ProbeMode"/> that determines the type of probe operation to perform, such as checking unloadability, lock state, or unloaded state.
-    /// </param>
-    /// <returns>
-    /// <c>true</c> if the probe operation succeeds according to the specified mode; otherwise, <c>false</c>.
-    /// </returns>
-    bool Probe(ProbeMode probeMode);
-
-    /// <summary>
-    /// Gets the <see cref="Type"/> of the data managed by this storage point.
-    /// </summary>
-    Type DataType { get; }*/
-}
+}*/

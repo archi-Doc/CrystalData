@@ -4,19 +4,19 @@
 
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
+using Tinyhand.IO;
 
 namespace CrystalData;
 
-public partial class StorageControl
+public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 1024;
     private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
 
     /// <summary>
-    /// This is the default instance of StorageControl.<br/>
-    /// I know it’s not ideal to use it as a static, but...
+    /// Represents the disabled storage control.
     /// </summary>
-    public static readonly StorageControl Default = new();
+    internal static readonly StorageControl Disabled = new();
 
     #region FiendAndProperty
 
@@ -30,11 +30,6 @@ public partial class StorageControl
     private bool isRip;
     private long memoryUsage;
     private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
-
-    /// <summary>
-    /// Gets <see cref="StorageMap" /> for <see cref="StorageObject" /> with storage disabled.
-    /// </summary>
-    public StorageMap DisabledMap { get; }
 
     public bool IsRip => this.isRip;
 
@@ -51,7 +46,7 @@ public partial class StorageControl
         }
     }
 
-    public bool StorageReleaseRequired => this.memoryUsage > this.MemoryUsageLimit;
+    public bool StorageReleaseRequired => this.MemoryUsage > this.MemoryUsageLimit;
 
     public long StorageUsage
     {
@@ -68,15 +63,14 @@ public partial class StorageControl
         }
     }
 
+    Type IPersistable.DataType => typeof(StorageControl);
+
     #endregion
 
     public StorageControl()
     {
         this.lowestLockObject = new();
         this.storageMaps = [];
-
-        this.DisabledMap = new(this);
-        this.DisabledMap.DisableStorageMap();
     }
 
     public void AddStorageMap(StorageMap storageMap)
@@ -88,6 +82,10 @@ public partial class StorageControl
             this.storageMaps[length] = storageMap;
         }
     }
+
+    internal void Rip() => this.isRip = true;
+
+    internal void ResurrectForTesting() => this.isRip = false;
 
     internal void ConfigureStorage(StorageObject storageObject, bool disableStorage)
     {
@@ -120,28 +118,45 @@ public partial class StorageControl
         }
     }
 
-    internal async Task ReleaseAllStorage(CancellationToken cancellationToken)
+    Task<bool> IPersistable.TestJournal()
+        => Task.FromResult(true);
+
+    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    {
+        if (storeMode == StoreMode.StoreOnly)
+        {
+            await this.StoreObjects(cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await this.ReleaseObjects(cancellationToken).ConfigureAwait(false);
+        }
+
+        return CrystalResult.Success;
+    }
+
+    internal async Task StoreObjects(CancellationToken cancellationToken)
+    {
+        var list = this.CreateList();
+        if (list is null)
+        {
+            return;
+        }
+
+        foreach (var x in list)
+        {
+            await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+        }
+    }
+
+    internal async Task ReleaseObjects(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            List<StorageObject> list = new();
-            using (this.lowestLockObject.EnterScope())
+            var list = this.CreateList();
+            if (list is null)
             {
-                if (this.head is null)
-                {// No storage objects to release.
-                    return;
-                }
-
-                StorageObject node = this.head;
-                while (true)
-                {
-                    list.Add(node);
-                    node = node.next!;
-                    if (node == this.head)
-                    {// Reached back to the head.
-                        break;
-                    }
-                }
+                return;
             }
 
             foreach (var x in list)
@@ -149,8 +164,13 @@ public partial class StorageControl
                 await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
 
+            if (this.head is null)
+            {// No storage objects to release.
+                return;
+            }
+
             try
-            {
+            {// Since a locked object cannot be released, wait briefly and then attempt to store and release it again.
                 await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
             }
             catch
@@ -189,8 +209,21 @@ public partial class StorageControl
     /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
-        if (node.storageMap.IsDisabled)
-        {
+        if (node.storageMap.IsEnabled)
+        {// If the storage map is enabled, update the size and move to recent.
+            using (this.lowestLockObject.EnterScope())
+            {
+                if (newSize >= 0)
+                {
+                    this.memoryUsage += newSize - node.size;
+                    node.size = newSize;
+                }
+
+                this.MoveToRecentInternal(node);
+            }
+        }
+        else
+        {// If the storage map is disabled, only update the size.
             if (newSize >= 0)
             {
                 using (this.lowestLockObject.EnterScope())
@@ -198,32 +231,17 @@ public partial class StorageControl
                     node.size = newSize;
                 }
             }
-
-            return;
-        }
-
-        using (this.lowestLockObject.EnterScope())
-        {
-            if (newSize >= 0)
-            {
-                this.memoryUsage += newSize - node.size;
-                node.size = newSize;
-            }
-
-            this.MoveToRecentInternal(node);
         }
     }
 
     internal void MoveToRecent(StorageObject node)
     {
-        if (node.storageMap.IsDisabled)
-        {
-            return;
-        }
-
-        using (this.lowestLockObject.EnterScope())
-        {
-            this.MoveToRecentInternal(node);
+        if (node.storageMap.IsEnabled)
+        {// If the storage map is enabled, move to recent.
+            using (this.lowestLockObject.EnterScope())
+            {
+                this.MoveToRecentInternal(node);
+            }
         }
     }
 
@@ -240,6 +258,18 @@ public partial class StorageControl
     {
         using (this.lowestLockObject.EnterScope())
         {
+            if (!storageMap.IsEnabled)
+            {// StorageMap is disabled.
+                if (storageObject is null)
+                {
+                    storageObject = new();
+                    storageObject.Initialize(pointId, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), storageMap);
+                    // storageObject.Goshujin = storageMap.StorageObjects;
+                }
+
+                return;
+            }
+
             uint typeIdentifier;
             if (storageObject is null)
             {// Create a new object.
@@ -277,6 +307,14 @@ public partial class StorageControl
 
             storageObject.Initialize(pointId, typeIdentifier, storageMap);
             storageObject.Goshujin = storageMap.StorageObjects;
+
+            if (((IStructualObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
+            {
+                writer.Write(JournalRecord.Add);
+                writer.Write(pointId);
+                writer.Write(typeIdentifier);
+                root.AddJournal(ref writer);
+            }
         }
     }
 
@@ -284,37 +322,7 @@ public partial class StorageControl
     {
         using (this.lowestLockObject.EnterScope())
         {
-            // Least recently used list.
-            if (node.previous is not null &&
-                node.next is not null)
-            {
-                if (node.storageMap.IsEnabled)
-                {
-                    this.memoryUsage -= node.Size;
-                }
-
-                if (node.next == node)
-                {
-                    this.head = null;
-                }
-                else
-                {
-                    node.next.previous = node.previous;
-                    node.previous.next = node.next;
-                    if (this.head == node)
-                    {
-                        this.head = node.next;
-                    }
-                }
-
-                node.previous = default;
-                node.next = default;
-            }
-
-            if (removeFromStorageMap)
-            {
-                node.Goshujin = default;
-            }
+            this.ReleaseInternal(node, removeFromStorageMap);
         }
     }
 
@@ -359,6 +367,8 @@ public partial class StorageControl
 
         using (this.lowestLockObject.EnterScope())
         {
+            this.ReleaseInternal(storageObject, false);
+
             id0 = storageObject.storageId0.FileId;
             id1 = storageObject.storageId1.FileId;
             id2 = storageObject.storageId2.FileId;
@@ -396,6 +406,43 @@ public partial class StorageControl
         }
     }
 
+    private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
+    {
+        // Least recently used list.
+        if (node.previous is not null &&
+            node.next is not null)
+        {
+            if (node.storageMap.IsEnabled)
+            {
+                this.memoryUsage -= node.Size;
+            }
+
+            node.size = 0;
+
+            if (node.next == node)
+            {
+                this.head = null;
+            }
+            else
+            {
+                node.next.previous = node.previous;
+                node.previous.next = node.next;
+                if (this.head == node)
+                {
+                    this.head = node.next;
+                }
+            }
+
+            node.previous = default;
+            node.next = default;
+        }
+
+        if (removeFromStorageMap)
+        {
+            node.Goshujin = default;
+        }
+    }
+
     private void MoveToRecentInternal(StorageObject node)
     {
         if (node.next is null ||
@@ -429,5 +476,30 @@ public partial class StorageControl
         this.head.previous!.next = node;
         this.head.previous = node;
         this.head = node;
+    }
+
+    private List<StorageObject>? CreateList()
+    {
+        List<StorageObject> list = new();
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (this.head is null)
+            {// No storage objects to release.
+                return null;
+            }
+
+            StorageObject node = this.head;
+            while (true)
+            {
+                list.Add(node);
+                node = node.next!;
+                if (node == this.head)
+                {// Reached back to the head.
+                    break;
+                }
+            }
+        }
+
+        return list;
     }
 }

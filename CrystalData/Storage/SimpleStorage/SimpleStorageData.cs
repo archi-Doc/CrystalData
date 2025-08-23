@@ -72,7 +72,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
         {
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
             {
-                writer.Write(JournalRecord.Remove);
+                writer.Write(JournalRecord.Delete);
                 writer.Write(file);
                 root.AddJournal(ref writer);
             }
@@ -159,7 +159,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
     bool ITinyhandCustomJournal.ReadCustomRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryRead(out JournalRecord record))
+        if (!reader.TryReadJournalRecord(out var record))
         {
             return false;
         }
@@ -174,7 +174,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
             return true;
         }
-        else if (record == JournalRecord.Remove)
+        else if (record == JournalRecord.Delete)
         {
             var file = reader.ReadUInt32();
             this.fileToSize.Remove(file);

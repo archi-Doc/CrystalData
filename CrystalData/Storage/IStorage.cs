@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-public interface IStorage
+public interface IStorage : IPersistable
 {
     StorageMap StorageMap { get; }
 
@@ -18,8 +18,6 @@ public interface IStorage
     /// <param name="storageConfiguration"><see cref="StorageConfiguration"/>.</param>
     /// <returns><see cref="CrystalResult"/>.</returns>
     Task<CrystalResult> PrepareAndCheck(PrepareParam param, StorageConfiguration storageConfiguration);
-
-    Task SaveStorage(ICrystal? callingCrystal);
 
     Task<CrystalMemoryOwnerResult> GetAsync(ref ulong fileId);
 

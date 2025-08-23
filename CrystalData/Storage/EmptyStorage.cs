@@ -8,7 +8,7 @@ public partial class EmptyStorage : IStorage
 {
     public static readonly EmptyStorage Default = new();
 
-    StorageMap IStorage.StorageMap => StorageControl.Default.DisabledMap;
+    StorageMap IStorage.StorageMap => StorageMap.Disabled;
 
     long IStorage.StorageUsage => 0;
 
@@ -18,8 +18,13 @@ public partial class EmptyStorage : IStorage
     Task<CrystalResult> IStorage.PrepareAndCheck(PrepareParam param, StorageConfiguration storageConfiguration)
         => Task.FromResult(CrystalResult.Success);
 
-    Task IStorage.SaveStorage(ICrystal? callingCrystal)
-        => Task.CompletedTask;
+    Type IPersistable.DataType => throw new NotImplementedException();
+
+    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+        => Task.FromResult(CrystalResult.Success);
+
+    Task<bool> IPersistable.TestJournal()
+        => Task.FromResult(true);
 
     Task<CrystalMemoryOwnerResult> IStorage.GetAsync(ref ulong fileId)
         => Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.Success));

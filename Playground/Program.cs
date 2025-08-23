@@ -29,8 +29,7 @@ public partial record SpSecondClass
     public StoragePoint<FirstData> FirstDataStorage { get; set; } = new();
 }
 
-// First, create a class to represent the data content.
-[TinyhandObject(Structual = true)] // Annotate TinyhandObject attribute to make this class serializable.
+[TinyhandObject(Structual = true)]
 public partial class FirstData
 {
     public FirstData()
@@ -52,6 +51,7 @@ public partial class FirstData
 }
 
 [TinyhandObject(Structual = true)]
+// [TinyhandObject(Structual = true, UseServiceProvider = true)]
 public partial class SecondData
 {
     public SecondData()
@@ -61,8 +61,66 @@ public partial class SecondData
     [Key(0)]
     public StoragePoint<double> DoubleStorage { get; set; } = new();
 
+    [Key(1)]
+    public SpClassPoint.GoshujinClass SpClassGoshujin { get; set; } = new();
+
+    [Key(2)]
+    public StoragePoint<SpClassPoint.GoshujinClass> GoshujinStorage { get; set; } = new();
+
     public override string ToString()
-        => $"Second: {this.DoubleStorage.GetOrCreate()}";
+        => $"Second: {this.DoubleStorage.TryGet()}";
+}
+
+/// <summary>
+/// A class at the isolation level of StoragePoint that inherits from <see cref="StoragePoint{TData}" />.
+/// It maintains relationship information between classes and owns data of type TData as storage.
+/// </summary>
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
+public partial class SpClassPoint : StoragePoint<SpClass>
+{// Value, Link
+    [Key(1)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    public int Id { get; set; }
+}
+
+/*public static class Helper
+{// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
+    public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
+        => TryLock(storagePoint, id, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+
+    public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        SpClassPoint? point = default;
+        using (var scope = await storagePoint.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false))
+        {
+            if (scope.Data is { } g) point = g.FindFirst(id, acquisitionMode);
+            else return new(scope.Result);
+        }
+
+        if (point is null) return new(DataScopeResult.NotFound);
+        else return await point.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false);
+    }
+
+    public static ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, CancellationToken cancellationToken = default) => TryGet(storagePoint, key, ValueLinkGlobal.LockTimeout, cancellationToken);
+
+    public static async ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        var g = await storagePoint.TryGet().ConfigureAwait(false);
+        if (g is null) return default;
+        else return await g.TryGet(key, timeout, cancellationToken).ConfigureAwait(false);
+    }
+}*/
+
+[TinyhandObject(Structual = true)]
+public partial class SpClass
+{
+    public SpClass()
+    {
+    }
+
+    [Key(0)]
+    public string Name { get; set; } = string.Empty;
 }
 
 internal class Program
@@ -73,8 +131,7 @@ internal class Program
         var builder = new CrystalControl.Builder()
             .Configure(context =>
             {
-                // context.AddTransient<FirstData>();
-                context.AddSingleton<FirstData>();
+                // context.AddSingleton<FirstData>();
                 context.AddSingleton<SecondData>();
             })
             .SetupOptions<CrystalizerOptions>((context, options) =>
@@ -87,6 +144,8 @@ internal class Program
             })
             .ConfigureCrystal(context =>
             {
+                // context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+
                 // Register FirstData configuration.
                 context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
@@ -111,7 +170,10 @@ internal class Program
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = new SimpleStorageConfiguration(
                             new GlobalDirectoryConfiguration("MainStorage"),
-                            new GlobalDirectoryConfiguration("BackupStorage")),
+                            new GlobalDirectoryConfiguration("BackupStorage")) with
+                        {
+                            NumberOfHistoryFiles = 2,
+                        },
                     });
             });
 
@@ -143,11 +205,48 @@ internal class Program
         Console.WriteLine($"Crystal {crystal.Data.ToString()}");
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
-        data.IntStorage.Set(await data.IntStorage.GetOrCreate() + 1);
-        data2.DoubleStorage.Set(await data2.DoubleStorage.GetOrCreate() + 1.2);
-        Console.WriteLine($"First: {await data.IntStorage.GetOrCreate()}");
-        Console.WriteLine($"Second: {await data2.DoubleStorage.GetOrCreate()}");
+        var doubleStorage = data2.DoubleStorage;
+        using (var d = await doubleStorage.TryLock(AcquisitionMode.GetOrCreate))
+        {
+        }
 
-        await crystalizer.StoreAll(); // Save all data.
+        data.IntStorage.Set(await data.IntStorage.TryGet() + 1);
+        data2.DoubleStorage.Set(await data2.DoubleStorage.TryGet() + 1.2);
+        Console.WriteLine($"First: {await data.IntStorage.TryGet()}");
+        Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
+
+        var spClassGoshujin = data2.SpClassGoshujin;
+        using (var scope = await spClassGoshujin.TryLock(1, AcquisitionMode.GetOrCreate))
+        {
+            if (scope.Data is { } spClass)
+            {
+                spClass.Name += "ox";
+                Console.WriteLine(spClass.Name);
+            }
+        }
+
+        await spClassGoshujin.TryDelete(1);
+        var spc = new SpClassPoint();
+        // spc = spClassGoshujin.FindFirst(1);
+
+        var goshujinStorage = data2.GoshujinStorage;
+        using (var gs = await goshujinStorage.TryLock())
+        {
+            if (gs.Data is { } gs2)
+            {
+                // await gs2.TryLock(12, AcquisitionMode.GetOrCreate);
+                using (var gs3 = await gs2.TryLock(12, AcquisitionMode.GetOrCreate))
+                {
+                }
+            }
+        }
+
+        using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))
+        {
+        }
+
+        //await crystalizer.Store(); // Save all data.
+        await crystalizer.StoreAndRelease();
+        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
     }
 }

@@ -2,15 +2,22 @@
 
 namespace CrystalData;
 
-public interface ICrystal : IStructualRoot
+public interface IPersistable
+{
+    Type DataType { get; }
+
+    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly, CancellationToken cancellationToken = default);
+
+    Task<bool> TestJournal();
+}
+
+public interface ICrystal : IStructualRoot, IPersistable
 {
     Crystalizer Crystalizer { get; }
 
     CrystalConfiguration CrystalConfiguration { get; }
 
     bool IsConfigured => this.CrystalConfiguration != CrystalConfiguration.Default;
-
-    Type DataType { get; }
 
     object Data { get; }
 
@@ -29,8 +36,6 @@ public interface ICrystal : IStructualRoot
     // IStorageObsolete GetStorage(StorageConfiguration? configuration);
 
     Task<CrystalResult> PrepareAndLoad(bool useQuery);
-
-    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly);
 
     Task<CrystalResult> Delete();
 
@@ -52,8 +57,6 @@ internal interface ICrystalInternal : ICrystal
     void SetStorage(IStorage storage);
 
     Task? TryPeriodicSave(DateTime utc);
-
-    Task<bool> TestJournal();
 }
 
 internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal

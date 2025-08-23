@@ -11,7 +11,6 @@ global using ValueLink;
 using CrystalData.Storage;
 using CrystalData.UserInterface;
 using Microsoft.Extensions.DependencyInjection;
-using static CrystalData.CrystalControl;
 
 namespace CrystalData;
 
@@ -39,7 +38,9 @@ public class CrystalControl
                     context.AddSingleton<CrystalizerConfiguration>();
                     context.AddSingleton<CrystalizerOptions>();
                     context.AddSingleton<Crystalizer>();
-                    context.Services.AddSingleton<StorageControl>(serviceProvider => StorageControl.Default);
+                    // context.Services.AddSingleton<StorageControl>(serviceProvider => StorageControl.Default);
+                    context.AddTransient<StorageControl>();
+                    context.AddTransient<StorageMap>();
                     context.AddTransient<StorageMap>();
                     context.AddSingleton<IStorageKey, StorageKey>();
                     context.TryAddSingleton<ICrystalDataQuery, CrystalDataQueryDefault>();
