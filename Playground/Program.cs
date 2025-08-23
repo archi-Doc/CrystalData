@@ -225,48 +225,29 @@ internal class Program
 
 public static class Helper
 {
-    public static async ValueTask<DataScope<SpClass>> TryLock(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, LockMode lockMode, CancellationToken cancellationToken = default)
+    public static ValueTask<DataScope<SpClass>> TryLock(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, LockMode lockMode, CancellationToken cancellationToken = default)
+        => TryLock(storagePoint, id, lockMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+
+    public static async ValueTask<DataScope<SpClass>> TryLock(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, LockMode lockMode, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        /*var gs = await storagePoint.TryGet().ConfigureAwait(false);
-        if (gs is null)
-        {
-            return new(DataScopeResult.Timeout);
-        }
-
-        return await gs.TryLock(id, lockMode, cancellationToken);*/
-
-        // StoragePoint/Enter -> Goshujin/Enter -> Goshujin/Exit -> StoragePoint/Exit
         SpClassPoint? point = default;
-        using (var scope = await storagePoint.TryLock())
-        {// Lock: StoragePoint
-            if (scope.Data is { } spClass)
-            {// Goshujin Enter/Exit
-                point = spClass.FindFirst(id);
-            }
-            else
-            {
-                return new(scope.Result);
-            }
+        using (var scope = await storagePoint.TryLock(LockMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false))
+        {
+            if (scope.Data is { } g) point = g.FindFirst(id, lockMode);
+            else return new(scope.Result);
         }
 
-        if (point is null)
-        {
-            return new(DataScopeResult.NotFound);
-        }
-        else
-        {
-            return await point.TryLock().ConfigureAwait(false);
-        }
+        if (point is null) return new(DataScopeResult.NotFound);
+        else return await point.TryLock(LockMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false);
     }
 
-    public static async ValueTask<SpClass?> TryGet(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, LockMode lockMode, CancellationToken cancellationToken = default)
-    {
-        var gs = await storagePoint.TryGet().ConfigureAwait(false);
-        if (gs is null)
-        {
-            return default;
-        }
+    public static ValueTask<SpClass?> TryGet(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, CancellationToken cancellationToken = default)
+        => TryGet(storagePoint, key, ValueLinkGlobal.LockTimeout, cancellationToken);
 
-        return await gs.TryGet(id, cancellationToken);
+    public static async ValueTask<SpClass?> TryGet(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        var g = await storagePoint.TryGet().ConfigureAwait(false);
+        if (g is null) return default;
+        else return await g.TryGet(key, timeout, cancellationToken).ConfigureAwait(false);
     }
 }
