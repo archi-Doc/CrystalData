@@ -166,7 +166,7 @@ internal class Program
                     {
                         SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
-                        NumberOfFileHistories = 0, // No history file.
+                        NumberOfFileHistories = 2, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = new SimpleStorageConfiguration(
                             new GlobalDirectoryConfiguration("MainStorage"),

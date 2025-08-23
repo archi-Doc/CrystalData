@@ -12,6 +12,7 @@ namespace CrystalData.Storage;
 internal partial class SimpleStorage : IStorage
 {
     private const string Filename = "Simple";
+    private const int DefaultNumberOfHistoryFiles = 2;
 
     public SimpleStorage(Crystalizer crystalizer)
     {
@@ -105,7 +106,7 @@ internal partial class SimpleStorage : IStorage
             this.storageCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
+                NumberOfFileHistories = DefaultNumberOfHistoryFiles, // storageConfiguration.NumberOfHistoryFiles,
             });
 
             result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
@@ -117,14 +118,13 @@ internal partial class SimpleStorage : IStorage
 
         if (this.mapCrystal == null)
         {// StorageMap (StorageObject)
-            Console.WriteLine($"StorageMap: {storageConfiguration.NumberOfHistoryFiles}");//
             this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null, false);
             var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
             this.mapCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
+                NumberOfFileHistories = DefaultNumberOfHistoryFiles, // storageConfiguration.NumberOfHistoryFiles,
             });
 
             ((ICrystalInternal)this.mapCrystal).SetStorage(this);

@@ -329,6 +329,7 @@ public partial class StorageControl : IPersistable
     internal void AddStorage(StorageObject storageObject, ICrystal crystal, StorageId storageId)
     {
         var numberOfHistories = crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles;
+        Console.WriteLine($"Number of histories: {numberOfHistories}");//
         ulong fileIdToDelete = default;
 
         using (this.lowestLockObject.EnterScope())
