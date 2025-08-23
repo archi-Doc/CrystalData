@@ -225,7 +225,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         return new DataScope<TData>((TData)this.data, this);
     }*/
 
-    internal async ValueTask<DataScope<TData>> TryLock<TData>(LockMode lockMode, TimeSpan timeout, CancellationToken cancellationToken)
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : notnull
     {
         if (this.storageControl.IsRip || this.IsRip)
@@ -258,7 +258,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (this.data is not null)
         {// Already exists
-            if (lockMode == LockMode.Create)
+            if (acquisitionMode == AcquisitionMode.Create)
             {
                 this.Exit();
                 return new(DataScopeResult.AlreadyExists);
@@ -268,7 +268,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
         else
         {
-            if (lockMode == LockMode.Get)
+            if (acquisitionMode == AcquisitionMode.Get)
             {// Get only
                 this.Exit();
                 return new(DataScopeResult.NotFound);

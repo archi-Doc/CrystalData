@@ -76,7 +76,7 @@ public class StorageDataTest
         await crystal.PrepareAndLoad(false);
         var g3 = crystal.Data;
 
-        using (var w = g3.TryLock(1, LockMode.GetOrCreate)!)
+        using (var w = g3.TryLock(1, AcquisitionMode.GetOrCreate)!)
         {
             w.Name = "One";
             w.Commit();
@@ -85,12 +85,12 @@ public class StorageDataTest
         var r = g3.TryGet(1)!;
         using (var children = await r.Children.TryLock())
         {
-            using (var w2 = children.Data!.TryLock(2, LockMode.GetOrCreate)!)
+            using (var w2 = children.Data!.TryLock(2, AcquisitionMode.GetOrCreate)!)
             {
                 w2.Commit();
             }
 
-            using (var w2 = children.Data!.TryLock(2, LockMode.GetOrCreate)!)
+            using (var w2 = children.Data!.TryLock(2, AcquisitionMode.GetOrCreate)!)
             {
                 w2.DeleteAndErase();
                 w2.Commit();
