@@ -14,7 +14,7 @@ public interface IJournal : IPersistable
 
     ulong Add(ref TinyhandWriter writer);
 
-    Task TerminateAsync();
+    Task FlushAsync(bool terminate);
 
     ulong GetStartingPosition();
 

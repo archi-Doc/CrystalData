@@ -10,6 +10,8 @@ namespace CrystalData;
 [TinyhandUnion("GlobalStorage", typeof(GlobalStorageConfiguration))]
 public abstract partial record StorageConfiguration
 {
+    #region MainDirectoryComparer
+
     /// <summary>
     /// Provides equality comparison for <see cref="StorageConfiguration"/> instances based on their
     /// <see cref="DirectoryConfiguration"/> values (main directory only).<br/>
@@ -41,6 +43,8 @@ public abstract partial record StorageConfiguration
             return obj.DirectoryConfiguration.GetHashCode();
         }
     }
+
+    #endregion
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StorageConfiguration"/> class.

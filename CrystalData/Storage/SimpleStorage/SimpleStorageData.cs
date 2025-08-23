@@ -17,6 +17,8 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
     public long StorageUsage => this.storageUsage;
 
+    public int Count => this.fileToSize.Count;
+
     private Lock lockObject = new();
     private long storageUsage; // syncObject
     private Dictionary<uint, int> fileToSize = new(); // syncObject

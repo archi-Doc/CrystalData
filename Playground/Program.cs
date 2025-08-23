@@ -225,7 +225,7 @@ internal class Program
             }
         }
 
-        await spClassGoshujin.TryDelete(1);
+        // await spClassGoshujin.TryDelete(1);
         var spc = new SpClassPoint();
         // spc = spClassGoshujin.FindFirst(1);
 

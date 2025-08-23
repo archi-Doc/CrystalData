@@ -505,42 +505,22 @@ public class Crystalizer
     }
 
     public Task Store(CancellationToken cancellationToken = default)
-        => this.Store(StoreMode.StoreOnly, cancellationToken);
+        => this.Store(false, StoreMode.StoreOnly, cancellationToken);
 
     public Task StoreAndRelease(CancellationToken cancellationToken = default)
-        => this.Store(StoreMode.TryRelease, cancellationToken);
+        => this.Store(false, StoreMode.TryRelease, cancellationToken);
 
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         this.StorageControl.Rip();
 
-        await this.Store(StoreMode.TryRelease, cancellationToken);
+        await this.Store(true, StoreMode.TryRelease, cancellationToken);
 
         // Terminate journal
         if (this.Journal is { } journal)
         {
-            await journal.TerminateAsync().ConfigureAwait(false);
+            await journal.FlushAsync(true).ConfigureAwait(false);
         }
-
-        // Terminate filers/journal
-        var tasks = new List<Task>();
-        using (this.lockObject.EnterScope())
-        {
-            if (this.localFiler is not null)
-            {
-                tasks.Add(this.localFiler.TerminateAsync());
-                this.localFiler = null;
-            }
-
-            foreach (var x in this.bucketToS3Filer.Values)
-            {
-                tasks.Add(x.TerminateAsync());
-            }
-
-            this.bucketToS3Filer.Clear();
-        }
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
 
         this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
     }
@@ -1058,7 +1038,7 @@ public class Crystalizer
         }
     }
 
-    private async Task Store(StoreMode storeMode, CancellationToken cancellationToken)
+    private async Task Store(bool terminate, StoreMode storeMode, CancellationToken cancellationToken)
     {
         var goshujin = new ReleaseTask.GoshujinClass();
         foreach (var x in this.crystals.Keys)
@@ -1086,6 +1066,32 @@ public class Crystalizer
         {// Journal
             await journal.Store().ConfigureAwait(false);
         }
+
+        // Flush filers
+        var tasks = new List<Task>();
+        using (this.lockObject.EnterScope())
+        {
+            if (this.localFiler is not null)
+            {
+                tasks.Add(this.localFiler.FlushAsync(terminate));
+                if (terminate)
+                {
+                    this.localFiler = null;
+                }
+            }
+
+            foreach (var x in this.bucketToS3Filer.Values)
+            {
+                tasks.Add(x.FlushAsync(false));
+            }
+
+            if (terminate)
+            {
+                this.bucketToS3Filer.Clear();
+            }
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
 
         this.CrystalCheck.Store();
     }

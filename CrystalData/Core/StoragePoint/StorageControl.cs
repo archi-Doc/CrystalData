@@ -335,6 +335,7 @@ public partial class StorageControl : IPersistable
         {
             if (numberOfHistories <= 1)
             {
+                fileIdToDelete = storageObject.storageId0.FileId;
                 storageObject.storageId0 = storageId;
             }
             else if (numberOfHistories == 2)

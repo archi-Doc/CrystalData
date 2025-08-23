@@ -302,11 +302,14 @@ NoAccess:
         return CrystalResult.NoAccess;
     }
 
-    async Task IRawFiler.TerminateAsync()
+    async Task IRawFiler.FlushAsync(bool terminate)
     {
         await this.WaitForCompletionAsync().ConfigureAwait(false);
-        this.client?.Dispose();
-        this.client = null;
-        this.Dispose();
+        if (terminate)
+        {
+            this.client?.Dispose();
+            this.client = null;
+            this.Dispose();
+        }
     }
 }

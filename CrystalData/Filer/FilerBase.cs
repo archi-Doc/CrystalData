@@ -43,10 +43,13 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         throw new NotImplementedException();
     }
 
-    async Task IRawFiler.TerminateAsync()
+    async Task IRawFiler.FlushAsync(bool terminate)
     {
         await this.WaitForCompletionAsync().ConfigureAwait(false);
-        this.Dispose();
+        if (terminate)
+        {
+            this.Dispose();
+        }
     }
 
     CrystalResult IRawFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
