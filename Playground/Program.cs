@@ -84,6 +84,34 @@ public partial class SpClassPoint : StoragePoint<SpClass>
     public int Id { get; set; }
 }
 
+/*public static class Helper
+{// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
+    public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
+        => TryLock(storagePoint, id, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+
+    public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        SpClassPoint? point = default;
+        using (var scope = await storagePoint.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false))
+        {
+            if (scope.Data is { } g) point = g.FindFirst(id, acquisitionMode);
+            else return new(scope.Result);
+        }
+
+        if (point is null) return new(DataScopeResult.NotFound);
+        else return await point.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false);
+    }
+
+    public static ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, CancellationToken cancellationToken = default) => TryGet(storagePoint, key, ValueLinkGlobal.LockTimeout, cancellationToken);
+
+    public static async ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        var g = await storagePoint.TryGet().ConfigureAwait(false);
+        if (g is null) return default;
+        else return await g.TryGet(key, timeout, cancellationToken).ConfigureAwait(false);
+    }
+}*/
+
 [TinyhandObject(Structual = true)]
 public partial class SpClass
 {
@@ -220,34 +248,5 @@ internal class Program
         //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
         Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
-    }
-}
-
-public static class Helper
-{
-    public static ValueTask<DataScope<SpClass>> TryLock(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
-        => TryLock(storagePoint, id, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
-
-    public static async ValueTask<DataScope<SpClass>> TryLock(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
-    {
-        SpClassPoint? point = default;
-        using (var scope = await storagePoint.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false))
-        {
-            if (scope.Data is { } g) point = g.FindFirst(id, acquisitionMode);
-            else return new(scope.Result);
-        }
-
-        if (point is null) return new(DataScopeResult.NotFound);
-        else return await point.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false);
-    }
-
-    public static ValueTask<SpClass?> TryGet(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, CancellationToken cancellationToken = default)
-        => TryGet(storagePoint, key, ValueLinkGlobal.LockTimeout, cancellationToken);
-
-    public static async ValueTask<SpClass?> TryGet(this StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken = default)
-    {
-        var g = await storagePoint.TryGet().ConfigureAwait(false);
-        if (g is null) return default;
-        else return await g.TryGet(key, timeout, cancellationToken).ConfigureAwait(false);
     }
 }
