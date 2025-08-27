@@ -661,7 +661,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {
             if (this.data is IStructualObject structualObject)
             {
-                structualObject.Delete();
+                structualObject.Delete();//
             }
 
             this.data = default;

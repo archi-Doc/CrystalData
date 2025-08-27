@@ -246,6 +246,9 @@ internal class Program
             }
         }
 
+        goshujinStorage.Delete();
+        goshujinStorage.Set(new());
+
         using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))
         {
         }

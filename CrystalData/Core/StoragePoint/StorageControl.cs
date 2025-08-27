@@ -368,7 +368,7 @@ public partial class StorageControl : IPersistable
 
         using (this.lowestLockObject.EnterScope())
         {
-            this.ReleaseInternal(storageObject, false);//
+            this.ReleaseInternal(storageObject, true);
 
             id0 = storageObject.storageId0.FileId;
             id1 = storageObject.storageId1.FileId;
