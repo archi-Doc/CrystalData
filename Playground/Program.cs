@@ -146,6 +146,14 @@ internal class Program
             {
                 // context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
+                var storageConfiguration = new SimpleStorageConfiguration(
+                    new GlobalDirectoryConfiguration("MainStorage"),
+                    new GlobalDirectoryConfiguration("BackupStorage"))
+                with
+                {
+                    NumberOfHistoryFiles = 2,
+                };
+
                 // Register FirstData configuration.
                 context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
@@ -156,9 +164,7 @@ internal class Program
                         NumberOfFileHistories = 0, // No history file.
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
-                        StorageConfiguration = new SimpleStorageConfiguration(
-                            new GlobalDirectoryConfiguration("MainStorage"),
-                            new GlobalDirectoryConfiguration("BackupStorage")),
+                        StorageConfiguration = storageConfiguration,
                     });
 
                 context.AddCrystal<SecondData>(
@@ -168,12 +174,7 @@ internal class Program
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 2, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
-                        StorageConfiguration = new SimpleStorageConfiguration(
-                            new GlobalDirectoryConfiguration("MainStorage"),
-                            new GlobalDirectoryConfiguration("BackupStorage")) with
-                        {
-                            NumberOfHistoryFiles = 2,
-                        },
+                        StorageConfiguration = storageConfiguration,
                     });
             });
 

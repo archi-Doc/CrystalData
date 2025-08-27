@@ -106,7 +106,7 @@ internal partial class SimpleStorage : IStorage
             this.storageCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = DefaultNumberOfHistoryFiles, // storageConfiguration.NumberOfHistoryFiles,
+                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
             });
 
             result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
@@ -124,7 +124,8 @@ internal partial class SimpleStorage : IStorage
             this.mapCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = DefaultNumberOfHistoryFiles, // storageConfiguration.NumberOfHistoryFiles,
+                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
+                StorageConfiguration = storageConfiguration,
             });
 
             ((ICrystalInternal)this.mapCrystal).SetStorage(this);
