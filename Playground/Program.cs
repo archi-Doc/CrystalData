@@ -88,8 +88,20 @@ public partial class SpClassPoint : StoragePoint<SpClass>
 
 public static class Helper
 {// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
-    /*public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
-        => TryLock(storagePoint, id, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+    /*public static ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode = AcquisitionMode.Get, CancellationToken cancellationToken = default)
+        => Find(storagePoint, key, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+
+    public static async ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        using (var scope = await storagePoint.TryLock(AcquisitionMode.Get, timeout, cancellationToken).ConfigureAwait(false))
+        {
+            if (scope.Data is { } g) return g.FindFirst(key, acquisitionMode);
+            else return default;
+        }
+    }
+
+    public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
+        => TryLock(storagePoint, key, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
 
     public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
@@ -260,15 +272,34 @@ internal class Program
             }
         }
 
-        await goshujinStorage.Delete();
-        goshujinStorage.Set(new());
+        using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))
+        {
+            if (sc.Data is { } spClass)
+            {
+                spClass.Name = "Hello";
+            }
+        }
+
+        var sd = await goshujinStorage.Find(100);
+        sd = await goshujinStorage.Find(123);
+
+        var r2 = await goshujinStorage.StoreData(StoreMode.ForceRelease);
+        using (var sc = await sd!.TryLock())
+        {
+            if (sc.Data is { } spClass)
+            {
+                spClass.Name = "123";
+            }
+        }
 
         using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))
         {
+            if (sc.Data is { } spClass)
+            {
+                var name = spClass.Name;
+            }
         }
 
-
-        //await crystalizer.Store(); // Save all data.
         await crystalizer.StoreAndRelease();
         Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
     }
