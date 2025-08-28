@@ -88,7 +88,7 @@ public partial class SpClassPoint : StoragePoint<SpClass>
 
 public static class Helper
 {// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
-    public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
+    /*public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
         => TryLock(storagePoint, id, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
 
     public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
@@ -118,17 +118,12 @@ public static class Helper
 
     public static async Task<DataScopeResult> Delete(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken, DateTime forceDeleteAfter = default)
     {
-        SpClassPoint? point = default;
         using (var scope = await storagePoint.TryLock(AcquisitionMode.Get, timeout, cancellationToken).ConfigureAwait(false))
         {
-            if (scope.Data is { } g) point = g.FindFirst(key, AcquisitionMode.Get);
+            if (scope.Data is { } g) return await g.Delete(key, forceDeleteAfter).ConfigureAwait(false);
             else return scope.Result;
         }
-
-        if (point is null) return DataScopeResult.NotFound;
-        await point.Delete(forceDeleteAfter).ConfigureAwait(false);
-        return DataScopeResult.Success;
-    }
+    }*/
 }
 
 [TinyhandObject(Structual = true)]
@@ -261,7 +256,7 @@ internal class Program
                 {
                 }
 
-                await gs2.TryDelete(12);
+                await gs2.Delete(12);
             }
         }
 
