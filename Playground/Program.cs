@@ -283,7 +283,10 @@ internal class Program
         var sd = await goshujinStorage.Find(100);
         sd = await goshujinStorage.Find(123);
 
+        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
         var r2 = await goshujinStorage.StoreData(StoreMode.ForceRelease);
+        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+
         using (var sc = await sd!.TryLock())
         {
             if (sc.Data is { } spClass)
