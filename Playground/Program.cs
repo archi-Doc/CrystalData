@@ -121,7 +121,7 @@ public static class Helper
         SpClassPoint? point = default;
         using (var scope = await storagePoint.TryLock(AcquisitionMode.Get, timeout, cancellationToken).ConfigureAwait(false))
         {
-            if (scope.Data is { } g) point = g.FindFirst(key);
+            if (scope.Data is { } g) point = g.FindFirst(key, AcquisitionMode.Get);
             else return scope.Result;
         }
 
