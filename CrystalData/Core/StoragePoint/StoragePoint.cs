@@ -12,7 +12,9 @@ namespace CrystalData;
 
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
-/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
+/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.<br/>
+/// The <b>TinyhandObject.Key(0)</b> is reserved for <c>PointId</c>.
+/// Use keys starting from <b>1 or greater</b> instead.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]

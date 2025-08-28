@@ -77,7 +77,7 @@ public static class TestHelper
         return crystal;
     }
 
-    public static async Task UnloadAndDeleteAll(ICrystal crystal)
+    public static async Task StoreAndReleaseAndDelete(ICrystal crystal)
     {
         var crystalizer = crystal.Crystalizer;
         await crystalizer.StoreAndRelease();

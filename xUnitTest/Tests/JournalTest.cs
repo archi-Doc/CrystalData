@@ -162,7 +162,7 @@ public class JournalTest
         result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
-        await TestHelper.UnloadAndDeleteAll(c);
+        await TestHelper.StoreAndReleaseAndDelete(c);
     }
 
     [Fact]
@@ -257,6 +257,6 @@ public class JournalTest
         result = await c.Crystalizer.TestJournalAll();
         result.IsTrue();
 
-        await TestHelper.UnloadAndDeleteAll(c);
+        await TestHelper.StoreAndReleaseAndDelete(c);
     }
 }

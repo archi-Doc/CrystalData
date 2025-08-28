@@ -11,7 +11,6 @@ namespace CrystalData;
 public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 256;
-    private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
 
     /// <summary>
     /// Represents the disabled storage control.
@@ -33,8 +32,13 @@ public partial class StorageControl : IPersistable
 
     public bool IsRip => this.isRip;
 
-    public long MemoryUsageLimit { get; internal set; } = DefaultMemoryLimit;
+    public long MemoryUsageLimit { get; internal set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
 
+    /// <summary>
+    /// Gets an estimated memory usage.<br/>
+    /// Since obtaining the exact size of an object in memory is difficult,<br/>
+    /// the returned value should be considered an approximation.
+    /// </summary>
     public long MemoryUsage => this.memoryUsage;
 
     public long AvailableMemory

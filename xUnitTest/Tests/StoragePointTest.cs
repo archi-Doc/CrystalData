@@ -171,7 +171,7 @@ public class StoragePointTest
         var jr = await crystal.Crystalizer.TestJournalAll();
         jr.IsTrue();
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
     [Fact]

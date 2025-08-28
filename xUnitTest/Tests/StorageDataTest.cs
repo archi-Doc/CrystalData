@@ -107,6 +107,6 @@ public class StorageDataTest
         result = await crystal.Crystalizer.TestJournalAll();
         result.IsTrue();
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 }

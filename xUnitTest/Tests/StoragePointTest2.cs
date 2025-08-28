@@ -90,7 +90,7 @@ public class StoragePointTest2
         await crystal.Crystalizer.StoreJournal();
         await this.CheckData(crystal.Data);
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
     private async Task CheckData(SpRootClass root)
