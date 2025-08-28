@@ -482,10 +482,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    internal void Delete()
-    {
-        this.DeleteStorage(true);
-    }
+    internal Task Delete(DateTime forceDeleteAfter)
+        => this.DeleteStorage(true, forceDeleteAfter);
 
     bool IStructualObject.ReadRecord(ref TinyhandReader reader)
     {
@@ -496,7 +494,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (record == JournalRecord.DeleteStorage)
         {// Delete storage
-            this.DeleteStorage(false);
+            this.DeleteStorage(false, default).Wait();
             return true;
         }
         else if (record == JournalRecord.Value)
@@ -653,18 +651,23 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    private void DeleteStorage(bool recordJournal)
+    private async Task DeleteStorage(bool recordJournal, DateTime forceDeleteAfter)
     {
         this.storageControl.EraseStorage(this);
 
-        using (this.EnterScope())
+        await this.EnterAsync().ConfigureAwait(false);
+        try
         {
             if (this.data is IStructualObject structualObject)
             {
-                structualObject.Delete();//
+                await structualObject.Delete(forceDeleteAfter).ConfigureAwait(false);
             }
 
             this.data = default;
+        }
+        finally
+        {
+            this.Exit();
         }
 
         if (recordJournal)

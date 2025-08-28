@@ -2,6 +2,8 @@
 
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
@@ -84,17 +86,17 @@ public partial class SpClassPoint : StoragePoint<SpClass>
     public int Id { get; set; }
 }
 
-/*public static class Helper
+public static class Helper
 {// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
     public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
         => TryLock(storagePoint, id, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
 
-    public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int id, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
+    public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         SpClassPoint? point = default;
         using (var scope = await storagePoint.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false))
         {
-            if (scope.Data is { } g) point = g.FindFirst(id, acquisitionMode);
+            if (scope.Data is { } g) point = g.FindFirst(key, acquisitionMode);
             else return new(scope.Result);
         }
 
@@ -110,7 +112,24 @@ public partial class SpClassPoint : StoragePoint<SpClass>
         if (g is null) return default;
         else return await g.TryGet(key, timeout, cancellationToken).ConfigureAwait(false);
     }
-}*/
+
+    public static Task<DataScopeResult> Delete(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, DateTime forceDeleteAfter = default)
+        => Delete(storagePoint, key, ValueLinkGlobal.LockTimeout, default, forceDeleteAfter);
+
+    public static async Task<DataScopeResult> Delete(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken, DateTime forceDeleteAfter = default)
+    {
+        SpClassPoint? point = default;
+        using (var scope = await storagePoint.TryLock(AcquisitionMode.Get, timeout, cancellationToken).ConfigureAwait(false))
+        {
+            if (scope.Data is { } g) point = g.FindFirst(key);
+            else return scope.Result;
+        }
+
+        if (point is null) return DataScopeResult.NotFound;
+        await point.Delete(forceDeleteAfter).ConfigureAwait(false);
+        return DataScopeResult.Success;
+    }
+}
 
 [TinyhandObject(Structual = true)]
 public partial class SpClass
@@ -246,7 +265,7 @@ internal class Program
             }
         }
 
-        goshujinStorage.Delete();
+        await goshujinStorage.Delete();
         goshujinStorage.Set(new());
 
         using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))

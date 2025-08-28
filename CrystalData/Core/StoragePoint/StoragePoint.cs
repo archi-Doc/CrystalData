@@ -197,8 +197,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Deletes the data associated with this storage point.<br/>
     /// This operation removes the data from storage and memory.
     /// </summary>
-    public void Delete()
-        => this.GetOrCreateStorageObject().Delete();
+    /// <param name="forceDeleteAfter">The UTC <see cref="DateTime"/> after which the object will be forcibly deleted if not already deleted.<br/>
+    /// <see langword="default"/>: Do not forcibly delete; wait until all operations are finished.<br/>
+    /// <see cref="DateTime.UtcNow"/> or earlier: forcibly delete data without waiting.
+    /// </param>
+    /// <returns>
+    /// A <see cref="Task"/> representing the asynchronous delete operation.
+    /// </returns>
+    public Task Delete(DateTime forceDeleteAfter = default)
+        => this.GetOrCreateStorageObject().Delete(forceDeleteAfter);
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
