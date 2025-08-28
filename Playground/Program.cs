@@ -143,10 +143,11 @@ public partial class SpClass
 {
     public SpClass()
     {
+        this.Name = string.Empty;
     }
 
     [Key(0)]
-    public string Name { get; set; } = string.Empty;
+    public partial string Name { get; set; }
 }
 
 internal class Program

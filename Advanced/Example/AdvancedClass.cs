@@ -54,8 +54,8 @@ public partial record AdvancedExample
     {
     }
 
-    [Key(0, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StoragePoint<AdvancedExample> child = new();
+    [Key(0)]
+    public partial StoragePoint<AdvancedExample> Child { get; private set; } = new();
 
     [Key(1, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StoragePoint<Point2.GoshujinClass> children = new();
