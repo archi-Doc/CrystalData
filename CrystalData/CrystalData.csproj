@@ -29,7 +29,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
     <PackageReference Include="SimpleCommandLine" Version="0.27.1" />
     <PackageReference Include="Tinyhand" Version="0.119.4" />
-    <PackageReference Include="ValueLink" Version="0.91.2" />
+    <PackageReference Include="ValueLink" Version="0.91.4" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
