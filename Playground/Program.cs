@@ -235,13 +235,12 @@ internal class Program
 
         data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
         data2.DoubleStorage.Set(await data2.DoubleStorage.TryGet() + 1.2);
-        Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
-        Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
 
-        var ds = await data2.DoubleStorage.TryGet();
         await data2.DoubleStorage.StoreData(StoreMode.TryRelease);
         data2.DoubleStorage.DeleteLatestStorageForDebug();
-        ds = await data2.DoubleStorage.TryGet();
+
+        Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
+        Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
 
         var spClassGoshujin = data2.SpClassGoshujin;
         using (var scope = await spClassGoshujin.TryLock(1, AcquisitionMode.GetOrCreate))

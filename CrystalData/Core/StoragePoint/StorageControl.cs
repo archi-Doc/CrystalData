@@ -349,6 +349,20 @@ public partial class StorageControl : IPersistable
         }
     }
 
+    internal void DeleteLatestStorageForDebug(StorageObject storageObject)
+    {
+        ulong fileId;
+        using (this.lowestLockObject.EnterScope())
+        {
+            fileId = storageObject.storageId0.FileId;
+        }
+
+        if (fileId != 0 && storageObject.StructualRoot is ICrystal crystal)
+        {
+            crystal.Storage.DeleteAsync(ref fileId).Wait();
+        }
+    }
+
     internal void EraseStorage(StorageObject storageObject)
     {
         ulong id0;
