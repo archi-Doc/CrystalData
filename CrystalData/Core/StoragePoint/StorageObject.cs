@@ -102,8 +102,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
-    // public bool IsRip => (this.state & RipStateBit) != 0;
-
     #endregion
 
     public StorageObject()
