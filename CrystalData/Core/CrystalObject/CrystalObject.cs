@@ -345,10 +345,6 @@ Exit:
         return CrystalResult.Success;
     }
 
-    void ICrystal.Terminate()
-    {
-    }
-
     Task? ICrystalInternal.TryPeriodicSave(DateTime utc)
     {
         if (this.CrystalConfiguration.SavePolicy != SavePolicy.Periodic)

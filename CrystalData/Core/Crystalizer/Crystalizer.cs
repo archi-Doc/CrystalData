@@ -1066,7 +1066,7 @@ public class Crystalizer
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
-        // Since the Storage is modified in the preceding step, persist the Storage here.
+        // Since storages are modified in the preceding step, persist storages here.
         goshujin.Clear();
         var storages = this.GetStorageArray();
         foreach (var x in storages)
