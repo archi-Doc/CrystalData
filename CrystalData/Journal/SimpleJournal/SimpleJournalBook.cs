@@ -187,13 +187,13 @@ public partial class SimpleJournal
             }
 
             // Write (IsSaved -> true)
-            this.path = StorageHelper.CombineWithSlash(this.simpleJournal.SimpleJournalConfiguration.DirectoryConfiguration.Path, this.GetFileName());
+            this.path = StorageHelper.CombineWithSlash(this.simpleJournal.MainConfiguration.Path, this.GetFileName());
             this.simpleJournal.rawFiler.WriteAndForget(this.path, 0, this.memoryOwner);
 
-            if (this.simpleJournal.SimpleJournalConfiguration.BackupDirectoryConfiguration is { } backupConfiguration &&
+            if (this.simpleJournal.BackupConfiguration is not null &&
                 this.simpleJournal.backupFiler is not null)
             {
-                this.backupPath ??= StorageHelper.CombineWithSlash(backupConfiguration.Path, this.GetFileName());
+                this.backupPath ??= StorageHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
                 this.simpleJournal.backupFiler.WriteAndForget(this.backupPath, 0, this.memoryOwner);
             }
         }

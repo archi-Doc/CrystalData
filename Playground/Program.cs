@@ -171,11 +171,11 @@ internal class Program
             })
             .ConfigureCrystal(context =>
             {
-                // context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
-                    new GlobalDirectoryConfiguration("MainStorage"),
-                    new GlobalDirectoryConfiguration("BackupStorage"))
+                    new GlobalDirectoryConfiguration("MainStorage")/*,
+                    new GlobalDirectoryConfiguration("BackupStorage")*/)
                 with
                 {
                     NumberOfHistoryFiles = 2,
@@ -231,7 +231,6 @@ internal class Program
 
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
-        Console.WriteLine($"{crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles}, {crystal2.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles}");
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var doubleStorage = data2.DoubleStorage;
