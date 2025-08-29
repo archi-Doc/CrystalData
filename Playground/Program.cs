@@ -1,15 +1,10 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
-using Tinyhand.IO;
 using ValueLink;
 
 namespace Sandbox;
@@ -242,6 +237,11 @@ internal class Program
         data2.DoubleStorage.Set(await data2.DoubleStorage.TryGet() + 1.2);
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
+
+        var ds = await data2.DoubleStorage.TryGet();
+        await data2.DoubleStorage.StoreData(StoreMode.TryRelease);
+        data2.DoubleStorage.DeleteLatestStorageForDebug();
+        ds = await data2.DoubleStorage.TryGet();
 
         var spClassGoshujin = data2.SpClassGoshujin;
         using (var scope = await spClassGoshujin.TryLock(1, AcquisitionMode.GetOrCreate))

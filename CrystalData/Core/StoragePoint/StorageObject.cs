@@ -323,17 +323,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         bool result = true;
 
-        // Store children
-        if (data is IStructualObject structualObject)
-        {
-            if (!await structualObject.StoreData(storeMode).ConfigureAwait(false))
-            {
-                result = false;
-            }
-        }
-
         if (!this.IsEnabled)
         {
+            // Store children
+            if (data is IStructualObject structualObject)
+            {
+                if (!await structualObject.StoreData(storeMode).ConfigureAwait(false))
+                {
+                    result = false;
+                }
+            }
+
             return result;
         }
 
@@ -342,6 +342,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         if (rentMemory.IsEmpty)
         {// No data
             return false;
+        }
+
+        // Store children (code is redundant because it is placed after serialization)
+        if (data is IStructualObject structualObject2)
+        {
+            if (!await structualObject2.StoreData(storeMode).ConfigureAwait(false))
+            {
+                result = false;
+            }
         }
 
         var dataSize = rentMemory.Span.Length;
