@@ -7,7 +7,7 @@ public partial class SimpleJournal
     private class SimpleJournalTask : TaskCore
     {
         public SimpleJournalTask(SimpleJournal simpleJournal)
-            : base(null, Process)
+            : base(null, Process, false)
         {
             this.simpleJournal = simpleJournal;
         }

@@ -96,7 +96,11 @@ public partial class SimpleJournal : IJournal
             var backupList = await this.ListBooks(this.backupFiler, this.BackupConfiguration).ConfigureAwait(false);
         }
 
-        this.task ??= new(this);
+        if (this.task is null)
+        {
+            this.task = new(this);
+            this.task.Start();
+        }
 
         this.logger.TryGet()?.Log($"Prepared: {this.books.PositionChain.First?.Position} - {this.books.PositionChain.Last?.NextPosition} ({this.books.PositionChain.Count})");
 

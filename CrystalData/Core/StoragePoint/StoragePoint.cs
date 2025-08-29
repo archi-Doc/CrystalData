@@ -273,7 +273,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             v.pointId = pointId;
         }
         else
-        {
+        {//
             StorageMap.Disabled.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options) ?? TinyhandSerializer.Reconstruct<TData>(options);
             v.storageObject.Set(data);

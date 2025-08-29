@@ -7,6 +7,8 @@ using Tinyhand.IO;
 namespace CrystalData.Internal;
 
 #pragma warning disable SA1202 // Elements should be ordered by access
+#pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
+#pragma warning disable SA1401 // Fields should be private
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
@@ -16,15 +18,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     private const uint DisabledStateBit = 1u << 31;
     private const uint RipStateBit = 1u << 30;
-    // private const uint ValueSetStateBit = 1u << 29;
-    // private const uint PendingReleaseStateBit = 1u << 29;
-    // private const uint PendingRipStateBit = 1u << 28;
-    // private const uint LockedStateBit = 1u << 0;
 
     #region FieldAndProperty
-
-#pragma warning disable SA1401 // Fields should be private
-#pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
 
     internal ObjectProtectionState protectionState;
 
@@ -52,11 +47,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     private uint state; // Lock:StorageControl
     internal int size; // Lock:StorageControl
 
-#pragma warning restore SA1307 // Accessible fields should begin with upper-case letter
-#pragma warning restore SA1401 // Fields should be private
-
     public IStructualRoot? StructualRoot
-    {
+    {//
         get => ((IStructualObject)this.storageMap).StructualRoot;
         set { }
     }
@@ -83,13 +75,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
-    // public new bool IsLocked => (this.state & LockedStateBit) != 0;
-
     public bool IsRip => (this.state & RipStateBit) != 0;
-
-    // public bool IsPendingRelease => (this.state & PendingReleaseStateBit) != 0;
-
-    // public bool IsPendingRip => (this.state & PendingRipStateBit) != 0;
 
     #endregion
 
@@ -679,38 +665,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal void SetDisableStateBit() => this.state |= DisabledStateBit;
 
     internal void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
-
-    /*internal void SetValueSetStateBit() => this.state |= ValueSetStateBit;
-
-    internal void ClearValueSetStateBit() => this.state &= ~ValueSetStateBit;
-
-    internal bool CheckValueSetStateBit => (this.state & ValueSetStateBit) != 0;*/
-
-    /*private void SetRipStateBit() => this.state |= RipStateBit;
-
-    private void ClearRipStateBit() => this.state &= ~RipStateBit;
-
-    private void SetPendingReleaseStateBit() => this.state |= PendingReleaseStateBit;
-
-    private void ClearPendingReleaseStateBit() => this.state &= ~PendingReleaseStateBit;*/
-
-    /*private bool TryLockInternal()
-    {
-        if (this.IsLocked)
-        {
-            return false;
-        }
-        else
-        {
-            this.state |= LockedStateBit;
-            return true;
-        }
-    }
-
-    private void UnlockInternal()
-    {
-        this.state &= ~LockedStateBit;
-    }*/
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ConfigureStorage(bool disableStorage)
