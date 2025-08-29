@@ -3,6 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
+using static CrystalData.CrystalDataHashed;
 
 namespace CrystalData.Internal;
 
@@ -513,6 +514,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         var storage = crystal.Storage;
         ulong fileId = 0;
+        ulong journalPosition = 0;
         CrystalMemoryOwnerResult result = new(CrystalResult.NotFound);
         while (this.storageId0.IsValid)
         {
@@ -523,6 +525,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 break;
             }
 
+            journalPosition = this.storageId1.JournalPosition;
             this.storageId0 = this.storageId1;
             this.storageId1 = this.storageId2;
             this.storageId2 = default;
@@ -551,6 +554,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             else
             {
                 data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+            }
+
+            if (journalPosition > 0)
+            {// Read journal
+                await this.ReadJournal(journalPosition);
             }
 
             this.SetDataInternal(data, false, result.Data);
@@ -615,6 +623,91 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         if (rentMemory.IsRent)
         {
             rentMemory.Return();
+        }
+    }
+
+    private async Task ReadJournal(ulong position)
+    {
+        if (this.StructualRoot is not ICrystal crystal ||
+            crystal.Journal is not { } journal)
+        {
+            return;
+        }
+
+        while (position != 0)
+        {
+            var endPosition = position;
+            var journalResult = await journal.ReadJournalAsync(position).ConfigureAwait(false);
+            if (journalResult.NextPosition == 0)
+            {
+                break;
+            }
+
+            try
+            {
+                this.ProcessJournal(position, journalResult.Data.Memory);
+            }
+            finally
+            {
+                journalResult.Data.Return();
+            }
+
+            position = journalResult.NextPosition;
+        }
+    }
+
+    private void ProcessJournal(ulong position, ReadOnlyMemory<byte> memory)
+    {
+        var reader = new TinyhandReader(memory.Span);
+        while (reader.Consumed < memory.Length)
+        {
+            if (!reader.TryReadRecord(out var length, out var journalType))
+            {// Corrupted
+                // this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.Corrupted);
+                return;
+            }
+
+            var fork = reader.Fork();
+            try
+            {
+                if (journalType == JournalType.Record)
+                {
+                    reader.Read_Locator();
+                    /*var plane = reader.ReadUInt32();
+                    if (this.planeToCrystal.TryGetValue(plane, out var crystal))
+                    {
+                        if (crystal.Data is IStructualObject journalObject)
+                        {
+                            var currentPosition = position + (ulong)reader.Consumed;
+                            if (currentPosition.CircularCompareTo(crystal.Waypoint.JournalPosition) > 0)
+                            {
+                                if (journalObject.ReadRecord(ref reader))
+                                {// Success
+                                    restored.Add(plane);
+                                }
+                                else
+                                {// Failure
+                                    failure = true;
+                                }
+                            }
+                        }
+                    }*/
+                }
+                else
+                {
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                reader = fork;
+                if (!reader.TryAdvance(length))
+                {
+                    reader.TryAdvance(reader.Remaining);
+                }
+            }
         }
     }
 

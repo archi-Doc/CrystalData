@@ -351,10 +351,13 @@ public partial class StorageControl : IPersistable
 
     internal void DeleteLatestStorageForDebug(StorageObject storageObject)
     {
-        ulong fileId;
+        ulong fileId = 0;
         using (this.lowestLockObject.EnterScope())
         {
-            fileId = storageObject.storageId0.FileId;
+            if (storageObject.storageId1.IsValid)
+            {
+                fileId = storageObject.storageId0.FileId;
+            }
         }
 
         if (fileId != 0 && storageObject.StructualRoot is ICrystal crystal)
