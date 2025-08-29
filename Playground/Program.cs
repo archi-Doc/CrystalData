@@ -274,7 +274,7 @@ internal class Program
 
         using (var sc = await goshujinStorage.TryLock(123, AcquisitionMode.GetOrCreate))
         {
-            if (sc.Data is { } spClass)
+            if (sc.Data is SpClass spClass)
             {
                 spClass.Name = "Hello";
             }

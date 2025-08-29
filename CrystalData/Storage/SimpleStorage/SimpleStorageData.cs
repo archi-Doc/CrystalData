@@ -79,7 +79,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
                 root.AddJournal(ref writer);
             }
 
-            return this.fileToSize.Remove(file);
+            return this.TryRemoveFile(file);
         }
     }
 
@@ -179,11 +179,26 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
         else if (record == JournalRecord.Delete)
         {
             var file = reader.ReadUInt32();
-            this.fileToSize.Remove(file);
+            this.TryRemoveFile(file);
 
             return true;
         }
 
         return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryRemoveFile(uint file)
+    {
+        if (this.fileToSize.TryGetValue(file, out var size))
+        {
+            this.fileToSize.Remove(file);
+            this.storageUsage -= size;
+            return true;
+        }
+        else
+        {// Not found
+            return false;
+        }
     }
 }

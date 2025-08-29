@@ -621,7 +621,7 @@ public class Crystalizer
             }
         }
 
-        var storages = this.configurationToStorage.Values.ToArray();
+        var storages = this.GetStorageArray();
         foreach (var x in storages)
         {
             if (await x.TestJournal().ConfigureAwait(false) == false)
@@ -635,7 +635,7 @@ public class Crystalizer
 
     public void Dump()
     {
-        var storages = this.configurationToStorage.Values.ToArray();
+        var storages = this.GetStorageArray();
         foreach (var x in storages)
         {
             x.Dump();
@@ -1055,18 +1055,28 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
-        var storages = this.configurationToStorage.Values.ToArray();
-        foreach (var x in storages)
-        {// Storages
-            goshujin.Add(new(x));
-        }
-
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
+        // First, persist Crystals and StorageControl.
         var releaseTasks = new Task[this.ConcurrentUnload];
         for (var i = 0; i < this.ConcurrentUnload; i++)
         {
-            releaseTasks[i] = ReleaseTaskExtension.ReleaseTask(this, goshujin, storeMode);
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+        }
+
+        await Task.WhenAll(releaseTasks).ConfigureAwait(false);
+
+        // Since the Storage is modified in the preceding step, persist the Storage here.
+        goshujin.Clear();
+        var storages = this.GetStorageArray();
+        foreach (var x in storages)
+        {
+            goshujin.Add(new(x));
+        }
+
+        for (var i = 0; i < this.ConcurrentUnload; i++)
+        {
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
         }
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
@@ -1112,6 +1122,14 @@ public class Crystalizer
         foreach (var x in this.planeToCrystal)
         {
             this.Logger.TryGet(LogLevel.Debug)?.Log($"Plane: {x.Key} = {x.Value.GetType().FullName}");
+        }
+    }
+
+    private IStorage[] GetStorageArray()
+    {
+        using (this.lockObject.EnterScope())
+        {
+            return this.configurationToStorage.Values.ToArray();
         }
     }
 }

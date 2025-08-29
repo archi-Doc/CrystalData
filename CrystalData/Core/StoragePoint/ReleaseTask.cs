@@ -2,11 +2,11 @@
 
 namespace CrystalData.Unload;
 
-internal static class ReleaseTaskExtension
+internal static class StoreTaskExtension
 {
     private const int WaitTimeInMilliseconds = 1_000;
 
-    public static async Task ReleaseTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
+    public static async Task StoreTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
     {
         while (true)
         {
