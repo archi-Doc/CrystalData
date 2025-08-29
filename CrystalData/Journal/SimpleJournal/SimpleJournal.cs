@@ -163,32 +163,24 @@ public partial class SimpleJournal : IJournal
 
     Type IPersistable.DataType => typeof(SimpleJournal);
 
-    async Task IJournal.FlushAsync(bool terminate)
+    async Task IJournal.Terminate()
     {
         if (this.task is { } task)
-        {
-            if (terminate)
-            {
-                task.Terminate();
-            }
-
+        {// Wait for the task to complete; the journal is written upon termination.
+            task.Terminate();
             await task.WaitForTerminationAsync(-1).ConfigureAwait(false);
         }
 
-        if (terminate)
+        using (this.lockBooks.EnterScope())
         {
-            using (this.lockBooks.EnterScope())
+            var array = this.books.ToArray();
+            foreach (var x in array)
             {
-                var array = this.books.ToArray();
-                foreach (var x in array)
-                {
-                    x.Goshujin = null;
-                }
+                x.Goshujin = null;
             }
-
-            // Terminate
-            this.logger.TryGet()?.Log($"Terminated - {this.memoryUsage}");
         }
+
+        this.logger.TryGet()?.Log($"Terminated - {this.memoryUsage}");
     }
 
     ulong IJournal.GetStartingPosition()

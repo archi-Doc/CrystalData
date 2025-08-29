@@ -519,7 +519,7 @@ public class Crystalizer
         // Terminate journal
         if (this.Journal is { } journal)
         {
-            await journal.FlushAsync(true).ConfigureAwait(false);
+            await journal.Terminate().ConfigureAwait(false);
         }
 
         this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");

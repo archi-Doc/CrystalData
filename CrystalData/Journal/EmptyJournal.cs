@@ -31,7 +31,7 @@ public class EmptyJournal : IJournal
     Task<bool> IPersistable.TestJournal()
         => Task.FromResult(true);
 
-    Task IJournal.FlushAsync(bool terminate)
+    Task IJournal.Terminate()
         => Task.CompletedTask;
 
     ulong IJournal.GetStartingPosition() => 1;
