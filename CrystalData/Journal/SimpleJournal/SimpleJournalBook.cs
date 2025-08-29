@@ -286,6 +286,9 @@ public partial class SimpleJournal
             return true;
         }
 
+        public override string ToString()
+            => $"Book [{this.Position}, {this.NextPosition})";
+
         protected bool IncompleteLinkPredicate()
             => this.IsIncomplete;
 

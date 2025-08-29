@@ -27,8 +27,6 @@ public sealed partial class StorageMap : IStructualObject
 
     internal StorageObject.GoshujinClass StorageObjects => this.storageObjects; // Lock:StorageControl
 
-    internal uint Plane => this.wa
-
     public bool IsEnabled => this.enabledStorageMap;
 
     public long StorageUsage => this.storageUsage;
@@ -123,7 +121,7 @@ public sealed partial class StorageMap : IStructualObject
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
-    {
+    {//
     }
 
     #endregion

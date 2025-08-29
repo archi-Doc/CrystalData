@@ -467,7 +467,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
         else if (record == JournalRecord.Value)
         {
-            this.data ??= TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
         else if (record == JournalRecord.AddStorage)
@@ -478,7 +478,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             }
 
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
-            this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
+            if (storageId > this.storageId0)
+            {
+                this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
+            }
+
             return true;
         }
 
@@ -556,12 +560,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
             }
 
+            this.SetDataInternal(data, false, result.Data);
             if (journalPosition > 0)
             {// Read journal
-                await this.ReadJournal(journalPosition);
+                var plane = this.StructualRoot is ICrystalInternal crystalInternal ? crystalInternal.Waypoint.Plane : 0;
+                if (plane != 0)
+                {
+                    await this.ReadJournal(plane, journalPosition);
+                }
             }
-
-            this.SetDataInternal(data, false, result.Data);
         }
         finally
         {
@@ -626,7 +633,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    private async Task ReadJournal(ulong position)
+    private async Task ReadJournal(uint plane, ulong position)
     {
         if (this.StructualRoot is not ICrystal crystal ||
             crystal.Journal is not { } journal)
@@ -645,7 +652,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             try
             {
-                this.ProcessJournal(position, journalResult.Data.Memory);
+                this.ProcessJournal(plane, position, journalResult.Data.Memory);
             }
             finally
             {
@@ -656,7 +663,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    private void ProcessJournal(ulong position, ReadOnlyMemory<byte> memory)
+    private void ProcessJournal(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
     {
         var reader = new TinyhandReader(memory.Span);
         while (reader.Consumed < memory.Length)
@@ -674,11 +681,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 {
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();
-                    var pointId = reader.ReadUInt64();
-                    if (plane == storageMapPlane &&
-                        pointId == this.pointId)
+                    if (plane == mapPlane)
                     {
-                        ((IStructualObject)this).ReadRecord(ref reader);
+                        if (reader.TryReadJournalRecord(out var journalRecord) &&
+                            journalRecord == JournalRecord.Locator)
+                        {
+                            var pointId = reader.ReadUInt64();
+                            if (pointId == this.pointId)
+                            {
+                                ((IStructualObject)this).ReadRecord(ref reader);
+                            }
+                        }
                     }
                 }
             }
