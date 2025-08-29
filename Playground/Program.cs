@@ -46,7 +46,7 @@ public partial class FirstData
     public string Name { get; set; } = string.Empty;
 
     [Key(2)]
-    public StoragePoint<int> IntStorage { get; set; } = new();
+    public StoragePoint<double> DoubleStorage { get; set; } = new();
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";
@@ -191,7 +191,7 @@ internal class Program
                         NumberOfFileHistories = 0, // No history file.
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
-                        StorageConfiguration = storageConfiguration,
+                        // StorageConfiguration = storageConfiguration,
                     });
 
                 context.AddCrystal<SecondData>(
@@ -238,9 +238,9 @@ internal class Program
         {
         }
 
-        data.IntStorage.Set(await data.IntStorage.TryGet() + 1);
+        data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
         data2.DoubleStorage.Set(await data2.DoubleStorage.TryGet() + 1.2);
-        Console.WriteLine($"First: {await data.IntStorage.TryGet()}");
+        Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
 
         var spClassGoshujin = data2.SpClassGoshujin;
