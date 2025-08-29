@@ -91,24 +91,6 @@ public partial class StorageControl : IPersistable
 
     internal void ResurrectForTesting() => this.isRip = false;
 
-    internal void ConfigureStorage(StorageObject storageObject, bool disableStorage)
-    {
-        using (this.lowestLockObject.EnterScope())
-        {
-            if (disableStorage)
-            {
-                storageObject.SetDisableStateBit();
-            }
-            else
-            {// Enable storage
-                if (storageObject.storageMap.IsEnabled)
-                {
-                    storageObject.ClearDisableStateBit();
-                }
-            }
-        }
-    }
-
     internal void SetStorageSize(StorageObject node, int newSize)
     {
         newSize = Math.Max(newSize, MinimumDataSize);

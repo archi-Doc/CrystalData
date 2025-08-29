@@ -14,10 +14,7 @@ namespace CrystalData.Internal;
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlocker
 {
-    public const int MaxHistories = 3; // 4
-
-    private const uint DisabledStateBit = 1u << 31;
-    // private const uint RipStateBit = 1u << 30;
+    public const int MaxHistories = 3;
 
     #region FieldAndProperty
 
@@ -44,45 +41,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal StorageObject? next; // Lock:StorageControl
 
     private object? data; // Lock:this
-    private uint state; // Lock:StorageControl
     internal int size; // Lock:StorageControl
-
-    internal IStructualObject? parentObject;//
-
-    /*public IStructualRoot? StructualRoot
-    {
-        get => ((IStructualObject)this.storageMap).StructualRoot ?? this.parentObject?.StructualRoot;
-        set { }
-    }
-
-    public IStructualObject? StructualParent
-    {
-        get => this.storageMap.IsEnabled ? this.storageMap : this.parentObject;
-        set { }
-    }*/
 
     public IStructualRoot? StructualRoot
     {
-        get
-        {
-            if (((IStructualObject)this.storageMap).StructualRoot is { } root)
-            {
-                return root;
-            }
-            else
-            {
-                return this.parentObject?.StructualRoot;
-            }
-        }
-
-        set
-        {
-        }
+        get => ((IStructualObject)this.storageMap).StructualRoot;
+        set { }
     }
 
     public IStructualObject? StructualParent
     {
-        get => this.storageMap.IsEnabled ? this.storageMap : this.parentObject;
+        get => this.storageMap;
         set { }
     }
 
@@ -100,7 +69,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     internal StorageControl storageControl => this.storageMap.StorageControl;
 
-    public bool IsDisabled => (this.state & DisabledStateBit) != 0;
+    public bool IsEnabled => this.storageMap.IsEnabled;
 
     #endregion
 
@@ -114,10 +83,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
         this.storageMap = storageMap;
-        if (!storageMap.IsEnabled)
-        {// Disable storage
-            this.SetDisableStateBit();
-        }
     }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
@@ -129,7 +94,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return;
         }
 
-        if ((!this.storageMap.IsEnabled || this.IsDisabled) && this.data is not null)
+        if (!this.IsEnabled && this.data is not null)
         {// Storage disabled
             TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
         }
@@ -208,38 +173,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    /*internal async ValueTask<DataScope<TData>> EnterScope<TData>()
-        where TData : notnull
-    {
-        if (this.storageControl.IsRip || this.IsRip)
-        {
-            return default;
-        }
-
-        await this.EnterAsync().ConfigureAwait(false);
-        if (this.storageControl.IsRip || this.IsRip)
-        {
-            this.Exit();
-            return default;
-        }
-
-        if (this.data is null)
-        {// PrepareAndLoad
-            await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-        }
-
-        if (this.data is null)
-        {// Reconstruct
-            this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
-        }
-
-        return new DataScope<TData>((TData)this.data, this);
-    }*/
-
     internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : notnull
     {
-        if (this.storageControl.IsRip) // || this.IsRip)
+        if (this.storageControl.IsRip)
         {
             return new(DataScopeResult.Rip);
         }
@@ -249,7 +186,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return new(DataScopeResult.Timeout);
         }
 
-        if (this.storageControl.IsRip) // || this.IsRip)
+        if (this.storageControl.IsRip)
         {
             this.Exit();
             return new(DataScopeResult.Rip);
@@ -395,7 +332,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             }
         }
 
-        if (!this.storageMap.IsEnabled)
+        if (!this.IsEnabled)
         {
             return result;
         }
@@ -620,7 +557,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             structualObject.SetupStructure(this);
         }
 
-        if (this.storageMap.IsEnabled)
+        if (this.IsEnabled)
         {
             if (original.IsEmpty)
             {
@@ -690,15 +627,5 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {
             ((IStructualObject)this).AddJournalRecord(JournalRecord.DeleteStorage);
         }
-    }
-
-    internal void SetDisableStateBit() => this.state |= DisabledStateBit;
-
-    internal void ClearDisableStateBit() => this.state &= ~DisabledStateBit;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void ConfigureStorage(bool disableStorage)
-    {
-        this.storageControl.ConfigureStorage(this, disableStorage);
     }
 }

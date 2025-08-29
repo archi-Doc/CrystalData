@@ -37,9 +37,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>
-    /// Gets a value indicating whether storage is disabled, and data is serialized directly.
+    /// Gets a value indicating whether storage is enabled.
     /// </summary>
-    public bool IsDisabled => this.GetOrCreateStorageObject().IsDisabled;
+    public bool IsEnabled => this.GetOrCreateStorageObject().IsEnabled;
 
     /// <summary>
     /// Gets a value indicating whether storage is locked.<br/>
@@ -67,18 +67,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public StoragePoint()
     {
     }
-
-    /// <summary>
-    /// Disables storage for this storage point, causing data to be serialized directly.
-    /// </summary>
-    public void DisableStorage()
-        => this.GetOrCreateStorageObject().ConfigureStorage(true);
-
-    /// <summary>
-    /// Enables storage for this storage point, allowing data to be persisted to storage.
-    /// </summary>
-    public void EnableStorage()
-        => this.GetOrCreateStorageObject().ConfigureStorage(false);
 
     /// <summary>
     /// Sets the data instance for this storage point.<br/>
@@ -274,7 +262,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         else
         {
             StorageMap.Disabled.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
-            v.storageObject.parentObject = v;
 
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options) ?? TinyhandSerializer.Reconstruct<TData>(options);
             v.storageObject.Set(data);
@@ -315,7 +302,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
         var previousPointId = this.pointId;
         storageMap.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
-        // this.storageObject.parentObject = storageMap.IsEnabled ? null : this;
 
         if (this.pointId != previousPointId &&
             ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)

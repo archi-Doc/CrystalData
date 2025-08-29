@@ -184,10 +184,6 @@ public class StoragePointTest
         bin = TinyhandSerializer.Serialize(tc, TinyhandSerializerOptions.Special);
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin, TinyhandSerializerOptions.Special);
 
-        tc.StringStorage.DisableStorage();
-        tc.StringStorage.IsDisabled.IsTrue();
-        tc.StringStorage.EnableStorage();
-        tc.StringStorage.IsDisabled.IsTrue();
         bin = TinyhandSerializer.Serialize(tc);
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
         tc.Equals(tc2).IsTrue();
