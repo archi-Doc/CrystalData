@@ -48,11 +48,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public bool IsLocked => this.storageObject?.IsLocked == true;
 
-    /// <summary>
+    /*/// <summary>
     /// Gets a value indicating whether storage is rip.<br/>
     /// Storage is shutting down and is read-only.
     /// </summary>
-    public bool IsRip => this.storageObject?.IsRip == true;
+    public bool IsRip => this.storageObject?.IsRip == true;*/
 
     /*/// <summary>
     /// Gets a value indicating whether storage is pending release.<br/>

@@ -17,7 +17,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     public const int MaxHistories = 3; // 4
 
     private const uint DisabledStateBit = 1u << 31;
-    private const uint RipStateBit = 1u << 30;
+    // private const uint RipStateBit = 1u << 30;
 
     #region FieldAndProperty
 
@@ -102,7 +102,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     public bool IsDisabled => (this.state & DisabledStateBit) != 0;
 
-    public bool IsRip => (this.state & RipStateBit) != 0;
+    // public bool IsRip => (this.state & RipStateBit) != 0;
 
     #endregion
 
@@ -241,7 +241,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : notnull
     {
-        if (this.storageControl.IsRip || this.IsRip)
+        if (this.storageControl.IsRip) // || this.IsRip)
         {
             return new(DataScopeResult.Rip);
         }
@@ -251,7 +251,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return new(DataScopeResult.Timeout);
         }
 
-        if (this.storageControl.IsRip || this.IsRip)
+        if (this.storageControl.IsRip) // || this.IsRip)
         {
             this.Exit();
             return new(DataScopeResult.Rip);
