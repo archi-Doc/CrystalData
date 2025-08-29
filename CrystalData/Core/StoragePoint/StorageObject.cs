@@ -673,32 +673,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 if (journalType == JournalType.Record)
                 {
                     reader.Read_Locator();
-                    /*var plane = reader.ReadUInt32();
-                    if (this.planeToCrystal.TryGetValue(plane, out var crystal))
+                    var plane = reader.ReadUInt32();
+                    var pointId = reader.ReadUInt64();
+                    if (plane == storageMapPlane &&
+                        pointId == this.pointId)
                     {
-                        if (crystal.Data is IStructualObject journalObject)
-                        {
-                            var currentPosition = position + (ulong)reader.Consumed;
-                            if (currentPosition.CircularCompareTo(crystal.Waypoint.JournalPosition) > 0)
-                            {
-                                if (journalObject.ReadRecord(ref reader))
-                                {// Success
-                                    restored.Add(plane);
-                                }
-                                else
-                                {// Failure
-                                    failure = true;
-                                }
-                            }
-                        }
-                    }*/
+                        ((IStructualObject)this).ReadRecord(ref reader);
+                    }
                 }
-                else
-                {
-                }
-            }
-            catch
-            {
             }
             finally
             {
