@@ -47,15 +47,42 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     private uint state; // Lock:StorageControl
     internal int size; // Lock:StorageControl
 
-    public IStructualRoot? StructualRoot
-    {//
-        get => ((IStructualObject)this.storageMap).StructualRoot;
+    internal IStructualObject? parentObject;//
+
+    /*public IStructualRoot? StructualRoot
+    {
+        get => ((IStructualObject)this.storageMap).StructualRoot ?? this.parentObject?.StructualRoot;
         set { }
     }
 
     public IStructualObject? StructualParent
     {
-        get => this.storageMap;
+        get => this.storageMap.IsEnabled ? this.storageMap : this.parentObject;
+        set { }
+    }*/
+
+    public IStructualRoot? StructualRoot
+    {
+        get
+        {
+            if (((IStructualObject)this.storageMap).StructualRoot is { } root)
+            {
+                return root;
+            }
+            else
+            {
+                return this.parentObject?.StructualRoot;
+            }
+        }
+
+        set
+        {
+        }
+    }
+
+    public IStructualObject? StructualParent
+    {
+        get => this.storageMap.IsEnabled ? this.storageMap : this.parentObject;
         set { }
     }
 
@@ -296,7 +323,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     {
         if (this.data is null ||
             this.StructualRoot is not ICrystal)
-        {// No dataqqq
+        {// No data
             return true;
         }
 
@@ -368,6 +395,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             {
                 result = false;
             }
+        }
+
+        if (!this.storageMap.IsEnabled)
+        {
+            return result;
         }
 
         // Serialize and get hash.

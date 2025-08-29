@@ -633,6 +633,15 @@ public class Crystalizer
         return result;
     }
 
+    public void Dump()
+    {
+        var storages = this.configurationToStorage.Values.ToArray();
+        foreach (var x in storages)
+        {
+            x.Dump();
+        }
+    }
+
     public async Task StoreJournal()
     {
         // Save journal

@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
@@ -217,19 +218,6 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             }
         }
 
-        if (obj is IStructualObject structualObject)
-        {
-            if (await structualObject.StoreData(storeMode).ConfigureAwait(false) == false)
-            {
-                return CrystalResult.DataIsLocked;
-            }
-        }
-
-        /*if (this.storage is { } storage && storage is not EmptyStorage)
-        {// Because multiple Crystals may share a single Storage, saving the Storage is handled separately.
-            await storage.SaveStorage(this).ConfigureAwait(false);
-        }*/
-
         this.lastSavedTime = DateTime.UtcNow;
 
         // Starting position
@@ -253,6 +241,19 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return CrystalResult.SerializationFailed;
         }
 
+        if (obj is IStructualObject structualObject)
+        {// Since data may be released by StoreData(), this should be invoked only after serialization.
+            if (await structualObject.StoreData(storeMode).ConfigureAwait(false) == false)
+            {
+                return CrystalResult.DataIsLocked;
+            }
+        }
+
+        /*if (this.storage is { } storage && storage is not EmptyStorage)
+        {// Because multiple Crystals may share a single Storage, saving the Storage is handled separately.
+            await storage.SaveStorage(this).ConfigureAwait(false);
+        }*/
+
         // Get hash
         var hash = FarmHash.Hash64(rentMemory.Span);
         if (hash == currentWaypoint.Hash)
@@ -263,6 +264,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         var waypoint = this.waypoint;
         if (!waypoint.Equals(currentWaypoint))
         {// Waypoint changed
+            Debug.Assert(false, "Waypoint changed during Store.");
             goto Exit;
         }
 

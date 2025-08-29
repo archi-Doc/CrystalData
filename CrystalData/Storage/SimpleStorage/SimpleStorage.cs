@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.IO;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
 
@@ -363,6 +362,14 @@ internal partial class SimpleStorage : IStorage
         }
 
         return true;
+    }
+
+    void IStorage.Dump()
+    {
+        if (this.storageData is { } storageData)
+        {
+            Console.WriteLine($"SimpleStorage Count:{storageData.Count} Usage:{storageData.StorageUsage}");
+        }
     }
 
     #endregion
