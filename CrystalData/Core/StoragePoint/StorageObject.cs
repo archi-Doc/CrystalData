@@ -1,9 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using Tinyhand.IO;
-using static CrystalData.CrystalDataHashed;
 
 namespace CrystalData.Internal;
 

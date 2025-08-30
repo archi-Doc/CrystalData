@@ -74,7 +74,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
         {
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
             {
-                writer.Write(JournalRecord.Delete);
+                writer.Write(JournalRecord.DeleteItem);
                 writer.Write(file);
                 root.AddJournal(ref writer);
             }
@@ -122,7 +122,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
                 if (sizeDiff != 0 && ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {
-                    writer.Write_Add();
+                    writer.Write(JournalRecord.AddItem);
                     writer.Write(file);
                     writer.Write(dataSize);
                     writer.Write(sizeDiff);
@@ -147,7 +147,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
             {
                 if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {
-                    writer.Write_Add();
+                    writer.Write(JournalRecord.AddItem);
                     writer.Write(file);
                     writer.Write(size);
                     writer.Write(size);
@@ -166,7 +166,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
             return false;
         }
 
-        if (record == JournalRecord.Add)
+        if (record == JournalRecord.AddItem)
         {
             var file = reader.ReadUInt32();
             var size = reader.ReadInt32();
@@ -176,7 +176,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
             return true;
         }
-        else if (record == JournalRecord.Delete)
+        else if (record == JournalRecord.DeleteItem)
         {
             var file = reader.ReadUInt32();
             this.TryRemoveFile(file);
