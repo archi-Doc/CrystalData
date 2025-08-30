@@ -260,13 +260,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     internal async Task<bool> StoreData(StoreMode storeMode)
     {
-        if (this.data is null ||
-            this.StructualRoot is not ICrystal)
-        {// No data
-            return true;
-        }
-
-        object? data;
+        object? dataCopy;
         ICrystal? crystal;
 
         if (storeMode == StoreMode.TryRelease)
@@ -278,16 +272,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             try
             {
-                data = this.data;
+                this.storageControl.Release(this, false); // Release
+                dataCopy = this.data;
+                this.data = default;
                 crystal = this.StructualRoot as ICrystal;
-                if (data is null || crystal is null)
+                if (dataCopy is null || crystal is null)
                 {// No data
                     return true;
                 }
-
-                // Release
-                this.storageControl.Release(this, false);
-                this.data = default;
             }
             finally
             {
@@ -299,16 +291,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             await this.EnterAsync().ConfigureAwait(false);
             try
             {
-                data = this.data;
+                this.storageControl.Release(this, false); // Release
+                dataCopy = this.data;
+                this.data = default;
                 crystal = this.StructualRoot as ICrystal;
-                if (data is null || crystal is null)
+                if (dataCopy is null || crystal is null)
                 {// No data
                     return true;
                 }
-
-                // Release
-                this.storageControl.Release(this, false);
-                this.data = default;
             }
             finally
             {
@@ -317,9 +307,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
         else
         {// Store data
-            data = this.data;
+            dataCopy = this.data;
             crystal = this.StructualRoot as ICrystal;
-            if (data is null || crystal is null)
+            if (dataCopy is null || crystal is null)
             {// No data
                 return true;
             }
@@ -330,7 +320,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         if (!this.IsEnabled)
         {
             // Store children
-            if (data is IStructualObject structualObject)
+            if (dataCopy is IStructualObject structualObject)
             {
                 if (!await structualObject.StoreData(storeMode).ConfigureAwait(false))
                 {
@@ -342,14 +332,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
 
         // Serialize and get hash.
-        (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, data);
+        (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, dataCopy);
         if (rentMemory.IsEmpty)
         {// No data
             return false;
         }
 
         // Store children (code is redundant because it is placed after serialization)
-        if (data is IStructualObject structualObject2)
+        if (dataCopy is IStructualObject structualObject2)
         {
             if (!await structualObject2.StoreData(storeMode).ConfigureAwait(false))
             {
@@ -378,7 +368,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             // Journal
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                writer.Write(JournalRecord.AddStorage);
+                writer.Write(JournalRecord.AddItem);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
                 root.AddJournal(ref writer);
             }
@@ -458,7 +448,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return false;
         }
 
-        if (record == JournalRecord.DeleteStorage)
+        if (record == JournalRecord.Delete)
         {// Delete storage
             this.DeleteStorage(false, default).Wait();
             return true;
@@ -468,18 +458,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
-        else if (record == JournalRecord.AddStorage)
+        else if (record == JournalRecord.AddItem)
         {
             if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
             {// No crystal
                 return true;
             }
 
-            var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
+            //
+            /*var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             if (storageId > this.storageId0)
             {
                 this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
-            }
+            }*/
 
             return true;
         }
@@ -496,36 +487,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     private bool ReadValueRecord(ref TinyhandReader reader)
     {
-        if (reader.Remaining > 0)
-        {// TryReadJournal_PeekIfKeyOrLocator
-            var r = (JournalRecord)reader.NextCode;
-            if (r == JournalRecord.Key ||
-                r == JournalRecord.Locator)
-            {
-                return true;
-            }
-            else
-            {
-                reader.Advance(1);
-                return false;
-            }
-        }
-
-        return false;//
-
-        if (!reader.TryPeekJournalRecord(out JournalRecord record))
-        {
-            return false;
-        }
-
-        if (record == JournalRecord.Value)
-        {
-            reader.Read_Value();
-            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
-            return this.data is not null;
-        }
-        else if (record == JournalRecord.Key ||
-            record == JournalRecord.Locator)
+        if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
         {
             if (this.data is IStructualObject structualObject)
             {
@@ -535,6 +497,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             {
                 return false;
             }
+        }
+
+        if (record == JournalRecord.Value)
+        {
+            reader.Read_Value();
+            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+            return this.data is not null;
         }
 
         return false;
@@ -619,6 +588,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             result.Return();
         }
     }
+
+    internal void SetTypeIdentifier<TData>()
+        => this.typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     [MemberNotNull(nameof(data))]
     internal void SetDataInternal<TData>(TData data, bool recordJournal, BytePool.RentReadOnlyMemory original)
@@ -733,13 +705,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                     var plane = reader.ReadUInt32();
                     if (plane == mapPlane)
                     {
-                        if (reader.TryReadJournalRecord(out var journalRecord) &&
-                            journalRecord == JournalRecord.Locator)
+                        if (reader.TryReadJournalRecord(out var journalRecord))
                         {
-                            var pointId = reader.ReadUInt64();
-                            if (pointId == this.pointId)
+                            if (journalRecord == JournalRecord.Locator)
                             {
-                                this.ReadValueRecord(ref reader);
+                                var pointId = reader.ReadUInt64();
+                                if (pointId == this.pointId)
+                                {
+                                    this.ReadValueRecord(ref reader);
+                                }
                             }
                         }
                     }
@@ -777,7 +751,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (recordJournal)
         {
-            ((IStructualObject)this).AddJournalRecord(JournalRecord.DeleteStorage);
+            ((IStructualObject)this).AddJournalRecord(JournalRecord.Delete);
         }
     }
 }

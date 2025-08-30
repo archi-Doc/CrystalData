@@ -95,7 +95,7 @@ public sealed partial class StorageMap : IStructualObject
             return false;
         }
 
-        if (record == JournalRecord.Add)
+        if (record == JournalRecord.AddItem)
         {
             var pointId = reader.ReadUInt64();
             var typeIdentifier = reader.ReadUInt32();
@@ -121,7 +121,7 @@ public sealed partial class StorageMap : IStructualObject
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
-    {//
+    {
     }
 
     #endregion

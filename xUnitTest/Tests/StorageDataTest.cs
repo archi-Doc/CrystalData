@@ -92,7 +92,7 @@ public class StorageDataTest
 
             using (var w2 = children.Data!.TryLock(2, AcquisitionMode.GetOrCreate)!)
             {
-                w2.DeleteAndErase();
+                w2.Delete();
                 w2.Commit();
             }
         }
