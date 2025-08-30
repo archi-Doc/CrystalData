@@ -498,6 +498,23 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     private bool ReadValueRecord(ref TinyhandReader reader)
     {
+        if (reader.Remaining > 0)
+        {// TryReadJournal_PeekIfKeyOrLocator
+            var r = (JournalRecord)reader.NextCode;
+            if (r == JournalRecord.Key ||
+                r == JournalRecord.Locator)
+            {
+                return true;
+            }
+            else
+            {
+                reader.Advance(1);
+                return false;
+            }
+        }
+
+        return false;//
+
         if (!reader.TryPeekJournalRecord(out JournalRecord record))
         {
             return false;
@@ -705,7 +722,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         while (reader.Consumed < memory.Length)
         {
             if (!reader.TryReadRecord(out var length, out var journalType))
-            {// Corrupted
+            {// Not record
                 return;
             }
 
