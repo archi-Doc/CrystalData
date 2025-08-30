@@ -56,7 +56,7 @@ public partial class SecondData
     }
 
     [Key(0)]
-    public StoragePoint<double> DoubleStorage { get; set; } = new();
+    public StoragePoint<SecondDataClass> ClassStorage { get; set; } = new();
 
     [Key(1)]
     public SpClassPoint.GoshujinClass SpClassGoshujin { get; set; } = new();
@@ -65,7 +65,20 @@ public partial class SecondData
     public StoragePoint<SpClassPoint.GoshujinClass> GoshujinStorage { get; set; } = new();
 
     public override string ToString()
-        => $"Second: {this.DoubleStorage.TryGet()}";
+        => $"Second: {this.ClassStorage.TryGet()}";
+}
+
+[TinyhandObject(Structual = true)]
+public partial class SecondDataClass
+{
+    [Key(0)]
+    public partial double Double { get; set; }
+
+    [Key(1)]
+    public partial int Int { get; set; }
+
+    public override string ToString()
+        => $"Class {this.Double} {this.Int}";
 }
 
 /// <summary>
@@ -228,20 +241,24 @@ internal class Program
         var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
-        var doubleStorage = data2.DoubleStorage;
-        using (var d = await doubleStorage.TryLock(AcquisitionMode.GetOrCreate))
+        var classStorage = data2.ClassStorage;
+        using (var d = await classStorage.TryLock(AcquisitionMode.GetOrCreate))
         {
+            if (d.IsValid)
+            {
+                d.Data.Double += 1.2d;
+                d.Data.Int += 11;
+            }
         }
 
         data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
-        data2.DoubleStorage.Set(await data2.DoubleStorage.TryGet() + 1.2);
 
-        await data2.DoubleStorage.StoreData(StoreMode.TryRelease);
-        data2.DoubleStorage.DeleteLatestStorageForDebug();
+        await data2.ClassStorage.StoreData(StoreMode.TryRelease);
+        data2.ClassStorage.DeleteLatestStorageForDebug();
         await crystalizer.StoreJournal();
 
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
-        Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");
+        Console.WriteLine($"Second: {await data2.ClassStorage.TryGet()}");
 
         var spClassGoshujin = data2.SpClassGoshujin;
         using (var scope = await spClassGoshujin.TryLock(1, AcquisitionMode.GetOrCreate))

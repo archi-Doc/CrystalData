@@ -498,30 +498,31 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     private bool ReadValueRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryReadJournalRecord(out JournalRecord record))
+        if (!reader.TryPeekJournalRecord(out JournalRecord record))
         {
             return false;
         }
 
-        if (record == JournalRecord.DeleteStorage ||
-            record == JournalRecord.AddStorage)
+        if (record == JournalRecord.Value)
         {
-            return true;
-        }
-        else if (record == JournalRecord.Value)
-        {
+            reader.Read_Value();
             this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
+        else if (record == JournalRecord.Key ||
+            record == JournalRecord.Locator)
+        {
+            if (this.data is IStructualObject structualObject)
+            {
+                return structualObject.ReadRecord(ref reader);
+            }
+            else
+            {
+                return false;
+            }
+        }
 
-        if (this.data is IStructualObject structualObject)
-        {
-            return structualObject.ReadRecord(ref reader);
-        }
-        else
-        {
-            return false;
-        }
+        return false;
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
@@ -585,16 +586,16 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             }
             else
             {
-                data = TinyhandSerializer.Deserialize<TData>(result.Data.Span);
+                TinyhandSerializer.TryDeserialize<TData>(result.Data.Span, out data);
             }
 
             this.SetDataInternal(data, false, result.Data);
             if (journalPosition > 0)
-            {// Read journal
+            {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
                 var plane = this.StructualRoot is ICrystalInternal crystalInternal ? crystalInternal.Waypoint.Plane : 0;
                 if (plane != 0)
                 {
-                    await this.ReadJournal(plane, journalPosition);
+                    await this.ReconstructFromJournal(plane, journalPosition);
                 }
             }
         }
@@ -661,7 +662,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    private async Task ReadJournal(uint plane, ulong position)
+    private async Task ReconstructFromJournal(uint plane, ulong position)
     {
         if (this.StructualRoot is not ICrystal crystal ||
             crystal.Journal is not { } journal)
@@ -682,7 +683,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             try
             {
-                this.ProcessJournal(plane, position, journalResult.Data.Memory);
+                this.ReconstructFromMemory(plane, position, journalResult.Data.Memory);
             }
             finally
             {
@@ -698,14 +699,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    private void ProcessJournal(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
+    private void ReconstructFromMemory(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
     {
         var reader = new TinyhandReader(memory.Span);
         while (reader.Consumed < memory.Length)
         {
             if (!reader.TryReadRecord(out var length, out var journalType))
             {// Corrupted
-                // this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.Corrupted);
                 return;
             }
 
@@ -726,10 +726,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                             {
                                 this.ReadValueRecord(ref reader);
                             }
-                        }
-                        else
-                        {
-
                         }
                     }
                 }
