@@ -238,6 +238,7 @@ internal class Program
 
         await data2.DoubleStorage.StoreData(StoreMode.TryRelease);
         data2.DoubleStorage.DeleteLatestStorageForDebug();
+        await crystalizer.StoreJournal();
 
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
         Console.WriteLine($"Second: {await data2.DoubleStorage.TryGet()}");

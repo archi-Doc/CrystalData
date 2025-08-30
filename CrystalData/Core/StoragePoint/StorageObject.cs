@@ -496,6 +496,34 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
+    private bool ReadValueRecord(ref TinyhandReader reader)
+    {
+        if (!reader.TryReadJournalRecord(out JournalRecord record))
+        {
+            return false;
+        }
+
+        if (record == JournalRecord.DeleteStorage ||
+            record == JournalRecord.AddStorage)
+        {
+            return true;
+        }
+        else if (record == JournalRecord.Value)
+        {
+            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+            return this.data is not null;
+        }
+
+        if (this.data is IStructualObject structualObject)
+        {
+            return structualObject.ReadRecord(ref reader);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
     {
         writer.Write_Locator();
@@ -641,6 +669,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return;
         }
 
+        var upperLimit = crystal.Journal.GetCurrentPosition();
+
         while (position != 0)
         {
             var endPosition = position;
@@ -657,6 +687,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             finally
             {
                 journalResult.Data.Return();
+            }
+
+            if (journalResult.NextPosition >= upperLimit)
+            {
+                break;
             }
 
             position = journalResult.NextPosition;
@@ -689,8 +724,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                             var pointId = reader.ReadUInt64();
                             if (pointId == this.pointId)
                             {
-                                ((IStructualObject)this).ReadRecord(ref reader);
+                                this.ReadValueRecord(ref reader);
                             }
+                        }
+                        else
+                        {
+
                         }
                     }
                 }
