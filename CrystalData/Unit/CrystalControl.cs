@@ -8,6 +8,7 @@ global using Arc.Threading;
 global using Arc.Unit;
 global using Tinyhand;
 global using ValueLink;
+using CrystalData.Supplement;
 using CrystalData.Storage;
 using CrystalData.UserInterface;
 using Microsoft.Extensions.DependencyInjection;

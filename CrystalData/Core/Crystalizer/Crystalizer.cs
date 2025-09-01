@@ -8,6 +8,7 @@ using CrystalData.Check;
 using CrystalData.Filer;
 using CrystalData.Journal;
 using CrystalData.Storage;
+using CrystalData.Supplement;
 using CrystalData.Unload;
 using CrystalData.UserInterface;
 using Tinyhand.IO;
@@ -52,19 +53,26 @@ public class Crystalizer
         private Crystalizer crystalizer;
     }
 
-    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey, IServiceProvider serviceProvider)
+    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
         this.configuration = configuration;
+        this.UnitLogger = unitLogger;
+        this.ServiceProvider = serviceProvider;
+        this.CrystalSupplement = new(this);
+        this.StorageControl = storageControl;
+        this.Query = query;
+        this.QueryContinue = new CrystalDataQueryNo();
+
         this.GlobalDirectory = options.GlobalDirectory;
         this.DefaultBackup = options.DefaultBackup;
         this.GlobalStorage = options.GlobalStorage;
         this.EnableFilerLogger = options.EnableFilerLogger;
         this.RootDirectory = options.DataDirectory;
         this.FilerTimeout = options.FilerTimeout;
-        this.StorageControl = storageControl;
         this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
         this.ConcurrentUnload = options.ConcurrentUnload;
         this.TimeoutUntilForcedRelease = options.TimeoutUntilForcedRelease;
+        //Supplement file
         if (string.IsNullOrEmpty(this.RootDirectory))
         {
             this.RootDirectory = Directory.GetCurrentDirectory();
@@ -76,10 +84,6 @@ public class Crystalizer
 
         this.Logger = logger;
         this.task = new(this);
-        this.Query = query;
-        this.QueryContinue = new CrystalDataQueryNo();
-        this.UnitLogger = unitLogger;
-        this.ServiceProvider = serviceProvider;
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
         this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
         this.StorageKey = storageKey;
@@ -93,9 +97,13 @@ public class Crystalizer
             this.typeToCrystal.TryAdd(x.Key, crystal);
             this.crystals.TryAdd(crystal, 0);
         }
+
+        this.CrystalSupplement.PrepareAndLoad();
     }
 
     #region FieldAndProperty
+
+    public CrystalSupplement CrystalSupplement { get; }
 
     public StorageControl StorageControl { get; }
 
@@ -1113,6 +1121,7 @@ public class Crystalizer
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
         this.CrystalCheck.Store();
+        this.CrystalSupplement.Store();
     }
 
     #endregion

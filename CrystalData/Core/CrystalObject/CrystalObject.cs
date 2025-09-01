@@ -637,7 +637,7 @@ Exit:
         var singletonData = this.data;
         if (singletonData is null &&
             this.originalCrystalConfiguration.IsSingleton)
-        {
+        {// For singleton data, it is always treated as a singleton instance, regardless of whether or not ServiceProvider is used.
             singletonData = this.Crystalizer.ServiceProvider.GetRequiredService<TData>();
         }
 
@@ -720,6 +720,7 @@ Exit:
     private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration, TData? singletonData)
 #pragma warning restore SA1204 // Static elements should appear before instance elements
     {
+        var x = filer.Crystalizer.CrystalSupplement.IsPreviouslyStored<TData>(configuration.FileConfiguration);
         param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)

@@ -31,6 +31,10 @@ public class CrystalizerOptions
 
     public TimeSpan DefaultSaveInterval { get; set; }
 
+    public FileConfiguration? SupplementFile { get; set; }
+
+    public FileConfiguration? BackupSupplementFile { get; set; }
+
     public DirectoryConfiguration GlobalDirectory { get; set; } = new LocalDirectoryConfiguration();
 
     public DirectoryConfiguration? DefaultBackup { get; set; }
