@@ -55,9 +55,14 @@ public sealed partial class CrystalSupplement
 
         if (this.mainFiler is null)
         {
-            FileConfiguration? fileConfiguration = default; // this.crystalizer.Options.SupplementFile;
+            var fileConfiguration = this.crystalizer.Options.SupplementFile;
             fileConfiguration ??= new LocalFileConfiguration(DefaultSupplementFileName);
             (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveFiler(fileConfiguration);
+        }
+
+        if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
+        {
+            (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveFiler(this.crystalizer.Options.BackupSupplementFile);
         }
 
         var result = this.mainFiler.ReadAsync(0, -1).Result;
@@ -74,10 +79,13 @@ public sealed partial class CrystalSupplement
             result.Return();
         }
 
-        if (!supplementLoaded)
+        if (supplementLoaded)
         {
-            this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, this.mainConfiguration?.Path ?? string.Empty);
+            return;
         }
+
+        this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, this.mainConfiguration?.Path ?? string.Empty);
+
     }
 
     public void Store(bool rip = false)
