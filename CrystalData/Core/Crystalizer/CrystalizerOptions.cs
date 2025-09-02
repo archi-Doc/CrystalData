@@ -2,8 +2,8 @@
 
 namespace CrystalData;
 
-[TinyhandObject(ImplicitKeyAsName = true, AddImmutable = true)]
-public partial class CrystalizerOptions
+// [TinyhandObject(ImplicitKeyAsName = true, AddImmutable = true)]
+public partial record class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
 
@@ -14,31 +14,31 @@ public partial class CrystalizerOptions
         this.DefaultSaveInterval = CrystalConfiguration.DefaultSaveInterval;
     }
 
-    public bool EnableFilerLogger { get; set; } = false;
+    public bool EnableFilerLogger { get; init; } = false;
 
-    public string DataDirectory { get; set; } = string.Empty;
+    public string DataDirectory { get; init; } = string.Empty;
 
-    public TimeSpan FilerTimeout { get; set; }
+    public TimeSpan FilerTimeout { get; init; }
 
-    public long MemoryUsageLimit { get; set; } = DefaultMemoryUsageLimit;
+    public long MemoryUsageLimit { get; init; } = DefaultMemoryUsageLimit;
 
-    public int ConcurrentUnload { get; set; } = 8;
+    public int ConcurrentUnload { get; init; } = 8;
 
-    public TimeSpan TimeoutUntilForcedRelease { get; set; }
+    public TimeSpan TimeoutUntilForcedRelease { get; init; }
 
-    public SaveFormat DefaultSaveFormat { get; set; } = SaveFormat.Binary;
+    public SaveFormat DefaultSaveFormat { get; init; } = SaveFormat.Binary;
 
-    public SavePolicy DefaultSavePolicy { get; set; } = SavePolicy.Manual;
+    public SavePolicy DefaultSavePolicy { get; init; } = SavePolicy.Manual;
 
-    public TimeSpan DefaultSaveInterval { get; set; }
+    public TimeSpan DefaultSaveInterval { get; init; }
 
-    public FileConfiguration? SupplementFile { get; set; }
+    public FileConfiguration? SupplementFile { get; init; }
 
-    public FileConfiguration? BackupSupplementFile { get; set; }
+    public FileConfiguration? BackupSupplementFile { get; init; }
 
-    public DirectoryConfiguration GlobalDirectory { get; set; } = new LocalDirectoryConfiguration();
+    public DirectoryConfiguration GlobalDirectory { get; init; } = new LocalDirectoryConfiguration();
 
-    public DirectoryConfiguration? DefaultBackup { get; set; }
+    public DirectoryConfiguration? DefaultBackup { get; init; }
 
-    public StorageConfiguration GlobalStorage { get; set; } = new SimpleStorageConfiguration(new LocalDirectoryConfiguration("Storage"));
+    public StorageConfiguration GlobalStorage { get; init; } = new SimpleStorageConfiguration(new LocalDirectoryConfiguration("Storage"));
 }

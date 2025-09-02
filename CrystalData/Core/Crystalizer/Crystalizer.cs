@@ -65,16 +65,23 @@ public class Crystalizer
         this.QueryContinue = new CrystalDataQueryNo();
 
         // Options
-        if (string.IsNullOrEmpty(options.DataDirectory))
+        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
+        var dataDirectory = options.DataDirectory;
+        if (string.IsNullOrEmpty(dataDirectory))
         {
-            options.DataDirectory = Directory.GetCurrentDirectory();
+            dataDirectory = Directory.GetCurrentDirectory();
         }
 
-        options.DefaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
-        options.DefaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
-        options.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
-        this.Options = options.ToImmutable();
-        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
+        var defaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
+        var defaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
+        var defaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
+        this.Options = options with
+        {
+            DataDirectory = dataDirectory,
+            DefaultSaveFormat = defaultSaveFormat,
+            DefaultSavePolicy = defaultSavePolicy,
+            DefaultSaveInterval = defaultSaveInterval,
+        };
 
         //Supplement file
 
@@ -99,7 +106,7 @@ public class Crystalizer
 
     #region FieldAndProperty
 
-    public CrystalizerOptions.Immutable Options { get; }
+    public CrystalizerOptions Options { get; }
 
     public CrystalSupplement CrystalSupplement { get; }
 

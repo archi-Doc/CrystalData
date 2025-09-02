@@ -68,8 +68,7 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
             }
         }
 
-        var options = new CrystalizerOptions();
-        options.DataDirectory = context.DataDirectory;
+        var options = new CrystalizerOptions() with { DataDirectory = context.DataDirectory, };
         context.SetOptions(options);
     }
 
