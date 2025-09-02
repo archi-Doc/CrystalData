@@ -9,7 +9,7 @@ internal class RawFilerToFiler : IFiler
         this.Crystalizer = crystalizer;
         this.RawFiler = rawFiler;
         this.Path = path;
-        this.timeout = crystalizer.FilerTimeout;
+        this.timeout = crystalizer.Options.FilerTimeout;
     }
 
     public Crystalizer Crystalizer { get; }

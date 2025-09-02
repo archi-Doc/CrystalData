@@ -58,7 +58,7 @@ internal static class StoreTaskExtension
                 unloaded++;
             }
             else if (storeMode == StoreMode.ForceRelease ||
-                (utc - task.FirstProcessed) > crystalizer.TimeoutUntilForcedRelease)
+                (utc - task.FirstProcessed) > crystalizer.Options.TimeoutUntilForcedRelease)
             {// Force release
                 await task.PersistableObject.Store(StoreMode.ForceRelease).ConfigureAwait(false);
                 crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);

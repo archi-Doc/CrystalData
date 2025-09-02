@@ -96,9 +96,9 @@ public static class TestHelper
             Directory.Delete(directory, true);
         }
 
-        if (crystalizer.GlobalDirectory is not EmptyDirectoryConfiguration)
+        if (crystalizer.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
         {
-            crystalizer.DeleteDirectory(crystalizer.GlobalDirectory);
+            crystalizer.DeleteDirectory(crystalizer.Options.GlobalDirectory);
         }
     }
 

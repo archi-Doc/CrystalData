@@ -2,7 +2,8 @@
 
 namespace CrystalData;
 
-public class CrystalizerOptions
+[TinyhandObject(ImplicitKeyAsName = true, AddImmutable = true)]
+public partial class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
 

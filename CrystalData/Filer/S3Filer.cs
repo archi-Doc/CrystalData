@@ -245,7 +245,7 @@ RepeatList:
     {
         var directoryPath = string.Empty;
         this.Crystalizer = param.Crystalizer;
-        if (this.Crystalizer.EnableFilerLogger)
+        if (this.Crystalizer.Options.EnableFilerLogger)
         {
             this.logger ??= this.Crystalizer.UnitLogger.GetLogger<S3Filer>();
         }

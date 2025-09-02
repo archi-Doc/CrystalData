@@ -60,7 +60,7 @@ public partial class Program
         Console.WriteLine($"UnitOptions root directory: {unitOptions.DataDirectory}");
 
         // Crystalizer root directory
-        Console.WriteLine($"Crystalizer root directory: {crystalizer.RootDirectory}");
+        Console.WriteLine($"Crystalizer root directory: {crystalizer.Options.DataDirectory}");
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id = 1;

@@ -830,13 +830,13 @@ Exit:
         var configuration = this.originalCrystalConfiguration;
 
         var saveFormat = configuration.SaveFormat;
-        saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.DefaultSaveFormat : saveFormat;
+        saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.Options.DefaultSaveFormat : saveFormat;
 
         var savePolicy = configuration.SavePolicy;
-        savePolicy = savePolicy == SavePolicy.Default ? this.Crystalizer.DefaultSavePolicy : savePolicy;
+        savePolicy = savePolicy == SavePolicy.Default ? this.Crystalizer.Options.DefaultSavePolicy : savePolicy;
 
         var saveInterval = configuration.SaveInterval;
-        saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.DefaultSaveInterval : saveInterval;
+        saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.Options.DefaultSaveInterval : saveInterval;
 
         var fileConfiguration = configuration.FileConfiguration;
         var filePath = fileConfiguration.Path;
@@ -849,7 +849,7 @@ Exit:
             fileConfiguration = fileConfiguration with { Path = $"{filePath}{saveFormat.ToExtension()}", };
         }
 
-        if (this.Crystalizer.DefaultBackup is { } globalBackup)
+        if (this.Crystalizer.Options.DefaultBackup is { } globalBackup)
         {
             if (configuration.BackupFileConfiguration == null)
             {

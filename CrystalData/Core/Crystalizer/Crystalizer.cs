@@ -56,6 +56,7 @@ public class Crystalizer
     public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
         this.configuration = configuration;
+
         this.UnitLogger = unitLogger;
         this.ServiceProvider = serviceProvider;
         this.CrystalSupplement = new(this);
@@ -63,29 +64,24 @@ public class Crystalizer
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
 
-        this.GlobalDirectory = options.GlobalDirectory;
-        this.DefaultBackup = options.DefaultBackup;
-        this.GlobalStorage = options.GlobalStorage;
-        this.EnableFilerLogger = options.EnableFilerLogger;
-        this.RootDirectory = options.DataDirectory;
-        this.FilerTimeout = options.FilerTimeout;
-        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
-        this.ConcurrentUnload = options.ConcurrentUnload;
-        this.TimeoutUntilForcedRelease = options.TimeoutUntilForcedRelease;
-        //Supplement file
-        if (string.IsNullOrEmpty(this.RootDirectory))
+        // Options
+        if (string.IsNullOrEmpty(options.DataDirectory))
         {
-            this.RootDirectory = Directory.GetCurrentDirectory();
+            options.DataDirectory = Directory.GetCurrentDirectory();
         }
 
-        this.DefaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
-        this.DefaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
-        this.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
+        options.DefaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
+        options.DefaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
+        options.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
+        this.Options = options.ToImmutable();
+        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
+
+        //Supplement file
 
         this.Logger = logger;
         this.task = new(this);
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
-        this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
+        this.CrystalCheck.Load(Path.Combine(this.Options.DataDirectory, CheckFile));
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -103,31 +99,11 @@ public class Crystalizer
 
     #region FieldAndProperty
 
+    public CrystalizerOptions.Immutable Options { get; }
+
     public CrystalSupplement CrystalSupplement { get; }
 
     public StorageControl StorageControl { get; }
-
-    public DirectoryConfiguration GlobalDirectory { get; }
-
-    public DirectoryConfiguration? DefaultBackup { get; }
-
-    public StorageConfiguration GlobalStorage { get; }
-
-    public bool EnableFilerLogger { get; }
-
-    public string RootDirectory { get; }
-
-    public TimeSpan FilerTimeout { get; }
-
-    public int ConcurrentUnload { get; }
-
-    public TimeSpan TimeoutUntilForcedRelease { get; }
-
-    public SaveFormat DefaultSaveFormat { get; set; }
-
-    public SavePolicy DefaultSavePolicy { get; set; }
-
-    public TimeSpan DefaultSaveInterval { get; set; }
 
     public IJournal? Journal { get; private set; }
 
@@ -245,7 +221,7 @@ public class Crystalizer
         {
             if (configuration is GlobalFileConfiguration)
             {// Global file
-                configuration = this.GlobalDirectory.CombineFile(configuration.Path);
+                configuration = this.Options.GlobalDirectory.CombineFile(configuration.Path);
             }
 
             if (configuration is EmptyFileConfiguration)
@@ -285,7 +261,7 @@ public class Crystalizer
         {
             if (configuration is GlobalDirectoryConfiguration)
             {// Global directory
-                configuration = this.GlobalDirectory.CombineDirectory(configuration);
+                configuration = this.Options.GlobalDirectory.CombineDirectory(configuration);
             }
 
             if (configuration is EmptyDirectoryConfiguration)
@@ -326,13 +302,13 @@ public class Crystalizer
             IStorage? storage;
             if (configuration is GlobalStorageConfiguration globalStorageConfiguration)
             {// Default storage
-                if (this.GlobalStorage is GlobalStorageConfiguration)
+                if (this.Options.GlobalStorage is GlobalStorageConfiguration)
                 {// Recursive
                     configuration = EmptyStorageConfiguration.Default;
                 }
                 else
                 {
-                    configuration = this.GlobalStorage;
+                    configuration = this.Options.GlobalStorage;
                 }
             }
 
@@ -344,12 +320,12 @@ public class Crystalizer
             {
                 if (simpleStorageConfiguration.DirectoryConfiguration is GlobalDirectoryConfiguration globalDirectoryConfiguration)
                 {
-                    configuration = configuration with { DirectoryConfiguration = this.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration), };
+                    configuration = configuration with { DirectoryConfiguration = this.Options.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration), };
                 }
 
                 if (simpleStorageConfiguration.BackupDirectoryConfiguration is GlobalDirectoryConfiguration backupDirectoryConfiguration)
                 {
-                    configuration = configuration with { BackupDirectoryConfiguration = this.GlobalDirectory.CombineDirectory(backupDirectoryConfiguration), };
+                    configuration = configuration with { BackupDirectoryConfiguration = this.Options.GlobalDirectory.CombineDirectory(backupDirectoryConfiguration), };
                 }
 
                 if (!this.configurationToStorage.TryGetValue(configuration, out storage))
@@ -364,7 +340,7 @@ public class Crystalizer
                 return default!;
             }
 
-            storage.SetTimeout(this.FilerTimeout);
+            storage.SetTimeout(this.Options.FilerTimeout);
             return storage;
         }
     }
@@ -549,7 +525,7 @@ public class Crystalizer
     {
         if (directoryConfiguration is GlobalDirectoryConfiguration globalDirectoryConfiguration)
         {
-            directoryConfiguration = this.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration);
+            directoryConfiguration = this.Options.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration);
         }
 
         if (directoryConfiguration is LocalDirectoryConfiguration localDirectoryConfiguration)
@@ -802,7 +778,7 @@ public class Crystalizer
     #region Misc
 
     internal static string GetRootedFile(Crystalizer? crystalizer, string file)
-        => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.RootDirectory, file);
+        => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.Options.DataDirectory, file);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowTypeNotRegistered(Type type)
@@ -895,7 +871,7 @@ public class Crystalizer
             }
             else if (configuration is SimpleJournalConfiguration simpleJournalConfiguration)
             {
-                if (this.DefaultBackup is { } globalBackup)
+                if (this.Options.DefaultBackup is { } globalBackup)
                 {
                     if (simpleJournalConfiguration.BackupDirectoryConfiguration == null)
                     {
@@ -1066,8 +1042,8 @@ public class Crystalizer
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
-        var releaseTasks = new Task[this.ConcurrentUnload];
-        for (var i = 0; i < this.ConcurrentUnload; i++)
+        var releaseTasks = new Task[this.Options.ConcurrentUnload];
+        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
         {
             releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
         }
@@ -1082,7 +1058,7 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
-        for (var i = 0; i < this.ConcurrentUnload; i++)
+        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
         {
             releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
         }
