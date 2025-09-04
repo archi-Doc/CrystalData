@@ -30,4 +30,8 @@ public interface IStorage : IPersistable
     Task<CrystalResult> DeleteAsync(ref ulong fileId);
 
     Task<CrystalResult> DeleteStorageAsync();
+
+    void Dump()
+    {
+    }
 }

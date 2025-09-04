@@ -74,7 +74,7 @@ public class CrystalTest
             ww3.IsNotNull();
         }
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
     [Fact]
@@ -113,6 +113,6 @@ public class CrystalTest
             ww3.IsNotNull();
         }
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 }

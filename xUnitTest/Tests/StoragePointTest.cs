@@ -156,7 +156,7 @@ public class StoragePointTest
         }
 
         g.StringStorage.Set("Test String");
-        g.StringStorage.Delete();
+        await g.StringStorage.Delete();
 
         // await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreAndRelease();
@@ -171,7 +171,7 @@ public class StoragePointTest
         var jr = await crystal.Crystalizer.TestJournalAll();
         jr.IsTrue();
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
     [Fact]
@@ -184,10 +184,6 @@ public class StoragePointTest
         bin = TinyhandSerializer.Serialize(tc, TinyhandSerializerOptions.Special);
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin, TinyhandSerializerOptions.Special);
 
-        tc.StringStorage.DisableStorage();
-        tc.StringStorage.IsDisabled.IsTrue();
-        tc.StringStorage.EnableStorage();
-        tc.StringStorage.IsDisabled.IsTrue();
         bin = TinyhandSerializer.Serialize(tc);
         tc2 = TinyhandSerializer.Deserialize<StoragePointClass>(bin);
         tc.Equals(tc2).IsTrue();

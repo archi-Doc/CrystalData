@@ -92,14 +92,14 @@ public class StorageDataTest
 
             using (var w2 = children.Data!.TryLock(2, AcquisitionMode.GetOrCreate)!)
             {
-                w2.DeleteAndErase();
+                w2.Delete();
                 w2.Commit();
             }
         }
 
         await r.Children.StoreData(StoreMode.ForceRelease);
 
-        r.Children.Delete();
+        await r.Children.Delete();
 
         // Save & Test journal
         await crystal.Store(StoreMode.ForceRelease);
@@ -107,6 +107,6 @@ public class StorageDataTest
         result = await crystal.Crystalizer.TestJournalAll();
         result.IsTrue();
 
-        await TestHelper.UnloadAndDeleteAll(crystal);
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 }

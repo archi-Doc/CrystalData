@@ -38,8 +38,6 @@ public interface ICrystal : IStructualRoot, IPersistable
     Task<CrystalResult> PrepareAndLoad(bool useQuery);
 
     Task<CrystalResult> Delete();
-
-    void Terminate();
 }
 
 public interface ICrystal<TData> : ICrystal

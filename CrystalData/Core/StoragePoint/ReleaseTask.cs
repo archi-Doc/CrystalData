@@ -2,11 +2,11 @@
 
 namespace CrystalData.Unload;
 
-internal static class ReleaseTaskExtension
+internal static class StoreTaskExtension
 {
     private const int WaitTimeInMilliseconds = 1_000;
 
-    public static async Task ReleaseTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
+    public static async Task StoreTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
     {
         while (true)
         {
@@ -58,7 +58,7 @@ internal static class ReleaseTaskExtension
                 unloaded++;
             }
             else if (storeMode == StoreMode.ForceRelease ||
-                (utc - task.FirstProcessed) > crystalizer.TimeoutUntilForcedRelease)
+                (utc - task.FirstProcessed) > crystalizer.Options.TimeoutUntilForcedRelease)
             {// Force release
                 await task.PersistableObject.Store(StoreMode.ForceRelease).ConfigureAwait(false);
                 crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);

@@ -31,10 +31,8 @@ public class EmptyJournal : IJournal
     Task<bool> IPersistable.TestJournal()
         => Task.FromResult(true);
 
-    Task IJournal.TerminateAsync()
-    {
-        return Task.CompletedTask;
-    }
+    Task IJournal.Terminate()
+        => Task.CompletedTask;
 
     ulong IJournal.GetStartingPosition() => 1;
 

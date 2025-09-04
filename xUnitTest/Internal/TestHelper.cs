@@ -62,9 +62,13 @@ public static class TestHelper
                     StorageConfiguration = new SimpleStorageConfiguration(new GlobalDirectoryConfiguration("Storage")),
                 });
         });
-        builder.SetupOptions<CrystalizerOptions>((context, options) =>
+
+        builder.PostConfigure(context =>
         {
-            options.GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]");
+            context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+            {
+                GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]"),
+            });
         });
 
         var unit = builder.Build();
@@ -77,7 +81,7 @@ public static class TestHelper
         return crystal;
     }
 
-    public static async Task UnloadAndDeleteAll(ICrystal crystal)
+    public static async Task StoreAndReleaseAndDelete(ICrystal crystal)
     {
         var crystalizer = crystal.Crystalizer;
         await crystalizer.StoreAndRelease();
@@ -96,9 +100,9 @@ public static class TestHelper
             Directory.Delete(directory, true);
         }
 
-        if (crystalizer.GlobalDirectory is not EmptyDirectoryConfiguration)
+        if (crystalizer.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
         {
-            crystalizer.DeleteDirectory(crystalizer.GlobalDirectory);
+            crystalizer.DeleteDirectory(crystalizer.Options.GlobalDirectory);
         }
     }
 

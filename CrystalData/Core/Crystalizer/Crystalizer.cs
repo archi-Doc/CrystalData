@@ -8,6 +8,7 @@ using CrystalData.Check;
 using CrystalData.Filer;
 using CrystalData.Journal;
 using CrystalData.Storage;
+using CrystalData.Supplement;
 using CrystalData.Unload;
 using CrystalData.UserInterface;
 using Tinyhand.IO;
@@ -52,36 +53,42 @@ public class Crystalizer
         private Crystalizer crystalizer;
     }
 
-    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey, IServiceProvider serviceProvider)
+    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
         this.configuration = configuration;
-        this.GlobalDirectory = options.GlobalDirectory;
-        this.DefaultBackup = options.DefaultBackup;
-        this.GlobalStorage = options.GlobalStorage;
-        this.EnableFilerLogger = options.EnableFilerLogger;
-        this.RootDirectory = options.DataDirectory;
-        this.FilerTimeout = options.FilerTimeout;
+
+        this.UnitLogger = unitLogger;
+        this.ServiceProvider = serviceProvider;
+        this.CrystalSupplement = new(this);
         this.StorageControl = storageControl;
+        this.Query = query;
+        this.QueryContinue = new CrystalDataQueryNo();
+
+        // Options
         this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
-        this.ConcurrentUnload = options.ConcurrentUnload;
-        this.TimeoutUntilForcedRelease = options.TimeoutUntilForcedRelease;
-        if (string.IsNullOrEmpty(this.RootDirectory))
+        var dataDirectory = options.DataDirectory;
+        if (string.IsNullOrEmpty(dataDirectory))
         {
-            this.RootDirectory = Directory.GetCurrentDirectory();
+            dataDirectory = Directory.GetCurrentDirectory();
         }
 
-        this.DefaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
-        this.DefaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
-        this.DefaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
+        var defaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
+        var defaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
+        var defaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
+        this.Options = options with
+        {
+            DataDirectory = dataDirectory,
+            DefaultSaveFormat = defaultSaveFormat,
+            DefaultSavePolicy = defaultSavePolicy,
+            DefaultSaveInterval = defaultSaveInterval,
+        };
+
+        //Supplement file
 
         this.Logger = logger;
         this.task = new(this);
-        this.Query = query;
-        this.QueryContinue = new CrystalDataQueryNo();
-        this.UnitLogger = unitLogger;
-        this.ServiceProvider = serviceProvider;
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
-        this.CrystalCheck.Load(Path.Combine(this.RootDirectory, CheckFile));
+        this.CrystalCheck.Load(Path.Combine(this.Options.DataDirectory, CheckFile));
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -93,33 +100,17 @@ public class Crystalizer
             this.typeToCrystal.TryAdd(x.Key, crystal);
             this.crystals.TryAdd(crystal, 0);
         }
+
+        this.CrystalSupplement.PrepareAndLoad();
     }
 
     #region FieldAndProperty
 
+    public CrystalizerOptions Options { get; }
+
+    public CrystalSupplement CrystalSupplement { get; }
+
     public StorageControl StorageControl { get; }
-
-    public DirectoryConfiguration GlobalDirectory { get; }
-
-    public DirectoryConfiguration? DefaultBackup { get; }
-
-    public StorageConfiguration GlobalStorage { get; }
-
-    public bool EnableFilerLogger { get; }
-
-    public string RootDirectory { get; }
-
-    public TimeSpan FilerTimeout { get; }
-
-    public int ConcurrentUnload { get; }
-
-    public TimeSpan TimeoutUntilForcedRelease { get; }
-
-    public SaveFormat DefaultSaveFormat { get; set; }
-
-    public SavePolicy DefaultSavePolicy { get; set; }
-
-    public TimeSpan DefaultSaveInterval { get; set; }
 
     public IJournal? Journal { get; private set; }
 
@@ -237,7 +228,7 @@ public class Crystalizer
         {
             if (configuration is GlobalFileConfiguration)
             {// Global file
-                configuration = this.GlobalDirectory.CombineFile(configuration.Path);
+                configuration = this.Options.GlobalDirectory.CombineFile(configuration.Path);
             }
 
             if (configuration is EmptyFileConfiguration)
@@ -277,7 +268,7 @@ public class Crystalizer
         {
             if (configuration is GlobalDirectoryConfiguration)
             {// Global directory
-                configuration = this.GlobalDirectory.CombineDirectory(configuration);
+                configuration = this.Options.GlobalDirectory.CombineDirectory(configuration);
             }
 
             if (configuration is EmptyDirectoryConfiguration)
@@ -318,13 +309,13 @@ public class Crystalizer
             IStorage? storage;
             if (configuration is GlobalStorageConfiguration globalStorageConfiguration)
             {// Default storage
-                if (this.GlobalStorage is GlobalStorageConfiguration)
+                if (this.Options.GlobalStorage is GlobalStorageConfiguration)
                 {// Recursive
                     configuration = EmptyStorageConfiguration.Default;
                 }
                 else
                 {
-                    configuration = this.GlobalStorage;
+                    configuration = this.Options.GlobalStorage;
                 }
             }
 
@@ -336,12 +327,12 @@ public class Crystalizer
             {
                 if (simpleStorageConfiguration.DirectoryConfiguration is GlobalDirectoryConfiguration globalDirectoryConfiguration)
                 {
-                    configuration = configuration with { DirectoryConfiguration = this.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration), };
+                    configuration = configuration with { DirectoryConfiguration = this.Options.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration), };
                 }
 
                 if (simpleStorageConfiguration.BackupDirectoryConfiguration is GlobalDirectoryConfiguration backupDirectoryConfiguration)
                 {
-                    configuration = configuration with { BackupDirectoryConfiguration = this.GlobalDirectory.CombineDirectory(backupDirectoryConfiguration), };
+                    configuration = configuration with { BackupDirectoryConfiguration = this.Options.GlobalDirectory.CombineDirectory(backupDirectoryConfiguration), };
                 }
 
                 if (!this.configurationToStorage.TryGetValue(configuration, out storage))
@@ -356,7 +347,7 @@ public class Crystalizer
                 return default!;
             }
 
-            storage.SetTimeout(this.FilerTimeout);
+            storage.SetTimeout(this.Options.FilerTimeout);
             return storage;
         }
     }
@@ -505,42 +496,22 @@ public class Crystalizer
     }
 
     public Task Store(CancellationToken cancellationToken = default)
-        => this.Store(StoreMode.StoreOnly, cancellationToken);
+        => this.Store(false, StoreMode.StoreOnly, cancellationToken);
 
     public Task StoreAndRelease(CancellationToken cancellationToken = default)
-        => this.Store(StoreMode.TryRelease, cancellationToken);
+        => this.Store(false, StoreMode.TryRelease, cancellationToken);
 
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         this.StorageControl.Rip();
 
-        await this.Store(StoreMode.TryRelease, cancellationToken);
+        await this.Store(true, StoreMode.TryRelease, cancellationToken);
 
         // Terminate journal
         if (this.Journal is { } journal)
         {
-            await journal.TerminateAsync().ConfigureAwait(false);
+            await journal.Terminate().ConfigureAwait(false);
         }
-
-        // Terminate filers/journal
-        var tasks = new List<Task>();
-        using (this.lockObject.EnterScope())
-        {
-            if (this.localFiler is not null)
-            {
-                tasks.Add(this.localFiler.TerminateAsync());
-                this.localFiler = null;
-            }
-
-            foreach (var x in this.bucketToS3Filer.Values)
-            {
-                tasks.Add(x.TerminateAsync());
-            }
-
-            this.bucketToS3Filer.Clear();
-        }
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
 
         this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
     }
@@ -561,7 +532,7 @@ public class Crystalizer
     {
         if (directoryConfiguration is GlobalDirectoryConfiguration globalDirectoryConfiguration)
         {
-            directoryConfiguration = this.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration);
+            directoryConfiguration = this.Options.GlobalDirectory.CombineDirectory(globalDirectoryConfiguration);
         }
 
         if (directoryConfiguration is LocalDirectoryConfiguration localDirectoryConfiguration)
@@ -641,7 +612,7 @@ public class Crystalizer
             }
         }
 
-        var storages = this.configurationToStorage.Values.ToArray();
+        var storages = this.GetStorageArray();
         foreach (var x in storages)
         {
             if (await x.TestJournal().ConfigureAwait(false) == false)
@@ -651,6 +622,15 @@ public class Crystalizer
         }
 
         return result;
+    }
+
+    public void Dump()
+    {
+        var storages = this.GetStorageArray();
+        foreach (var x in storages)
+        {
+            x.Dump();
+        }
     }
 
     public async Task StoreJournal()
@@ -805,7 +785,7 @@ public class Crystalizer
     #region Misc
 
     internal static string GetRootedFile(Crystalizer? crystalizer, string file)
-        => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.RootDirectory, file);
+        => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.Options.DataDirectory, file);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowTypeNotRegistered(Type type)
@@ -898,7 +878,7 @@ public class Crystalizer
             }
             else if (configuration is SimpleJournalConfiguration simpleJournalConfiguration)
             {
-                if (this.DefaultBackup is { } globalBackup)
+                if (this.Options.DefaultBackup is { } globalBackup)
                 {
                     if (simpleJournalConfiguration.BackupDirectoryConfiguration == null)
                     {
@@ -1058,7 +1038,7 @@ public class Crystalizer
         }
     }
 
-    private async Task Store(StoreMode storeMode, CancellationToken cancellationToken)
+    private async Task Store(bool terminate, StoreMode storeMode, CancellationToken cancellationToken)
     {
         var goshujin = new ReleaseTask.GoshujinClass();
         foreach (var x in this.crystals.Keys)
@@ -1066,18 +1046,28 @@ public class Crystalizer
             goshujin.Add(new(x));
         }
 
-        var storages = this.configurationToStorage.Values.ToArray();
+        goshujin.Add(new(this.StorageControl)); // StorageControl
+
+        // First, persist Crystals and StorageControl.
+        var releaseTasks = new Task[this.Options.ConcurrentUnload];
+        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
+        {
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+        }
+
+        await Task.WhenAll(releaseTasks).ConfigureAwait(false);
+
+        // Since storages are modified in the preceding step, persist storages here.
+        goshujin.Clear();
+        var storages = this.GetStorageArray();
         foreach (var x in storages)
-        {// Storages
+        {
             goshujin.Add(new(x));
         }
 
-        goshujin.Add(new(this.StorageControl)); // StorageControl
-
-        var releaseTasks = new Task[this.ConcurrentUnload];
-        for (var i = 0; i < this.ConcurrentUnload; i++)
+        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
         {
-            releaseTasks[i] = ReleaseTaskExtension.ReleaseTask(this, goshujin, storeMode);
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
         }
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
@@ -1087,7 +1077,34 @@ public class Crystalizer
             await journal.Store().ConfigureAwait(false);
         }
 
+        // Flush filers
+        var tasks = new List<Task>();
+        using (this.lockObject.EnterScope())
+        {
+            if (this.localFiler is not null)
+            {
+                tasks.Add(this.localFiler.FlushAsync(terminate));
+                if (terminate)
+                {
+                    this.localFiler = null;
+                }
+            }
+
+            foreach (var x in this.bucketToS3Filer.Values)
+            {
+                tasks.Add(x.FlushAsync(false));
+            }
+
+            if (terminate)
+            {
+                this.bucketToS3Filer.Clear();
+            }
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
         this.CrystalCheck.Store();
+        this.CrystalSupplement.Store();
     }
 
     #endregion
@@ -1097,6 +1114,14 @@ public class Crystalizer
         foreach (var x in this.planeToCrystal)
         {
             this.Logger.TryGet(LogLevel.Debug)?.Log($"Plane: {x.Key} = {x.Value.GetType().FullName}");
+        }
+    }
+
+    private IStorage[] GetStorageArray()
+    {
+        using (this.lockObject.EnterScope())
+        {
+            return this.configurationToStorage.Values.ToArray();
         }
     }
 }

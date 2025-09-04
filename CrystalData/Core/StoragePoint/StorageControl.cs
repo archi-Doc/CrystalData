@@ -10,8 +10,7 @@ namespace CrystalData;
 
 public partial class StorageControl : IPersistable
 {
-    private const int MinimumDataSize = 1024;
-    private const long DefaultMemoryLimit = 512 * 1024 * 1024; // 512MB
+    private const int MinimumDataSize = 256;
 
     /// <summary>
     /// Represents the disabled storage control.
@@ -33,8 +32,13 @@ public partial class StorageControl : IPersistable
 
     public bool IsRip => this.isRip;
 
-    public long MemoryUsageLimit { get; internal set; } = DefaultMemoryLimit;
+    public long MemoryUsageLimit { get; internal set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
 
+    /// <summary>
+    /// Gets an estimated memory usage.<br/>
+    /// Since obtaining the exact size of an object in memory is difficult,<br/>
+    /// the returned value should be considered an approximation.
+    /// </summary>
     public long MemoryUsage => this.memoryUsage;
 
     public long AvailableMemory
@@ -87,26 +91,10 @@ public partial class StorageControl : IPersistable
 
     internal void ResurrectForTesting() => this.isRip = false;
 
-    internal void ConfigureStorage(StorageObject storageObject, bool disableStorage)
-    {
-        using (this.lowestLockObject.EnterScope())
-        {
-            if (disableStorage)
-            {
-                storageObject.SetDisableStateBit();
-            }
-            else
-            {// Enable storage
-                if (storageObject.storageMap.IsEnabled)
-                {
-                    storageObject.ClearDisableStateBit();
-                }
-            }
-        }
-    }
-
     internal void SetStorageSize(StorageObject node, int newSize)
     {
+        newSize = Math.Max(newSize, MinimumDataSize);
+
         using (this.lowestLockObject.EnterScope())
         {
             if (node.storageMap.IsEnabled)
@@ -209,6 +197,8 @@ public partial class StorageControl : IPersistable
     /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
+        newSize = Math.Max(newSize, MinimumDataSize);
+
         if (node.storageMap.IsEnabled)
         {// If the storage map is enabled, update the size and move to recent.
             using (this.lowestLockObject.EnterScope())
@@ -310,7 +300,7 @@ public partial class StorageControl : IPersistable
 
             if (((IStructualObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                writer.Write(JournalRecord.Add);
+                writer.Write(JournalRecord.AddItem);
                 writer.Write(pointId);
                 writer.Write(typeIdentifier);
                 root.AddJournal(ref writer);
@@ -328,13 +318,14 @@ public partial class StorageControl : IPersistable
 
     internal void AddStorage(StorageObject storageObject, ICrystal crystal, StorageId storageId)
     {
-        var numberOfHistories = crystal.CrystalConfiguration.NumberOfFileHistories;
+        var numberOfHistories = crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles;
         ulong fileIdToDelete = default;
 
         using (this.lowestLockObject.EnterScope())
         {
             if (numberOfHistories <= 1)
             {
+                fileIdToDelete = storageObject.storageId0.FileId;
                 storageObject.storageId0 = storageId;
             }
             else if (numberOfHistories == 2)
@@ -358,6 +349,23 @@ public partial class StorageControl : IPersistable
         }
     }
 
+    internal void DeleteLatestStorageForDebug(StorageObject storageObject)
+    {
+        ulong fileId = 0;
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (storageObject.storageId1.IsValid)
+            {
+                fileId = storageObject.storageId0.FileId;
+            }
+        }
+
+        if (fileId != 0 && storageObject.StructualRoot is ICrystal crystal)
+        {
+            crystal.Storage.DeleteAsync(ref fileId).Wait();
+        }
+    }
+
     internal void EraseStorage(StorageObject storageObject)
     {
         ulong id0;
@@ -367,7 +375,7 @@ public partial class StorageControl : IPersistable
 
         using (this.lowestLockObject.EnterScope())
         {
-            this.ReleaseInternal(storageObject, false);
+            this.ReleaseInternal(storageObject, true);
 
             id0 = storageObject.storageId0.FileId;
             id1 = storageObject.storageId1.FileId;

@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using static SimpleCommandLine.SimpleParser;
+
 namespace QuickStart;
 
 public partial class Program
@@ -14,14 +16,13 @@ public partial class Program
             .ConfigureCrystal(context =>
             {
             })
-            .SetupOptions<CrystalizerOptions>((context, options) =>
-            {// You can change the root directory of the CrystalData by modifying CrystalizerOptions.
-                context.GetOptions<UnitOptions>(out var unitOptions); // Get the application root directory.
-                if (unitOptions is not null)
+            .PostConfigure(context =>
+            {
+                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
                 {
-                    // options.RootPath = Path.Combine(unitOptions.RootDirectory, "Additional"); // Root directory
-                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.DataDirectory, "Global")); // Global directory
-                }
+                    // RootPath = Path.Combine(context.RootDirectory, "Additional"), // Root directory
+                    GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")), // Global directory
+                });
             });
 
         var unit = builder.Build(); // Build.
@@ -60,7 +61,7 @@ public partial class Program
         Console.WriteLine($"UnitOptions root directory: {unitOptions.DataDirectory}");
 
         // Crystalizer root directory
-        Console.WriteLine($"Crystalizer root directory: {crystalizer.RootDirectory}");
+        Console.WriteLine($"Crystalizer root directory: {crystalizer.Options.DataDirectory}");
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id = 1;

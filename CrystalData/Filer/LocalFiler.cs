@@ -259,12 +259,12 @@ TryWrite:
     async Task<CrystalResult> IRawFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
         this.Crystalizer = param.Crystalizer;
-        if (this.Crystalizer.EnableFilerLogger)
+        if (this.Crystalizer.Options.EnableFilerLogger)
         {
             this.logger ??= this.Crystalizer.UnitLogger.GetLogger<LocalFiler>();
         }
 
-        var directoryPath = Path.GetDirectoryName(PathHelper.GetRootedFile(this.Crystalizer.RootDirectory, configuration.Path));
+        var directoryPath = Path.GetDirectoryName(PathHelper.GetRootedFile(this.Crystalizer.Options.DataDirectory, configuration.Path));
         if (directoryPath is null)
         {
             return CrystalResult.NoAccess;
@@ -304,7 +304,7 @@ TryWrite:
             }
             else
             {
-                rootedPath = Path.Combine(crystalizer.RootDirectory, file);
+                rootedPath = Path.Combine(crystalizer.Options.DataDirectory, file);
             }
 
             Directory.CreateDirectory(rootedPath);

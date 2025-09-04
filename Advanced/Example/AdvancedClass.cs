@@ -16,7 +16,6 @@ public partial record SimpleExample
 
 // To a complex class designed for handling large-scale data in terms of both quantity and capacity.
 [TinyhandObject(Structual = true)]
-[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public partial record AdvancedExample
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
     public static void Register(ICrystalUnitContext context)
@@ -38,24 +37,69 @@ public partial record AdvancedExample
         context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));
     }
 
+    [TinyhandObject(Structual = true)]
+    [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
+    public partial class Point : StoragePoint<AdvancedExample>
+    {
+        public Point(int id, string name)
+        {
+            this.Id = id;
+            this.Name = name;
+        }
+
+        /*[Key(1, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+        [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+        private int id;
+
+        [Key(2, AddProperty = "Name")]
+        [Link(Type = ChainType.Ordered)]
+        private string name = string.Empty;*/
+
+        [Key(1)]
+        [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+        public int Id { get; private set; }
+
+        [Key(2)]
+        [Link(Type = ChainType.Ordered)]
+        public string Name { get; private set; } = string.Empty;
+    }
+
     public AdvancedExample()
     {
     }
 
-    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-    private int id;
+    public async Task TestCode()
+    {
+        Point.GoshujinClass g = default!;
+        var obj = g.Find(1, AcquisitionMode.GetOrCreate);
+        // obj.Name = "Name1";
+        using (g.LockObject.EnterScope())
+        {
+            if (g.IdChain.FindFirst(1) is null)
+            {
+                var newPoint = new Point(1, "Name1");
+                newPoint.Goshujin = g;
+            }
+        }
 
-    [Key(1, AddProperty = "Name")]
-    [Link(Type = ChainType.Ordered)]
-    private string name = string.Empty;
+        using (var scope = await g.TryLock(1, AcquisitionMode.GetOrCreate))
+        {
+            // Func<int, Point> newPoint = (int id) => new Point() { Id = id, Name = $"Name{id}" };
+            if (scope.IsValid)
+            {
+            }
+        }
 
-    [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StoragePoint<AdvancedExample> child = new();
+        var sc = g.Find(3, AcquisitionMode.Get);
+    }
 
-    [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StoragePoint<AdvancedExample.GoshujinClass> children = new();
+    // [Key(0, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(0)]
+    public StoragePoint<AdvancedExample> ChildStorage { get; private set; } = new();
 
-    [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StoragePoint<byte[]> byteArray = new();
+    [Key(1)]
+    public StoragePoint<Point.GoshujinClass> ChildrenStorage { get; private set; } = new();
+
+    [Key(2)]
+    public partial StoragePoint<byte[]> ByteArrayStorage { get; private set; } = new();
 }

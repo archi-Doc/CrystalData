@@ -245,7 +245,7 @@ RepeatList:
     {
         var directoryPath = string.Empty;
         this.Crystalizer = param.Crystalizer;
-        if (this.Crystalizer.EnableFilerLogger)
+        if (this.Crystalizer.Options.EnableFilerLogger)
         {
             this.logger ??= this.Crystalizer.UnitLogger.GetLogger<S3Filer>();
         }
@@ -302,11 +302,14 @@ NoAccess:
         return CrystalResult.NoAccess;
     }
 
-    async Task IRawFiler.TerminateAsync()
+    async Task IRawFiler.FlushAsync(bool terminate)
     {
         await this.WaitForCompletionAsync().ConfigureAwait(false);
-        this.client?.Dispose();
-        this.client = null;
-        this.Dispose();
+        if (terminate)
+        {
+            this.client?.Dispose();
+            this.client = null;
+            this.Dispose();
+        }
     }
 }

@@ -11,7 +11,7 @@ public partial class EmptyFiler : IRawFiler
     Task<CrystalResult> IRawFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
         => Task.FromResult(CrystalResult.Success);
 
-    Task IRawFiler.TerminateAsync()
+    Task IRawFiler.FlushAsync(bool terminate)
         => Task.CompletedTask;
 
     Task<CrystalMemoryOwnerResult> IRawFiler.ReadAsync(string path, long offset, int length, TimeSpan timeout)

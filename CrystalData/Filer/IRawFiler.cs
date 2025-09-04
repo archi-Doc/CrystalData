@@ -15,7 +15,7 @@ public interface IRawFiler
     /// <returns><see cref="CrystalResult"/>.</returns>
     Task<CrystalResult> PrepareAndCheck(PrepareParam param, PathConfiguration configuration);
 
-    Task TerminateAsync();
+    Task FlushAsync(bool terminate);
 
     Task<CrystalMemoryOwnerResult> ReadAsync(string path, long offset, int length, TimeSpan timeout);
 

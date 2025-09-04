@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.IO;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
 
@@ -12,6 +11,7 @@ namespace CrystalData.Storage;
 internal partial class SimpleStorage : IStorage
 {
     private const string Filename = "Simple";
+    private const int DefaultNumberOfHistoryFiles = 2;
 
     public SimpleStorage(Crystalizer crystalizer)
     {
@@ -105,7 +105,7 @@ internal partial class SimpleStorage : IStorage
             this.storageCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
+                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
             });
 
             result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
@@ -123,7 +123,8 @@ internal partial class SimpleStorage : IStorage
             this.mapCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles,
+                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
+                StorageConfiguration = storageConfiguration,
             });
 
             ((ICrystalInternal)this.mapCrystal).SetStorage(this);
@@ -135,6 +136,7 @@ internal partial class SimpleStorage : IStorage
             else
             {
                 this.storageMap = this.mapCrystal.Data;
+                this.storageMap.Enable(this.crystalizer.StorageControl);
             }
         }
 
@@ -360,6 +362,14 @@ internal partial class SimpleStorage : IStorage
         }
 
         return true;
+    }
+
+    void IStorage.Dump()
+    {
+        if (this.storageData is { } storageData)
+        {
+            Console.WriteLine($"SimpleStorage Count:{storageData.Count} Usage:{storageData.StorageUsage}");
+        }
     }
 
     #endregion

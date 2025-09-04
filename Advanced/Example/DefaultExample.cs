@@ -29,10 +29,13 @@ public partial class Program
                 // Register data configuration.
                 context.AddCrystal<DefaultData>(new(new LocalFileConfiguration("Local/DefaultExample/DefaultData.tinyhand")));
             })
-            .SetupOptions<CrystalizerOptions>((context, options) =>
+            .PostConfigure(context =>
             {
-                options.DefaultSaveFormat = SaveFormat.Utf8;
-                options.DefaultSavePolicy = SavePolicy.Periodic;
+                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                {
+                    DefaultSaveFormat = SaveFormat.Utf8,
+                    DefaultSavePolicy = SavePolicy.Periodic,
+                });
             });
 
         var unit = builder.Build(); // Build.

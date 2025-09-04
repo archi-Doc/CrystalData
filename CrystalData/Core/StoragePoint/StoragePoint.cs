@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
-using ValueLink;
 
 namespace CrystalData;
 
@@ -12,7 +11,9 @@ namespace CrystalData;
 
 /// <summary>
 /// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
-/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.
+/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.<br/>
+/// The <b>TinyhandObject.Key(0)</b> is reserved for <c>PointId</c>.
+/// Use keys starting from <b>1 or greater</b> instead.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
@@ -36,9 +37,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>
-    /// Gets a value indicating whether storage is disabled, and data is serialized directly.
+    /// Gets a value indicating whether storage is enabled.
     /// </summary>
-    public bool IsDisabled => this.GetOrCreateStorageObject().IsDisabled;
+    public bool IsEnabled => this.GetOrCreateStorageObject().IsEnabled;
 
     /// <summary>
     /// Gets a value indicating whether storage is locked.<br/>
@@ -46,11 +47,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public bool IsLocked => this.storageObject?.IsLocked == true;
 
-    /// <summary>
+    /*/// <summary>
     /// Gets a value indicating whether storage is rip.<br/>
     /// Storage is shutting down and is read-only.
     /// </summary>
-    public bool IsRip => this.storageObject?.IsRip == true;
+    public bool IsRip => this.storageObject?.IsRip == true;*/
 
     /*/// <summary>
     /// Gets a value indicating whether storage is pending release.<br/>
@@ -66,18 +67,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public StoragePoint()
     {
     }
-
-    /// <summary>
-    /// Disables storage for this storage point, causing data to be serialized directly.
-    /// </summary>
-    public void DisableStorage()
-        => this.GetOrCreateStorageObject().ConfigureStorage(true);
-
-    /// <summary>
-    /// Enables storage for this storage point, allowing data to be persisted to storage.
-    /// </summary>
-    public void EnableStorage()
-        => this.GetOrCreateStorageObject().ConfigureStorage(false);
 
     /// <summary>
     /// Sets the data instance for this storage point.<br/>
@@ -173,6 +162,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }
 
+    public void DeleteLatestStorageForDebug()
+        => this.GetOrCreateStorageObject().DeleteLatestStorageForDebug();
+
     #region IStructualObject
 
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
@@ -197,8 +189,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Deletes the data associated with this storage point.<br/>
     /// This operation removes the data from storage and memory.
     /// </summary>
-    public void Delete()
-        => this.GetOrCreateStorageObject().Delete();
+    /// <param name="forceDeleteAfter">The UTC <see cref="DateTime"/> after which the object will be forcibly deleted if not already deleted.<br/>
+    /// <see langword="default"/>: Do not forcibly delete; wait until all operations are finished.<br/>
+    /// <see cref="DateTime.UtcNow"/> or earlier: forcibly delete data without waiting.
+    /// </param>
+    /// <returns>
+    /// A <see cref="Task"/> representing the asynchronous delete operation.
+    /// </returns>
+    public Task Delete(DateTime forceDeleteAfter = default)
+        => this.GetOrCreateStorageObject().Delete(forceDeleteAfter);
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -266,6 +265,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         else
         {
             StorageMap.Disabled.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
+            v.storageObject.SetTypeIdentifier<TData>(); // If the TypeIdentifier is changed, serialization becomes impossible, so update it.
+
             var data = TinyhandSerializer.Deserialize<TData>(ref reader, options) ?? TinyhandSerializer.Reconstruct<TData>(options);
             v.storageObject.Set(data);
         }
@@ -305,6 +306,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
         var previousPointId = this.pointId;
         storageMap.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
+        this.storageObject.SetTypeIdentifier<TData>(); // If the TypeIdentifier is changed, serialization becomes impossible, so update it.
+
         if (this.pointId != previousPointId &&
             ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {

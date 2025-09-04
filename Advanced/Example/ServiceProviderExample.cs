@@ -1,7 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.ComponentModel;
-
 namespace QuickStart;
 
 [TinyhandObject(UseServiceProvider = true)] // Annotate TinyhandObject attribute to make this class serializable.

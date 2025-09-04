@@ -37,7 +37,7 @@ public class CrystalFiler
         {
             if (this.rawFiler == null)
             {
-                (this.rawFiler, this.fileConfiguration) = this.crystalFiler.crystalizer.ResolveRawFiler(this.fileConfiguration);
+                (this.rawFiler, this.fileConfiguration) = this.crystalFiler.Crystalizer.ResolveRawFiler(this.fileConfiguration);
                 var result = await this.rawFiler.PrepareAndCheck(param, this.fileConfiguration).ConfigureAwait(false);
                 if (result.IsFailure())
                 {
@@ -329,26 +329,27 @@ public class CrystalFiler
         }
     }
 
-    public CrystalFiler(Crystalizer crystalizer)
-    {
-        this.crystalizer = crystalizer;
-        this.configuration = CrystalConfiguration.Default;
-        this.logger = this.crystalizer.UnitLogger.GetLogger<CrystalFiler>();
-    }
-
     #region PropertyAndField
+
+    public Crystalizer Crystalizer { get; }
+
+    private readonly ILogger logger;
+    private CrystalConfiguration configuration;
+    private Output? main;
+    private Output? backup;
 
     public bool IsProtected => this.configuration.HasFileHistories;
 
     internal Output? Main => this.main;
 
-    private Crystalizer crystalizer;
-    private ILogger logger;
-    private CrystalConfiguration configuration;
-    private Output? main;
-    private Output? backup;
-
     #endregion
+
+    public CrystalFiler(Crystalizer crystalizer)
+    {
+        this.Crystalizer = crystalizer;
+        this.configuration = CrystalConfiguration.Default;
+        this.logger = this.Crystalizer.UnitLogger.GetLogger<CrystalFiler>();
+    }
 
     public async Task<CrystalResult> PrepareAndCheck(PrepareParam param, CrystalConfiguration configuration)
     {

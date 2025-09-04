@@ -14,8 +14,6 @@ public interface IJournal : IPersistable
 
     ulong Add(ref TinyhandWriter writer);
 
-    Task TerminateAsync();
-
     ulong GetStartingPosition();
 
     ulong GetCurrentPosition();
@@ -23,4 +21,6 @@ public interface IJournal : IPersistable
     void ResetJournal(ulong position);
 
     Task<(ulong NextPosition, BytePool.RentMemory Data)> ReadJournalAsync(ulong position);
+
+    Task Terminate();
 }

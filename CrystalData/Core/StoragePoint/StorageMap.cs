@@ -7,7 +7,7 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-[TinyhandObject(UseServiceProvider = true)]
+[TinyhandObject(UseServiceProvider = true, ExplicitKeyOnly = true)]
 public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
@@ -16,7 +16,7 @@ public sealed partial class StorageMap : IStructualObject
 
     #region FiendAndProperty
 
-    public StorageControl StorageControl { get; }
+    public StorageControl StorageControl { get; private set; }
 
     private bool enabledStorageMap;
 
@@ -95,7 +95,7 @@ public sealed partial class StorageMap : IStructualObject
             return false;
         }
 
-        if (record == JournalRecord.Add)
+        if (record == JournalRecord.AddItem)
         {
             var pointId = reader.ReadUInt64();
             var typeIdentifier = reader.ReadUInt32();
@@ -126,17 +126,24 @@ public sealed partial class StorageMap : IStructualObject
 
     #endregion
 
-    public StorageMap(StorageControl storageControl)
+    /*public StorageMap(StorageControl storageControl)
     {
         this.StorageControl = storageControl;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
-    }
+    }*/
 
-    private StorageMap()
+    public StorageMap()
     {
         this.StorageControl = StorageControl.Disabled;
         this.enabledStorageMap = false;
+    }
+
+    internal void Enable(StorageControl storageControl)
+    {
+        this.StorageControl = storageControl;
+        this.enabledStorageMap = true;
+        storageControl.AddStorageMap(this);
     }
 
     private void UpdateStorageUsageInternal(long size)
