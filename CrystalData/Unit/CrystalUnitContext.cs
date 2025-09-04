@@ -55,18 +55,18 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
             }
         }
 
-        if (!context.TryGetOptions<CrystalizerConfiguration>(out var configuration))
-        {// New
-            configuration = new CrystalizerConfiguration(this.typeToCrystalConfiguration, this.journalConfiguration);
-            context.SetOptions(configuration);
+        var crystalizerConfiguration = context.GetOptions<CrystalizerConfiguration>();
+        crystalizerConfiguration = crystalizerConfiguration with
+        {
+            JournalConfiguration = this.journalConfiguration,
+        };
+
+        foreach (var x in this.typeToCrystalConfiguration)
+        {
+            crystalizerConfiguration.CrystalConfigurations[x.Key] = x.Value;
         }
-        else
-        {// Existing
-            foreach (var x in this.typeToCrystalConfiguration)
-            {
-                configuration.CrystalConfigurations[x.Key] = x.Value;
-            }
-        }
+
+        context.SetOptions(crystalizerConfiguration);
 
         var options = new CrystalizerOptions() with { DataDirectory = context.DataDirectory, };
         context.SetOptions(options);

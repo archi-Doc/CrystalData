@@ -62,9 +62,13 @@ public static class TestHelper
                     StorageConfiguration = new SimpleStorageConfiguration(new GlobalDirectoryConfiguration("Storage")),
                 });
         });
-        builder.SetupOptions<CrystalizerOptions>((context, options) =>
+
+        builder.PostConfigure(context =>
         {
-            options.GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]");
+            context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+            {
+                GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]"),
+            });
         });
 
         var unit = builder.Build();

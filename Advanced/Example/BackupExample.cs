@@ -47,14 +47,13 @@ public partial class Program
                         BackupFileConfiguration = new LocalFileConfiguration("Local/BackupExample/Backup/BackupData.tinyhand"),
                     });
             })
-            .SetupOptions<CrystalizerOptions>((context, options) =>
+            .PostConfigure(context =>
             {
-                context.GetOptions<UnitOptions>(out var unitOptions); // Get the application root directory.
-                if (unitOptions is not null)
+                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
                 {
                     // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
-                    options.DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitOptions.DataDirectory, "DefaultBackup"));
-                }
+                    DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "DefaultBackup")),
+                });
             });
 
         var unit = builder.Build(); // Build.

@@ -85,7 +85,6 @@ public sealed partial class CrystalSupplement
         }
 
         this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, this.mainConfiguration?.Path ?? string.Empty);
-
     }
 
     public void Store(bool rip = false)

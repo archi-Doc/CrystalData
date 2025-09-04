@@ -169,14 +169,6 @@ internal class Program
                 // context.AddSingleton<FirstData>();
                 context.AddSingleton<SecondData>();
             })
-            .SetupOptions<CrystalizerOptions>((context, options) =>
-            {
-                context.GetOptions<UnitOptions>(out var unitOptions);
-                if (unitOptions is not null)
-                {
-                    options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.DataDirectory, "Global"));
-                }
-            })
             .ConfigureCrystal(context =>
             {
                 context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
@@ -211,6 +203,13 @@ internal class Program
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = storageConfiguration,
                     });
+            })
+            .PostConfigure(context =>
+            {
+                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                {
+                    GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")),
+                });
             });
 
         var unit = builder.Build(); // Build.

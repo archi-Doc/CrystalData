@@ -2,15 +2,13 @@
 
 namespace CrystalData;
 
-public class CrystalizerConfiguration
+public record class CrystalizerConfiguration
 {
-    internal CrystalizerConfiguration(Dictionary<Type, CrystalConfiguration> crystalConfigurations, JournalConfiguration journalConfiguration)
+    public CrystalizerConfiguration()
     {
-        this.CrystalConfigurations = crystalConfigurations;
-        this.JournalConfiguration = journalConfiguration;
     }
 
-    public Dictionary<Type, CrystalConfiguration> CrystalConfigurations { get; }
+    public Dictionary<Type, CrystalConfiguration> CrystalConfigurations { get; init; } = new();
 
-    public JournalConfiguration JournalConfiguration { get; }
+    public JournalConfiguration JournalConfiguration { get; init; } = EmptyJournalConfiguration.Default;
 }

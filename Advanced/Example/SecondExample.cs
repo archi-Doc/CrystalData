@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.ComponentModel;
+using static SimpleCommandLine.SimpleParser;
 
 namespace QuickStart;
 
@@ -86,16 +87,20 @@ public partial class Program
                         RequiredForLoading = true,
                     });
             })
-            .SetupOptions<CrystalizerOptions>((context, options) =>
+            .PostConfigure(context =>
             {
-                options.EnableFilerLogger = true; // Enable filer logger.
-                options.DataDirectory = Directory.GetCurrentDirectory();
-            })
-            .SetupOptions<FileLoggerOptions>((context, options) =>
-            {// FileLoggerOptions
+                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                {
+                    EnableFilerLogger = true, // Enable filer logger.
+                    DataDirectory = Directory.GetCurrentDirectory(),
+                });
+
                 var logfile = "Logs/Log.txt";
-                options.Path = Path.Combine(context.DataDirectory, logfile);
-                options.MaxLogCapacity = 2;
+                context.SetOptions(context.GetOptions<FileLoggerOptions>() with
+                {
+                    Path = Path.Combine(context.DataDirectory, logfile),
+                    MaxLogCapacity = 2,
+                });
             });
 
         myBuilder.AddBuilder(crystalDataBuilder);

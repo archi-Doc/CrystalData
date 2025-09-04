@@ -22,28 +22,22 @@ public class CrystalControl
         public Builder()
             : base()
         {
-            this.Preload(context =>
+            this.PreConfigure(context =>
             {
-                if (context.FirstBuilderRun)
-                {
-                    this.LoadStrings();
-                }
+                this.LoadStrings();
             });
 
             this.Configure(context =>
             {
-                if (context.FirstBuilderRun)
-                {
-                    // Main services
-                    context.AddSingleton<CrystalControl>();
-                    context.AddSingleton<CrystalizerConfiguration>();
-                    context.AddSingleton<CrystalizerOptions>();
-                    context.AddSingleton<Crystalizer>();
-                    context.AddTransient<StorageControl>();
-                    context.AddTransient<StorageMap>();
-                    context.AddSingleton<IStorageKey, StorageKey>();
-                    context.TryAddSingleton<ICrystalDataQuery, CrystalDataQueryDefault>();
-                }
+                // Main services
+                context.AddSingleton<CrystalControl>();
+                context.AddSingleton<CrystalizerConfiguration>();
+                context.AddSingleton<CrystalizerOptions>();
+                context.AddSingleton<Crystalizer>();
+                context.AddTransient<StorageControl>();
+                context.AddTransient<StorageMap>();
+                context.AddSingleton<IStorageKey, StorageKey>();
+                context.TryAddSingleton<ICrystalDataQuery, CrystalDataQueryDefault>();
 
                 var crystalContext = context.GetCustomContext<CrystalUnitContext>();
                 foreach (var x in this.crystalActions)
@@ -53,9 +47,9 @@ public class CrystalControl
             });
         }
 
-        public new Builder Preload(Action<IUnitPreloadContext> @delegate)
+        public new Builder PreConfigure(Action<IUnitPreConfigurationContext> @delegate)
         {
-            base.Preload(@delegate);
+            base.PreConfigure(@delegate);
             return this;
         }
 
@@ -65,10 +59,10 @@ public class CrystalControl
             return this;
         }
 
-        public override Builder SetupOptions<TOptions>(Action<IUnitSetupContext, TOptions> @delegate)
-            where TOptions : class
+        public new Builder PostConfigure(Action<IUnitPostConfigurationContext> @delegate)
         {
-            return (Builder)base.SetupOptions(@delegate);
+            base.PostConfigure(@delegate);
+            return this;
         }
 
         public Builder ConfigureCrystal(Action<ICrystalUnitContext> @delegate)
