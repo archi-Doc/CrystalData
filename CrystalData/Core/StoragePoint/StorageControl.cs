@@ -30,6 +30,8 @@ public partial class StorageControl : IPersistable
     private long memoryUsage;
     private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
 
+    internal ILogger? Logger { get; set; }
+
     public bool IsRip => this.isRip;
 
     public long MemoryUsageLimit { get; internal set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
@@ -85,6 +87,11 @@ public partial class StorageControl : IPersistable
             Array.Resize(ref this.storageMaps, length + 1);
             this.storageMaps[length] = storageMap;
         }
+    }
+
+    internal void Initialize(Crystalizer crystalizer)
+    {
+        this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
     }
 
     internal void Rip() => this.isRip = true;

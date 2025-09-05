@@ -320,7 +320,8 @@ internal class Program
         }
 
         crystalizer.Dump();
-        await crystalizer.StoreAndRelease();
+        // await crystalizer.StoreAndRelease();
+        await crystalizer.StoreAndRip();
         Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
     }
 }

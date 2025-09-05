@@ -42,3 +42,7 @@ Unload=
 CrystalSupplement=
   LoadSuccess="Successfully loaded '{0}'"
   LoadFailure="Failed to load '{0}'"
+
+StorageControl=
+  StorageReconstructed="Storage was lost, but reconstruction from the journal was successful {{ {0} }}"
+  StorageNotReconstructed="Storage was lost, and reconstruction from the journal failed {{ {0} }}"

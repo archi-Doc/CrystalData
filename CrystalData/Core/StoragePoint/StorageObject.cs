@@ -488,7 +488,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     private bool ReadValueRecord(ref TinyhandReader reader)
     {
         if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
-        {
+        {// Key or Locator
             if (this.data is IStructualObject structualObject)
             {
                 return structualObject.ReadRecord(ref reader);
@@ -506,7 +506,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return this.data is not null;
         }
 
-        return false;
+        return true;
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
@@ -577,9 +577,30 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             if (journalPosition > 0)
             {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
                 var plane = this.StructualRoot is ICrystalInternal crystalInternal ? crystalInternal.Waypoint.Plane : 0;
+                var reconstruct = false;
                 if (plane != 0)
                 {
-                    await this.ReconstructFromJournal(plane, journalPosition);
+                    reconstruct = await this.ReconstructFromJournal(plane, journalPosition).ConfigureAwait(false);
+                }
+
+                var dataType = this.data?.GetType();
+                string storageInfo;
+                if (dataType == null)
+                {
+                    storageInfo = $"PointId = {this.pointId}";
+                }
+                else
+                {
+                    storageInfo = $"Type = {dataType.Name}, PointId = {this.pointId}";
+                }
+
+                if (reconstruct)
+                {// Successfully reconstructed
+                    this.storageControl.Logger?.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
+                }
+                else
+                {// Could not reconstruct
+                    this.storageControl.Logger?.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
                 }
             }
         }
@@ -649,14 +670,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    private async Task ReconstructFromJournal(uint plane, ulong position)
+    private async Task<bool> ReconstructFromJournal(uint plane, ulong position)
     {
         if (this.StructualRoot is not ICrystal crystal ||
             crystal.Journal is not { } journal)
         {
-            return;
+            return false;
         }
 
+        var result = true;
         var upperLimit = crystal.Journal.GetCurrentPosition();
 
         while (position != 0)
@@ -670,7 +692,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             try
             {
-                this.ReconstructFromMemory(plane, position, journalResult.Data.Memory);
+                if (!this.ReconstructFromMemory(plane, position, journalResult.Data.Memory))
+                {
+                    result = false;
+                }
             }
             finally
             {
@@ -684,35 +709,41 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             position = journalResult.NextPosition;
         }
+
+        return result;
     }
 
-    private void ReconstructFromMemory(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
+    private bool ReconstructFromMemory(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
     {
+        var result = true;
         var reader = new TinyhandReader(memory.Span);
         while (reader.Consumed < memory.Length)
         {
             if (!reader.TryReadRecord(out var length, out var journalType))
             {// Not record
-                return;
+                return false;
             }
 
             var fork = reader.Fork();
             try
             {
                 if (journalType == JournalType.Record)
-                {
+                {// Record
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();
                     if (plane == mapPlane)
-                    {
+                    {// Matching plane
                         if (reader.TryReadJournalRecord(out var journalRecord))
                         {
                             if (journalRecord == JournalRecord.Locator)
                             {
                                 var pointId = reader.ReadUInt64();
                                 if (pointId == this.pointId)
-                                {
-                                    this.ReadValueRecord(ref reader);
+                                {// Matching point id
+                                    if (!this.ReadValueRecord(ref reader))
+                                    {// Failure
+                                        result = false;
+                                    }
                                 }
                             }
                         }
@@ -728,6 +759,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 }
             }
         }
+
+        return result;
     }
 
     private async Task DeleteStorage(bool recordJournal, DateTime forceDeleteAfter)

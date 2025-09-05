@@ -61,6 +61,7 @@ public class Crystalizer
         this.ServiceProvider = serviceProvider;
         this.CrystalSupplement = new(this);
         this.StorageControl = storageControl;
+        this.StorageControl.Initialize(this);
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
 
@@ -82,8 +83,6 @@ public class Crystalizer
             DefaultSavePolicy = defaultSavePolicy,
             DefaultSaveInterval = defaultSaveInterval,
         };
-
-        //Supplement file
 
         this.Logger = logger;
         this.task = new(this);
@@ -1077,6 +1076,9 @@ public class Crystalizer
             await journal.Store().ConfigureAwait(false);
         }
 
+        this.CrystalCheck.Store();
+        this.CrystalSupplement.Store(terminate);
+
         // Flush filers
         var tasks = new List<Task>();
         using (this.lockObject.EnterScope())
@@ -1102,9 +1104,6 @@ public class Crystalizer
         }
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
-
-        this.CrystalCheck.Store();
-        this.CrystalSupplement.Store(terminate);
     }
 
     #endregion
