@@ -276,6 +276,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
             return result;
         }
 
+        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
@@ -291,6 +292,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         return CrystalResult.Success;
 
 Exit:
+        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
         using (this.semaphore.EnterScope())
         {
             this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
@@ -720,14 +722,14 @@ Exit:
     private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration, TData? singletonData)
 #pragma warning restore SA1204 // Static elements should appear before instance elements
     {
-        var x = filer.Crystalizer.CrystalSupplement.IsPreviouslyStored<TData>(configuration.FileConfiguration);
-        param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
+        var isPreviouslyStored = filer.Crystalizer.CrystalSupplement.IsPreviouslyStored<TData>(configuration.FileConfiguration);
+        // param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)
         var data = await filer.LoadLatest<TData>(param, configuration.SaveFormat, singletonData).ConfigureAwait(false);
         if (data.Result.IsFailure)
         {
-            if (!newlyRegistered &&
+            if (isPreviouslyStored &&
                 configuration.RequiredForLoading &&
                 await param.Query.FailedToLoad(configuration.FileConfiguration, data.Result.Result).ConfigureAwait(false) == AbortOrContinue.Abort)
             {

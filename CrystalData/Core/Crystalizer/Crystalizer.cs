@@ -1104,7 +1104,7 @@ public class Crystalizer
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
         this.CrystalCheck.Store();
-        this.CrystalSupplement.Store();
+        this.CrystalSupplement.Store(terminate);
     }
 
     #endregion

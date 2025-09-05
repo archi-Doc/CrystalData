@@ -5,6 +5,7 @@ namespace CrystalData.Supplement;
 public sealed partial class CrystalSupplement
 {
     public const string DefaultSupplementFileName = "CrystalData.Supplement";
+    private const int PreviouslyStoredLimit = 1_000;
     private static readonly SaveFormat Format = SaveFormat.Utf8;
 
     [TinyhandObject(LockObject = "lockObject")]
@@ -22,6 +23,15 @@ public sealed partial class CrystalSupplement
 
         #endregion
 
+        public void ReportStored<TData>(FileConfiguration fileConfiguration)
+        {
+            var identifier = GetIdentifier<TData>(fileConfiguration);
+            using (this.lockObject.EnterScope())
+            {
+                this.previouslyStoredIdentifiers.Add(identifier);
+            }
+        }
+
         public bool IsPreviouslyStored<TData>(FileConfiguration fileConfiguration)
         {
             var identifier = GetIdentifier<TData>(fileConfiguration);
@@ -29,6 +39,32 @@ public sealed partial class CrystalSupplement
             {
                 var result = this.previouslyStoredIdentifiers.Contains(identifier);
                 return result;
+            }
+        }
+
+        public void AfterLoad()
+        {
+            using (this.lockObject.EnterScope())
+            {
+            }
+
+            if (!this.IsRip)
+            {// Previously not rip.
+             // this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.IsRip);
+            }
+        }
+
+        public void OnSaving(bool isRip)
+        {
+            using (this.lockObject.EnterScope())
+            {
+                this.IsRip = isRip;
+
+                while (this.previouslyStoredIdentifiers.Count > PreviouslyStoredLimit)
+                {
+                    var item = this.previouslyStoredIdentifiers.First();
+                    this.previouslyStoredIdentifiers.Remove(item);
+                }
             }
         }
     }
@@ -89,6 +125,7 @@ public sealed partial class CrystalSupplement
                     this.data = deserializeResult.Data;
                     this.IsSupplementLoaded = true;
                     this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, path ?? string.Empty);
+                    this.data.AfterLoad();
                     return true;
                 }
             }
@@ -102,8 +139,10 @@ public sealed partial class CrystalSupplement
         }
     }
 
-    public void Store(bool rip = false)
+    public void Store(bool isRip)
     {
+        this.data.OnSaving(isRip);
+
         BytePool.RentMemory rentMemory = default;
         try
         {
@@ -137,6 +176,9 @@ public sealed partial class CrystalSupplement
 
     public bool IsPreviouslyStored<TData>(FileConfiguration fileConfiguration)
         => this.data.IsPreviouslyStored<TData>(fileConfiguration);
+
+    public void ReportStored<TData>(FileConfiguration fileConfiguration)
+        => this.data.ReportStored<TData>(fileConfiguration);
 
     private static ulong GetIdentifier<TData>(FileConfiguration fileConfiguration)
         => XxHash3Slim.Hash64(typeof(TData).FullName ?? string.Empty) ^ XxHash3Slim.Hash64(fileConfiguration.Path);

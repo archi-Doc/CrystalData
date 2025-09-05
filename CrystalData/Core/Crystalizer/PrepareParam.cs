@@ -22,12 +22,12 @@ public readonly struct PrepareParam
         this.UseQuery = useQuery;
     }
 
-    public void RegisterConfiguration(PathConfiguration configuration, out bool newlyRegistered)
+    /*public void RegisterConfiguration(PathConfiguration configuration, out bool newlyRegistered)
     {
         this.Crystalizer.CrystalCheck.RegisterDataAndConfiguration(
             new(this.DataTypeName, configuration),
             out newlyRegistered);
-    }
+    }*/
 
     public readonly Crystalizer Crystalizer;
 
