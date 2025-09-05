@@ -1,7 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using Tinyhand.IO;
-
 namespace CrystalData.Supplement;
 
 public sealed partial class CrystalSupplement
@@ -35,6 +33,8 @@ public sealed partial class CrystalSupplement
         }
     }
 
+    #region FieldAndProperty
+
     private readonly Crystalizer crystalizer;
     private readonly ILogger logger;
     private Data data = new();
@@ -42,6 +42,10 @@ public sealed partial class CrystalSupplement
     private IFiler? backupFiler;
     private FileConfiguration? mainConfiguration;
     private FileConfiguration? backupConfiguration;
+
+    public bool IsSupplementLoaded { get; private set; }
+
+    #endregion
 
     public CrystalSupplement(Crystalizer crystalizer)
     {
@@ -51,8 +55,6 @@ public sealed partial class CrystalSupplement
 
     public void PrepareAndLoad()
     {
-        var supplementLoaded = false;
-
         if (this.mainFiler is null)
         {
             var fileConfiguration = this.crystalizer.Options.SupplementFile;
@@ -65,35 +67,54 @@ public sealed partial class CrystalSupplement
             (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveFiler(this.crystalizer.Options.BackupSupplementFile);
         }
 
-        var result = this.mainFiler.ReadAsync(0, -1).Result;
-        if (result.IsSuccess)
-        {
-            var reader = new TinyhandReader(result.Data.Span);
-            if (TinyhandSerializer.TryDeserializeObject<Data>(result.Data.Span, out var d))
-            {
-                this.data = d;
-                supplementLoaded = true;
-                this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, this.mainConfiguration?.Path ?? string.Empty);
-            }
-
-            result.Return();
-        }
-
-        if (supplementLoaded)
+        if (LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
         {
             return;
         }
 
-        this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, this.mainConfiguration?.Path ?? string.Empty);
+        if (this.backupFiler is not null &&
+            LoadSupplementFile(this.backupFiler, this.backupConfiguration?.Path ?? string.Empty))
+        {
+            return;
+        }
+
+        bool LoadSupplementFile(IFiler filer, string? path)
+        {
+            var fileResult = filer.ReadAsync(0, -1).Result;
+            try
+            {
+                var deserializeResult = SerializeHelper.TryDeserialize<Data>(fileResult.Data.Span, Format, false, default);
+                if (deserializeResult.Data is not null)
+                {
+                    this.data = deserializeResult.Data;
+                    this.IsSupplementLoaded = true;
+                    this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, path ?? string.Empty);
+                    return true;
+                }
+            }
+            finally
+            {
+                fileResult.Return();
+            }
+
+            this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, path ?? string.Empty);
+            return false;
+        }
     }
 
     public void Store(bool rip = false)
     {
-        var options = Format == SaveFormat.Binary ? TinyhandSerializerOptions.Standard : TinyhandSerializerOptions.ConvertToString;
         BytePool.RentMemory rentMemory = default;
         try
         {
-            rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(this.data, options);
+            if (Format == SaveFormat.Binary)
+            {
+                rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(this.data);
+            }
+            else
+            {
+                rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(this.data);
+            }
 
             if (this.mainFiler is not null)
             {
