@@ -349,7 +349,7 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void DeleteLatestStorageForDebug(StorageObject storageObject)
+    internal void DeleteLatestStorageForTest(StorageObject storageObject)
     {
         ulong fileId = 0;
         using (this.lowestLockObject.EnterScope())

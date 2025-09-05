@@ -233,6 +233,32 @@ internal partial class SimpleStorage : IStorage
         return result;
     }
 
+    Task<CrystalResult> IStorage.DeleteAsync(ref ulong fileId)
+    {
+        if (this.mainFiler == null || this.storageData == null)
+        {
+            return Task.FromResult(CrystalResult.NotPrepared);
+        }
+
+        var file = FileIdToFile(fileId);
+        if (file == 0)
+        {
+            return Task.FromResult(CrystalResult.NotFound);
+        }
+
+        this.storageData.Remove(file);
+
+        var path = this.FileToPath(FileIdToFile(fileId));
+        fileId = 0;
+        var task = this.mainFiler.DeleteAsync(this.MainFile(path), this.timeout);
+        if (this.backupFiler is not null)
+        {
+            _ = this.backupFiler.DeleteAsync(this.BackupFile(path), this.timeout);
+        }
+
+        return task;
+    }
+
     Task<CrystalMemoryOwnerResult> IStorage.GetAsync(ref ulong fileId)
     {
         if (this.mainFiler == null || this.storageData == null)
@@ -278,33 +304,6 @@ internal partial class SimpleStorage : IStorage
         if (this.backupFiler is not null)
         {
             _ = this.backupFiler.WriteAsync(this.BackupFile(path), 0, dataToBeShared, this.timeout);
-        }
-
-        return task;
-    }
-
-    Task<CrystalResult> IStorage.DeleteAsync(ref ulong fileId)
-    {
-        if (this.mainFiler == null || this.storageData == null)
-        {
-            return Task.FromResult(CrystalResult.NotPrepared);
-        }
-
-        var file = FileIdToFile(fileId);
-        if (file == 0)
-        {
-            return Task.FromResult(CrystalResult.NotFound);
-        }
-
-        this.storageData.Remove(file);
-
-        fileId = 0;
-
-        var path = this.FileToPath(FileIdToFile(fileId));
-        var task = this.mainFiler.DeleteAsync(this.MainFile(path), this.timeout);
-        if (this.backupFiler is not null)
-        {
-            _ = this.backupFiler.DeleteAsync(this.BackupFile(path), this.timeout);
         }
 
         return task;
