@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
@@ -25,10 +26,13 @@ public partial class StorageControl : IPersistable
     /// </summary>
     private readonly Lock lowestLockObject;
 
+    private StorageCore? core;
     private StorageMap[] storageMaps;
     private bool isRip;
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
+
+    private uint currentTime; // System time in seconds
     private StorageObject? toSaveHead;
 
     internal ILogger? Logger { get; set; }
@@ -97,6 +101,10 @@ public partial class StorageControl : IPersistable
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
         this.SaveInterval = crystalizer.Options.StorageSaveInterval;
+
+        this.UpdateTime();
+        this.core = new StorageCore(this);
+        this.core.Start();
     }
 
     internal void Rip() => this.isRip = true;
@@ -426,6 +434,17 @@ public partial class StorageControl : IPersistable
         }
     }
 
+    internal async Task<bool> ProcessSaveQueue(CancellationToken cancellationToken)
+    {
+        this.UpdateTime();
+        using (this.lowestLockObject.EnterScope())
+        {
+
+        }
+
+        return false;
+    }
+
     internal void AddToSaveQueue(StorageObject node)
     {
         using (this.lowestLockObject.EnterScope())
@@ -435,7 +454,7 @@ public partial class StorageControl : IPersistable
                 return;
             }
 
-            node.toSaveTime = 1;
+            node.toSaveTime = this.currentTime;
 
             if (this.toSaveHead is null)
             {// First node
@@ -450,6 +469,11 @@ public partial class StorageControl : IPersistable
             this.toSaveHead.toSavePrevious!.toSaveNext = node;
             this.toSaveHead.toSavePrevious = node;
         }
+    }
+
+    private void UpdateTime()
+    {
+        this.currentTime = (uint)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
     }
 
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)

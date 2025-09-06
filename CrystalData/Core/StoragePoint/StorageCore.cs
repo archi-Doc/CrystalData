@@ -23,14 +23,22 @@ public partial class StorageControl
 
             while (!core.IsTerminated)
             {
-                if (!storageControl.StorageReleaseRequired)
-                {
-                    await core.Delay(IntervalInMilliseconds);
-                    continue;
-                }
-                else
+                var delayFlag = true;
+
+                if (storageControl.StorageReleaseRequired)
                 {
                     await storageControl.ReleaseStorage(core.CancellationToken);
+                    delayFlag = false;
+                }
+
+                if (await storageControl.ProcessSaveQueue(core.CancellationToken))
+                {
+                    delayFlag = false;
+                }
+
+                if (delayFlag)
+                {
+                    await core.Delay(IntervalInMilliseconds);
                 }
             }
         }
