@@ -3,6 +3,7 @@
 #pragma warning disable SA1202
 
 using CrystalData.Internal;
+using CrystalData.Storage;
 using Tinyhand.IO;
 
 namespace CrystalData;
@@ -17,6 +18,8 @@ public sealed partial class StorageMap : IStructualObject
     #region FiendAndProperty
 
     public StorageControl StorageControl { get; private set; }
+
+    public IStorage Storage { get; private set; }
 
     private bool enabledStorageMap;
 
@@ -36,6 +39,7 @@ public sealed partial class StorageMap : IStructualObject
     public StorageMap()
     {
         this.StorageControl = StorageControl.Disabled;
+        this.Storage = EmptyStorage.Default;
         this.enabledStorageMap = false;
     }
 
@@ -132,9 +136,10 @@ public sealed partial class StorageMap : IStructualObject
 
     #endregion
 
-    internal void Enable(StorageControl storageControl)
+    internal void Enable(StorageControl storageControl, IStorage storage)
     {
         this.StorageControl = storageControl;
+        this.Storage = storage;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
     }
