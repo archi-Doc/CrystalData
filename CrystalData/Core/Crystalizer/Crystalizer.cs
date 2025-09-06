@@ -17,41 +17,52 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-public class Crystalizer
+public partial class Crystalizer
 {
     public const string BinaryExtension = ".th";
     public const string Utf8Extension = ".tinyhand";
     public const string CheckFile = "Crystal.check";
-    public const int TaskIntervalInMilliseconds = 1_000;
-    public const int PeriodicSaveInMilliseconds = 10_000;
 
-    private class CrystalizerTask : TaskCore
-    {
-        public CrystalizerTask(Crystalizer crystalizer)
-            : base(null, Process)
-        {
-            this.crystalizer = crystalizer;
-        }
+    #region FieldAndProperty
 
-        private static async Task Process(object? parameter)
-        {
-            var core = (CrystalizerTask)parameter!;
-            int elapsedMilliseconds = 0;
-            while (await core.Delay(TaskIntervalInMilliseconds).ConfigureAwait(false))
-            {
-                await core.crystalizer.QueuedSave().ConfigureAwait(false);
+    public CrystalizerOptions Options { get; }
 
-                elapsedMilliseconds += TaskIntervalInMilliseconds;
-                if (elapsedMilliseconds >= PeriodicSaveInMilliseconds)
-                {
-                    elapsedMilliseconds = 0;
-                    await core.crystalizer.PeriodicSave().ConfigureAwait(false);
-                }
-            }
-        }
+    public CrystalSupplement CrystalSupplement { get; }
 
-        private Crystalizer crystalizer;
-    }
+    public StorageControl StorageControl { get; }
+
+    public IJournal? Journal { get; private set; }
+
+    public JournalConfiguration? JournalConfiguration { get; private set; }
+
+    public IStorageKey StorageKey { get; }
+
+    internal ICrystalDataQuery Query { get; }
+
+    internal ICrystalDataQuery QueryContinue { get; }
+
+    internal UnitLogger UnitLogger { get; }
+
+    internal ILogger Logger { get; }
+
+    internal CrystalCheck CrystalCheck { get; }
+
+    internal IServiceProvider ServiceProvider { get; }
+
+    private readonly CrystalizerConfiguration configuration;
+
+    private readonly CrystalizerTask crystalizerTask;
+    private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
+    private ConcurrentDictionary<ICrystalInternal, int> crystals = new(); // All crystals
+    private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
+    private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
+
+    private Lock lockObject = new();
+    private IRawFiler? localFiler;
+    private Dictionary<string, IRawFiler> bucketToS3Filer = new();
+    private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new(StorageConfiguration.MainDirectoryComparer.Instance);
+
+    #endregion
 
     public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
@@ -85,7 +96,7 @@ public class Crystalizer
         };
 
         this.Logger = logger;
-        this.task = new(this);
+        this.crystalizerTask = new(this);
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
         this.CrystalCheck.Load(Path.Combine(this.Options.DataDirectory, CheckFile));
         this.StorageKey = storageKey;
@@ -102,49 +113,6 @@ public class Crystalizer
 
         this.CrystalSupplement.PrepareAndLoad();
     }
-
-    #region FieldAndProperty
-
-    public CrystalizerOptions Options { get; }
-
-    public CrystalSupplement CrystalSupplement { get; }
-
-    public StorageControl StorageControl { get; }
-
-    public IJournal? Journal { get; private set; }
-
-    public JournalConfiguration? JournalConfiguration { get; private set; }
-
-    public IStorageKey StorageKey { get; }
-
-    // public StorageControl StorageControl { get; }
-
-    internal ICrystalDataQuery Query { get; }
-
-    internal ICrystalDataQuery QueryContinue { get; }
-
-    internal UnitLogger UnitLogger { get; }
-
-    internal ILogger Logger { get; }
-
-    internal CrystalCheck CrystalCheck { get; }
-
-    internal IServiceProvider ServiceProvider { get; }
-
-    private CrystalizerConfiguration configuration;
-
-    private CrystalizerTask task;
-    private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
-    private ConcurrentDictionary<ICrystalInternal, int> crystals = new(); // All crystals
-    private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
-    private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
-
-    private Lock lockObject = new();
-    private IRawFiler? localFiler;
-    private Dictionary<string, IRawFiler> bucketToS3Filer = new();
-    private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new(StorageConfiguration.MainDirectoryComparer.Instance);
-
-    #endregion
 
     #region Resolvers
 
