@@ -14,7 +14,7 @@ public sealed partial class CrystalSupplement
     [TinyhandObject(LockObject = "lockObject")]
     private sealed partial class Data
     {
-        [TinyhandObject]
+        /*[TinyhandObject]
         [ValueLinkObject]
         private sealed partial class PlaneItem
         {
@@ -25,7 +25,7 @@ public sealed partial class CrystalSupplement
             [Key(0)]
             [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
             public uint Plane { get; private set; }
-        }
+        }*/
 
         #region FieldAndProperty
 
@@ -34,8 +34,8 @@ public sealed partial class CrystalSupplement
         [Key(0)]
         private readonly HashSet<ulong> previouslyStoredIdentifiers = new();
 
-        [Key(1)]
-        private readonly PlaneItem.GoshujinClass planeItems = new();
+        // [Key(1)]
+        // private readonly PlaneItem.GoshujinClass planeItems = new();
 
         #endregion
 

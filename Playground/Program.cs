@@ -3,12 +3,43 @@
 using System.ComponentModel;
 using Arc.Unit;
 using CrystalData;
-using CrystalData.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
 using ValueLink;
 
 namespace Sandbox;
+
+public sealed partial class CrystalSupplement
+{
+    [TinyhandObject(LockObject = "lockObject")]
+    private sealed partial class Data
+    {
+        [TinyhandObject]
+        [ValueLinkObject]
+        private sealed partial class PlaneItem
+        {
+            public PlaneItem()
+            {
+            }
+
+            [Key(0)]
+            [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+            public uint Plane { get; private set; }
+        }
+
+        #region FieldAndProperty
+
+        private readonly Lock lockObject = new();
+
+        [Key(0)]
+        private readonly HashSet<ulong> previouslyStoredIdentifiers = new();
+
+        [Key(1)]
+        private readonly PlaneItem.GoshujinClass planeItems = new();
+
+        #endregion
+    }
+}
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
