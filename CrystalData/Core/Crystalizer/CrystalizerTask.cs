@@ -23,13 +23,13 @@ public partial class Crystalizer
             int elapsedMilliseconds = 0;
             while (await core.Delay(TaskIntervalInMilliseconds).ConfigureAwait(false))
             {
-                await core.crystalizer.QueuedSave().ConfigureAwait(false);
+                await core.crystalizer.QueuedStore().ConfigureAwait(false);
 
                 elapsedMilliseconds += TaskIntervalInMilliseconds;
                 if (elapsedMilliseconds >= PeriodicSaveInMilliseconds)
                 {
                     elapsedMilliseconds = 0;
-                    await core.crystalizer.PeriodicSave().ConfigureAwait(false);
+                    await core.crystalizer.PeriodicStore().ConfigureAwait(false);
                 }
             }
         }

@@ -5,6 +5,7 @@ namespace CrystalData.Supplement;
 public sealed partial class CrystalSupplement
 {
     public const string DefaultSupplementFileName = "CrystalData.Supplement";
+    public const string DefaultRipFileName = "CrystalData.Rip";
     private const int PreviouslyStoredLimit = 1_000;
     private static readonly SaveFormat Format = SaveFormat.Utf8;
 

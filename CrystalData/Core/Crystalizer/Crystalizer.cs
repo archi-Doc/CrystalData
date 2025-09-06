@@ -435,7 +435,6 @@ public partial class Crystalizer
 
         // Crystals
         var crystals = this.crystals.Keys.ToArray();
-        // var list = new List<string>();
         foreach (var x in crystals)
         {
             result = await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
@@ -798,14 +797,14 @@ public partial class Crystalizer
         return crystal!.Data;
     }
 
-    private Task PeriodicSave()
+    private Task PeriodicStore()
     {
         var tasks = new List<Task>();
         var crystals = this.crystals.Keys.ToArray();
         var utc = DateTime.UtcNow;
         foreach (var x in crystals)
         {
-            if (x.TryPeriodicSave(utc) is { } task)
+            if (x.TryPeriodicStore(utc) is { } task)
             {
                 tasks.Add(task);
             }
@@ -814,7 +813,7 @@ public partial class Crystalizer
         return Task.WhenAll(tasks);
     }
 
-    private Task QueuedSave()
+    private Task QueuedStore()
     {
         var tasks = new List<Task>();
         var array = this.saveQueue.Keys.ToArray();

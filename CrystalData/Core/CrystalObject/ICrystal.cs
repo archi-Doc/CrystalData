@@ -54,7 +54,7 @@ internal interface ICrystalInternal : ICrystal
 
     void SetStorage(IStorage storage);
 
-    Task? TryPeriodicSave(DateTime utc);
+    Task? TryPeriodicStore(DateTime utc);
 }
 
 internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal
