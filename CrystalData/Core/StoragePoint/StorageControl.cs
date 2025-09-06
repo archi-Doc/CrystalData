@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
 using CrystalData.Internal;
 using Tinyhand.IO;
 
@@ -12,6 +13,7 @@ namespace CrystalData;
 public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 256;
+    private const int SaveBatchSize = 32;
 
     /// <summary>
     /// Represents the disabled storage control.
@@ -33,7 +35,9 @@ public partial class StorageControl : IPersistable
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
 
     private uint currentTime; // System time in seconds
+    private uint saveDelay; // Save delay in seconds
     private StorageObject? toSaveHead;
+    private StorageObject[] saveArray = new StorageObject[SaveBatchSize];
 
     internal ILogger? Logger { get; set; }
 
@@ -101,6 +105,11 @@ public partial class StorageControl : IPersistable
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
         this.SaveInterval = crystalizer.Options.StorageSaveInterval;
+        this.saveDelay = (uint)crystalizer.Options.SaveDelay.TotalSeconds;
+        if (this.saveDelay == 0)
+        {
+            this.saveDelay = 1;
+        }
 
         this.UpdateTime();
         this.core = new StorageCore(this);
@@ -437,12 +446,54 @@ public partial class StorageControl : IPersistable
     internal async Task<bool> ProcessSaveQueue(CancellationToken cancellationToken)
     {
         this.UpdateTime();
-        using (this.lowestLockObject.EnterScope())
-        {
 
+        var result = false;
+        while (true)
+        {
+            var count = 0;
+            using (this.lowestLockObject.EnterScope())
+            {
+                while (this.toSaveHead is not null && count < SaveBatchSize)
+                {
+                    var node = this.toSaveHead;
+                    if (this.currentTime < node.toSaveTime + this.saveDelay)
+                    {// Not yet time to save.
+                        break;
+                    }
+
+                    this.toSaveHead = node.toSaveNext;
+                    if (this.toSaveHead == node)
+                    {// Only one node in the list.
+                        this.toSaveHead = null;
+                    }
+                    else
+                    {
+                        node.toSaveNext!.toSavePrevious = node.toSavePrevious;
+                        node.toSavePrevious!.toSaveNext = node.toSaveNext;
+                    }
+
+                    node.toSavePrevious = default;
+                    node.toSaveNext = default;
+                    node.toSaveTime = 0;
+
+                    this.saveArray[count++] = node;
+                }
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                await this.saveArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+                result = true;
+            }
+
+            Array.Clear(this.saveArray, 0, count);
+            if (count < SaveBatchSize)
+            {
+                break;
+            }
         }
 
-        return false;
+        return result;
     }
 
     internal void AddToSaveQueue(StorageObject node)

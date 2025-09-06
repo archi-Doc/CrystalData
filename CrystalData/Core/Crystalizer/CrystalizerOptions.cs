@@ -7,6 +7,7 @@ public partial record class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
     public static readonly TimeSpan DefaultStorageSaveInterval = TimeSpan.FromHours(1);
+    public static readonly TimeSpan DefaultSaveDelay = TimeSpan.FromMinutes(1);
 
     public CrystalizerOptions()
     {
@@ -26,6 +27,8 @@ public partial record class CrystalizerOptions
     public int ConcurrentUnload { get; init; } = 8;
 
     public TimeSpan TimeoutUntilForcedRelease { get; init; }
+
+    public TimeSpan SaveDelay { get; init; } = DefaultSaveDelay;
 
     public TimeSpan StorageSaveInterval { get; init; } = DefaultStorageSaveInterval;
 
