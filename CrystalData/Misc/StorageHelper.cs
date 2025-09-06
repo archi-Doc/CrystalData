@@ -15,47 +15,6 @@ public static partial class StorageHelper
     public const long Megabytes = 1024 * 1024;
     public const long Gigabytes = 1024 * 1024 * 1024;
 
-    public static bool CheckPrimaryCrystal(ref ICrystal? primaryCrystal, ref ICrystal? callingCrystal)
-    {
-        if (callingCrystal is null)
-        {// Force save
-            return true;
-        }
-        else if (primaryCrystal is null || primaryCrystal.State == CrystalState.Deleted)
-        {
-            primaryCrystal = callingCrystal;
-            return true;
-        }
-        else if (primaryCrystal == callingCrystal)
-        {
-            return true;
-        }
-
-        var primaryInterval = GetInterval(primaryCrystal);
-        var interval = GetInterval(callingCrystal);
-        if (primaryInterval > interval)
-        {
-            primaryCrystal = callingCrystal;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-
-        TimeSpan GetInterval(ICrystal c)
-        {
-            return c.CrystalConfiguration.SavePolicy switch
-            {
-                SavePolicy.Manual => TimeSpan.FromMinutes(10),
-                SavePolicy.Volatile => TimeSpan.MaxValue,
-                SavePolicy.Periodic => c.CrystalConfiguration.SaveInterval,
-                SavePolicy.OnChanged => TimeSpan.FromMinutes(1),
-                _ => TimeSpan.MaxValue,
-            };
-        }
-    }
-
     public static string ByteToString(long size)
     {
         // MaxValue = 9_223_372_036_854_775_807

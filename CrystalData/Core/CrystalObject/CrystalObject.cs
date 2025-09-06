@@ -527,15 +527,8 @@ Exit:
 
     bool IStructualRoot.TryAddToSaveQueue()
     {
-        if (this.CrystalConfiguration.SavePolicy == SavePolicy.OnChanged)
-        {
-            this.Crystalizer.AddToSaveQueue(this);
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        this.Crystalizer.AddToSaveQueue(this);
+        return true;
     }
 
     /*ulong ICrystal.AddStartingPoint()

@@ -24,9 +24,4 @@ public enum SavePolicy
     /// Data will be saved at regular intervals.
     /// </summary>
     Periodic,
-
-    /// <summary>
-    /// When the data is changed, it is registered in the save queue and will be saved in a second.
-    /// </summary>
-    OnChanged,
 }

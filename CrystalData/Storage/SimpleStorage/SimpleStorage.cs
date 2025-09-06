@@ -158,24 +158,6 @@ internal partial class SimpleStorage : IStorage
         return CrystalResult.Success;
     }
 
-    /*async Task IStorageInternal.PersistStorage(ICrystal? callingCrystal)
-    {
-        if (!StorageHelper.CheckPrimaryCrystal(ref this.primaryCrystal, ref callingCrystal))
-        {
-            return;
-        }
-
-        if (this.storageCrystal is not null)
-        {
-            await this.storageCrystal.Store(StoreMode.StoreOnly).ConfigureAwait(false);
-        }
-
-        if (this.mapCrystal is not null)
-        {
-            await this.mapCrystal.Store(StoreMode.StoreOnly).ConfigureAwait(false);
-        }
-    }*/
-
     CrystalResult IStorage.PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory dataToBeShared)
     {
         if (this.mainFiler == null || this.storageData == null)
