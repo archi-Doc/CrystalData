@@ -5,7 +5,6 @@
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
-using static SimpleCommandLine.SimpleParser;
 
 namespace CrystalData;
 

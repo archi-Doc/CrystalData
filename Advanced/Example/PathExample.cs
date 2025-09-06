@@ -1,7 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using static SimpleCommandLine.SimpleParser;
-
 namespace QuickStart;
 
 public partial class Program

@@ -2,7 +2,6 @@
 
 #pragma warning disable SA1202
 
-using System.Buffers;
 using CrystalData.Internal;
 using Tinyhand.IO;
 
@@ -12,7 +11,6 @@ namespace CrystalData;
 public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
-    private const int StoreBatchSize = 100;
 
     public static readonly StorageMap Disabled = new();
 
