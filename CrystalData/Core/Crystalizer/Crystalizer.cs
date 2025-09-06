@@ -134,6 +134,30 @@ public partial class Crystalizer
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }
 
+    public async Task<(IFiler? Filer, FileConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(FileConfiguration configuration)
+    {
+        var resolved = this.ResolveRawFiler(configuration);
+        var filer = (IFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
+        if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
+        {
+            return default;
+        }
+
+        return (filer, resolved.FixedConfiguration);
+    }
+
+    public async Task<(IFiler? Filer, DirectoryConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(DirectoryConfiguration configuration)
+    {
+        var resolved = this.ResolveRawFiler(configuration);
+        var filer = (IFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
+        if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
+        {
+            return default;
+        }
+
+        return (filer, resolved.FixedConfiguration);
+    }
+
     /*public (IRawFiler RawFiler, PathConfiguration FixedConfiguration) ResolveRawFiler(PathConfiguration configuration)
     {
         lock (this.syncFiler)
@@ -413,19 +437,6 @@ public partial class Crystalizer
 
     public async Task<CrystalResult> PrepareAndLoadAll(bool useQuery = true)
     {
-        // Check file
-        if (!this.CrystalCheck.SuccessfullyLoaded)
-        {
-            if (await this.Query.NoCheckFile().ConfigureAwait(false) == AbortOrContinue.Abort)
-            {
-                return CrystalResult.NotFound;
-            }
-            else
-            {
-                this.CrystalCheck.SuccessfullyLoaded = true;
-            }
-        }
-
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);
         if (result.IsFailure())

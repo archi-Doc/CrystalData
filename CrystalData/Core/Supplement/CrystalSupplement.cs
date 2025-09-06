@@ -94,30 +94,18 @@ public sealed partial class CrystalSupplement
         {
             var fileConfiguration = this.crystalizer.Options.SupplementFile;
             fileConfiguration ??= new LocalFileConfiguration(DefaultSupplementFileName);
-            (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveFiler(fileConfiguration);
-            if (this.mainFiler.PrepareAndCheck(param, this.mainConfiguration).Result != CrystalResult.Success)
-            {
-                this.mainFiler = null;
-            }
+            (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckFiler<CrystalSupplement>(fileConfiguration).Result;
         }
 
         if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
         {
-            (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveFiler(this.crystalizer.Options.BackupSupplementFile);
-            if (this.backupFiler.PrepareAndCheck(param, this.backupConfiguration).Result != CrystalResult.Success)
-            {
-                this.mainFiler = null;
-            }
+            (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckFiler<CrystalSupplement>(this.crystalizer.Options.BackupSupplementFile).Result;
         }
 
         if (this.ripFiler is null && this.mainConfiguration is not null)
         {
             var configuration = this.mainConfiguration.AppendPath(RipSuffix);
-            (this.ripFiler, _) = this.crystalizer.ResolveFiler(configuration);
-            if (this.ripFiler.PrepareAndCheck(param, configuration).Result != CrystalResult.Success)
-            {
-                this.ripFiler = null;
-            }
+            (this.ripFiler, _) = this.crystalizer.ResolveAndPrepareAndCheckFiler<CrystalSupplement>(configuration).Result;
 
             if (this.ripFiler is not null)
             {
