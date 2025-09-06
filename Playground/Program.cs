@@ -251,7 +251,7 @@ internal class Program
             }
         }
 
-        await Task.Delay(1000);
+        // await Task.Delay(3000);
 
         /*var mem = GC.GetTotalMemory(false);
         var bb = new StorageObject[10_000_000];

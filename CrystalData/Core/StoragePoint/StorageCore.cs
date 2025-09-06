@@ -26,13 +26,13 @@ public partial class StorageControl
                 var delayFlag = true;
 
                 if (storageControl.StorageReleaseRequired)
-                {
+                {// Releases storage when the memory usage limit is reached.
                     await storageControl.ReleaseStorage(core.CancellationToken);
                     delayFlag = false;
                 }
 
                 if (await storageControl.ProcessSaveQueue(core.CancellationToken))
-                {
+                {// Processes the save queue.
                     delayFlag = false;
                 }
 

@@ -1021,7 +1021,7 @@ public partial class Crystalizer
             goshujin.Add(new(x));
         }
 
-        goshujin.Add(new(this.StorageControl));// StorageControl
+        goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
         var releaseTasks = new Task[this.Options.ConcurrentUnload];

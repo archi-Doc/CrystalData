@@ -445,8 +445,12 @@ public partial class StorageControl : IPersistable
 
     internal async Task<bool> ProcessSaveQueue(CancellationToken cancellationToken)
     {
-        this.UpdateTime();
+        if (!this.UpdateTime())
+        {// The SaveQueue is not processed because the current time has not been updated.
+            return false;
+        }
 
+        var threshold = this.currentTime - this.saveDelay;
         var result = false;
         while (true)
         {
@@ -456,7 +460,7 @@ public partial class StorageControl : IPersistable
                 while (this.toSaveHead is not null && count < SaveBatchSize)
                 {
                     var node = this.toSaveHead;
-                    if (this.currentTime < node.toSaveTime + this.saveDelay)
+                    if (node.toSaveTime > threshold)
                     {// Not yet time to save.
                         break;
                     }
@@ -480,10 +484,18 @@ public partial class StorageControl : IPersistable
                 }
             }
 
+            if (count == 0)
+            {
+                break;
+            }
+            else
+            {
+                result = true;
+            }
+
             for (var i = 0; i < count; i++)
             {
                 await this.saveArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
-                result = true;
             }
 
             Array.Clear(this.saveArray, 0, count);
@@ -522,9 +534,11 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    private void UpdateTime()
+    private bool UpdateTime()
     {
+        var previous = this.currentTime;
         this.currentTime = (uint)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
+        return previous != this.currentTime;
     }
 
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
