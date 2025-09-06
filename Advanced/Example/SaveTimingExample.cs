@@ -51,7 +51,7 @@ public partial class Program
 
         // On changed - alternative
         data.id += 2;
-        crystal.TryAddToSaveQueue();
+        crystal.AddToSaveQueue();
 
         // Manual...
         await crystal.Store();

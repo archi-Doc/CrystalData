@@ -113,7 +113,7 @@ public sealed partial class StorageMap : IStructualObject
         }
     }
 
-    bool IStructualRoot.TryAddToSaveQueue()
+    void IStructualRoot.AddToSaveQueue()
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.OnChanged)
         {

@@ -525,10 +525,9 @@ Exit:
         }
     }
 
-    bool IStructualRoot.TryAddToSaveQueue()
+    void IStructualRoot.AddToSaveQueue()
     {
         this.Crystalizer.AddToSaveQueue(this);
-        return true;
     }
 
     /*ulong ICrystal.AddStartingPoint()
