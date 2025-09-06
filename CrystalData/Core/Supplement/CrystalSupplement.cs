@@ -88,36 +88,55 @@ public sealed partial class CrystalSupplement
 
     public void PrepareAndLoad()
     {
+        var param = PrepareParam.NoQuery<CrystalSupplement>(this.crystalizer);
+
         if (this.mainFiler is null)
         {
             var fileConfiguration = this.crystalizer.Options.SupplementFile;
             fileConfiguration ??= new LocalFileConfiguration(DefaultSupplementFileName);
             (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveFiler(fileConfiguration);
+            if (this.mainFiler.PrepareAndCheck(param, this.mainConfiguration).Result != CrystalResult.Success)
+            {
+                this.mainFiler = null;
+            }
         }
 
         if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
         {
             (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveFiler(this.crystalizer.Options.BackupSupplementFile);
+            if (this.backupFiler.PrepareAndCheck(param, this.backupConfiguration).Result != CrystalResult.Success)
+            {
+                this.mainFiler = null;
+            }
         }
 
         if (this.ripFiler is null && this.mainConfiguration is not null)
         {
             var configuration = this.mainConfiguration.AppendPath(RipSuffix);
             (this.ripFiler, _) = this.crystalizer.ResolveFiler(configuration);
-            var ripResult = this.ripFiler.ReadAsync(0, -1).Result;
-            if (ripResult.IsSuccess)
+            if (this.ripFiler.PrepareAndCheck(param, configuration).Result != CrystalResult.Success)
             {
-                if (Utf8Parser.TryParse(ripResult.Data.Span, out int ripCount, out _))
-                {
-                    this.ripCount = ripCount;
-                }
+                this.ripFiler = null;
+            }
 
-                ripResult.Return();
-                this.ripFiler.DeleteAndForget();
+            if (this.ripFiler is not null)
+            {
+                var ripResult = this.ripFiler.ReadAsync(0, -1).Result;
+                if (ripResult.IsSuccess)
+                {
+                    if (Utf8Parser.TryParse(ripResult.Data.Span, out int ripCount, out _))
+                    {
+                        this.ripCount = ripCount;
+                    }
+
+                    ripResult.Return();
+                    this.ripFiler.DeleteAndForget();
+                }
             }
         }
 
-        if (LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
+        if (this.mainFiler is not null &&
+            LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
         {
             return;
         }
@@ -130,6 +149,7 @@ public sealed partial class CrystalSupplement
 
         bool LoadSupplementFile(IFiler filer, string? path)
         {
+            var pathAndRip = $"'{path}' ({this.ripCount})";
             var fileResult = filer.ReadAsync(0, -1).Result;
             try
             {
@@ -138,7 +158,7 @@ public sealed partial class CrystalSupplement
                 {
                     this.data = deserializeResult.Data;
                     this.IsSupplementLoaded = true;
-                    this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, path ?? string.Empty);
+                    this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, pathAndRip);
                     this.data.AfterLoad();
                     return true;
                 }
@@ -148,7 +168,7 @@ public sealed partial class CrystalSupplement
                 fileResult.Return();
             }
 
-            this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, path ?? string.Empty);
+            this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, pathAndRip);
             return false;
         }
     }

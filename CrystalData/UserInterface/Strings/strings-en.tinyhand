@@ -40,8 +40,8 @@ Unload=
   Locked="Locked: {0}"
 
 CrystalSupplement=
-  LoadSuccess="Successfully loaded '{0}'"
-  LoadFailure="Failed to load '{0}'"
+  LoadSuccess="Successfully loaded {0}"
+  LoadFailure="Failed to load {0}"
 
 StorageControl=
   StorageReconstructed="Storage was lost, but reconstruction from the journal was successful {{ {0} }}"
