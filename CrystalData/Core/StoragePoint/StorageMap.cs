@@ -8,40 +8,6 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-internal sealed partial class SaveQueue
-{
-    [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-    internal partial class Item
-    {
-        private readonly IPersistable persistable;
-
-        [Link(Primary = true, Type = ChainType.LinkedList, Name = "Time")]
-        public Item(IPersistable persistable)
-        {
-            this.persistable = persistable;
-        }
-    }
-
-    private readonly Item.GoshujinClass items = new();
-
-    public SaveQueue()
-    {
-    }
-
-    public bool Add(IPersistable persistable, ref SaveQueue.Item? item)
-    {
-        using (this.items.LockObject.EnterScope())
-        {
-            if (item is not null)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-}
-
 [TinyhandObject(UseServiceProvider = true, ExplicitKeyOnly = true)]
 public sealed partial class StorageMap : IStructualObject
 {
@@ -55,7 +21,6 @@ public sealed partial class StorageMap : IStructualObject
 
     public IStorage Storage { get; private set; }
 
-    private readonly SaveQueue saveQueue = new();
     private bool enabledStorageMap;
 
     [Key(0)]
@@ -76,11 +41,6 @@ public sealed partial class StorageMap : IStructualObject
         this.StorageControl = StorageControl.Disabled;
         this.Storage = EmptyStorage.Default;
         this.enabledStorageMap = false;
-    }
-
-    internal void AddToSaveQueue(StorageObject storageObject, ref SaveQueue.Item? item)
-    {
-        this.saveQueue.Add(storageObject, ref item);
     }
 
     /*
