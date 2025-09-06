@@ -108,7 +108,7 @@ public sealed partial class CrystalSupplement
             (this.ripFiler, _) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).Result;
 
             if (this.ripFiler is not null)
-            {
+            {// Load rip file
                 var ripResult = this.ripFiler.ReadAsync(0, -1).Result;
                 if (ripResult.IsSuccess)
                 {
