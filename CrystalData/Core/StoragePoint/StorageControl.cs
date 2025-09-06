@@ -5,6 +5,7 @@
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
+using static SimpleCommandLine.SimpleParser;
 
 namespace CrystalData;
 
@@ -34,7 +35,9 @@ public partial class StorageControl : IPersistable
 
     public bool IsRip => this.isRip;
 
-    public long MemoryUsageLimit { get; internal set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
+    public long MemoryUsageLimit { get; private set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
+
+    public TimeSpan SaveInterval { get; private set; } = CrystalizerOptions.DefaultStorageSaveInterval;
 
     /// <summary>
     /// Gets an estimated memory usage.<br/>
@@ -92,6 +95,8 @@ public partial class StorageControl : IPersistable
     internal void Initialize(Crystalizer crystalizer)
     {
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
+        this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
+        this.SaveInterval = crystalizer.Options.StorageSaveInterval;
     }
 
     internal void Rip() => this.isRip = true;

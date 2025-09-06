@@ -6,6 +6,7 @@ namespace CrystalData;
 public partial record class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
+    public static readonly TimeSpan DefaultStorageSaveInterval = TimeSpan.FromHours(1);
 
     public CrystalizerOptions()
     {
@@ -26,19 +27,21 @@ public partial record class CrystalizerOptions
 
     public TimeSpan TimeoutUntilForcedRelease { get; init; }
 
+    public TimeSpan StorageSaveInterval { get; init; } = DefaultStorageSaveInterval;
+
     public SaveFormat DefaultSaveFormat { get; init; } = SaveFormat.Binary;
 
     public SavePolicy DefaultSavePolicy { get; init; } = SavePolicy.Manual;
 
     public TimeSpan DefaultSaveInterval { get; init; }
 
+    public DirectoryConfiguration? DefaultBackup { get; init; }
+
     public FileConfiguration? SupplementFile { get; init; }
 
     public FileConfiguration? BackupSupplementFile { get; init; }
 
     public DirectoryConfiguration GlobalDirectory { get; init; } = new LocalDirectoryConfiguration();
-
-    public DirectoryConfiguration? DefaultBackup { get; init; }
 
     public StorageConfiguration GlobalStorage { get; init; } = new SimpleStorageConfiguration(new LocalDirectoryConfiguration("Storage"));
 }

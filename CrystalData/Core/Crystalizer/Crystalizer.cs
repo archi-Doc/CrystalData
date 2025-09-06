@@ -67,17 +67,10 @@ public partial class Crystalizer
     public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
         this.configuration = configuration;
-
         this.UnitLogger = unitLogger;
         this.ServiceProvider = serviceProvider;
-        this.CrystalSupplement = new(this);
-        this.StorageControl = storageControl;
-        this.StorageControl.Initialize(this);
-        this.Query = query;
-        this.QueryContinue = new CrystalDataQueryNo();
 
         // Options
-        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
         var dataDirectory = options.DataDirectory;
         if (string.IsNullOrEmpty(dataDirectory))
         {
@@ -95,6 +88,11 @@ public partial class Crystalizer
             DefaultSaveInterval = defaultSaveInterval,
         };
 
+        this.CrystalSupplement = new(this);
+        this.StorageControl = storageControl;
+        this.StorageControl.Initialize(this);
+        this.Query = query;
+        this.QueryContinue = new CrystalDataQueryNo();
         this.Logger = logger;
         this.crystalizerTask = new(this);
         this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
