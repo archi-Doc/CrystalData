@@ -1,16 +1,14 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using CrystalData.Filer;
-
 namespace CrystalData;
 
-public interface IFiler
+public interface ISingleFiler
 {
     bool SupportPartialWrite { get; }
 
     void SetTimeout(TimeSpan timeout);
 
-    IFiler CloneWithExtension(string extension);
+    ISingleFiler CloneWithExtension(string extension);
 
     /// <summary>
     /// Prepare the filer and check if the path is valid.<br/>

@@ -95,9 +95,9 @@ internal static class HashHelper
     /// Calculates a hash value of the data and save the 8-byte hash value and data to a file.
     /// </summary>
     /// <param name="data">Data.</param>
-    /// <param name="filer">IFiler.</param>
+    /// <param name="filer">ISingleFiler.</param>
     /// <returns><see langword="true"/>; Success.</returns>
-    public static async Task<bool> GetFarmHashAndSaveAsync(byte[] data, IFiler filer)
+    public static async Task<bool> GetFarmHashAndSaveAsync(byte[] data, ISingleFiler filer)
     {
         var hash = new byte[8];
         BitConverter.TryWriteBytes(hash, Arc.Crypto.FarmHash.Hash64(data.AsSpan()));

@@ -116,28 +116,28 @@ public partial class Crystalizer
 
     #region Resolvers
 
-    /*public (IFiler Filer, PathConfiguration FixedConfiguration) ResolveFiler(PathConfiguration configuration)
+    /*public (ISingleFiler Filer, PathConfiguration FixedConfiguration) ResolveFiler(PathConfiguration configuration)
     {
         var resolved = this.ResolveRawFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }*/
 
-    public (IFiler Filer, FileConfiguration FixedConfiguration) ResolveFiler(FileConfiguration configuration)
+    public (ISingleFiler Filer, FileConfiguration FixedConfiguration) ResolveFiler(FileConfiguration configuration)
     {
         var resolved = this.ResolveRawFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }
 
-    public (IFiler Filer, DirectoryConfiguration FixedConfiguration) ResolveFiler(DirectoryConfiguration configuration)
+    public (ISingleFiler Filer, DirectoryConfiguration FixedConfiguration) ResolveFiler(DirectoryConfiguration configuration)
     {
         var resolved = this.ResolveRawFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }
 
-    public async Task<(IFiler? Filer, FileConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(FileConfiguration configuration)
+    public async Task<(ISingleFiler? Filer, FileConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(FileConfiguration configuration)
     {
         var resolved = this.ResolveRawFiler(configuration);
-        var filer = (IFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
+        var filer = (ISingleFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
         if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
         {
             return default;
@@ -146,10 +146,10 @@ public partial class Crystalizer
         return (filer, resolved.FixedConfiguration);
     }
 
-    public async Task<(IFiler? Filer, DirectoryConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(DirectoryConfiguration configuration)
+    public async Task<(ISingleFiler? Filer, DirectoryConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(DirectoryConfiguration configuration)
     {
         var resolved = this.ResolveRawFiler(configuration);
-        var filer = (IFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
+        var filer = (ISingleFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
         if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
         {
             return default;

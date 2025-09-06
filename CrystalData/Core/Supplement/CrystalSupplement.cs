@@ -68,9 +68,9 @@ public sealed partial class CrystalSupplement
     private readonly ILogger logger;
     private int ripCount;
     private Data data = new();
-    private IFiler? mainFiler;
-    private IFiler? backupFiler;
-    private IFiler? ripFiler;
+    private ISingleFiler? mainFiler;
+    private ISingleFiler? backupFiler;
+    private ISingleFiler? ripFiler;
     private FileConfiguration? mainConfiguration;
     private FileConfiguration? backupConfiguration;
 
@@ -135,7 +135,7 @@ public sealed partial class CrystalSupplement
             return;
         }
 
-        bool LoadSupplementFile(IFiler filer, string? path)
+        bool LoadSupplementFile(ISingleFiler filer, string? path)
         {
             var pathAndRip = $"'{path}' ({this.ripCount})";
             var fileResult = filer.ReadAsync(0, -1).Result;

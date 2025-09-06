@@ -2,7 +2,7 @@
 
 namespace CrystalData.Filer;
 
-internal class RawFilerToFiler : IFiler
+internal class RawFilerToFiler : ISingleFiler
 {
     internal RawFilerToFiler(Crystalizer crystalizer, IRawFiler rawFiler, string path)
     {
@@ -18,32 +18,32 @@ internal class RawFilerToFiler : IFiler
 
     public string Path { get; }
 
-    bool IFiler.SupportPartialWrite => this.RawFiler.SupportPartialWrite;
+    bool ISingleFiler.SupportPartialWrite => this.RawFiler.SupportPartialWrite;
 
-    void IFiler.SetTimeout(TimeSpan timeout)
+    void ISingleFiler.SetTimeout(TimeSpan timeout)
     {
         this.timeout = timeout;
     }
 
-    CrystalResult IFiler.DeleteAndForget()
+    CrystalResult ISingleFiler.DeleteAndForget()
         => this.RawFiler.DeleteAndForget(this.Path);
 
-    Task<CrystalResult> IFiler.DeleteAsync()
+    Task<CrystalResult> ISingleFiler.DeleteAsync()
         => this.RawFiler.DeleteAsync(this.Path, this.timeout);
 
-    Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
+    Task<CrystalResult> ISingleFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
          => this.RawFiler.PrepareAndCheck(param, configuration);
 
-    Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(long offset, int length)
+    Task<CrystalMemoryOwnerResult> ISingleFiler.ReadAsync(long offset, int length)
         => this.RawFiler.ReadAsync(this.Path, offset, length, this.timeout);
 
-    CrystalResult IFiler.WriteAndForget(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult ISingleFiler.WriteAndForget(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
         => this.RawFiler.WriteAndForget(this.Path, offset, dataToBeShared, truncate);
 
-    Task<CrystalResult> IFiler.WriteAsync(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    Task<CrystalResult> ISingleFiler.WriteAsync(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
         => this.RawFiler.WriteAsync(this.Path, offset, dataToBeShared, this.timeout, truncate);
 
-    IFiler IFiler.CloneWithExtension(string extension)
+    ISingleFiler ISingleFiler.CloneWithExtension(string extension)
     {
         string path;
         try
