@@ -21,6 +21,24 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
         LengthInBase32 = Base32Sort.GetEncodedLength(Length);
     }
 
+    #region FieldAndProperty
+
+    [Key(0)]
+    public readonly ulong JournalPosition;
+
+    [Key(1)]
+    public readonly uint Plane; // Où allons-nous
+
+    [Key(2)]
+    public readonly ulong Hash;
+
+    [Key(3)]
+    public readonly uint Reserved;
+
+    public bool IsValid => this.JournalPosition != 0;
+
+    #endregion
+
     public Waypoint()
     {
     }
@@ -61,20 +79,6 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
         waypoint = default;
         return false;
     }
-
-    [Key(0)]
-    public readonly ulong JournalPosition;
-
-    [Key(1)]
-    public readonly uint Plane; // Où allons-nous
-
-    [Key(2)]
-    public readonly ulong Hash;
-
-    [Key(3)]
-    public readonly uint Reserved;
-
-    public bool IsValid => this.JournalPosition != 0;
 
     public Waypoint WithHash(ulong hash)
         => new(this.JournalPosition, this.Plane, hash);
