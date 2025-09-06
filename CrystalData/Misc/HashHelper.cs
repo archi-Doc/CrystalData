@@ -16,7 +16,7 @@ internal static class HashHelper
         return Arc.Crypto.FarmHash.Hash64(data) == hash;
     }
 
-    public static async Task<ulong> TryLoadFarmHash(IRawFiler filer, string path)
+    public static async Task<ulong> TryLoadFarmHash(IFiler filer, string path)
     {
         ulong hash = 0;
         var result = await filer.ReadAsync(path, 0, -1).ConfigureAwait(false);

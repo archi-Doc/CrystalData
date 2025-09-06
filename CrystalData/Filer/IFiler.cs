@@ -2,7 +2,10 @@
 
 namespace CrystalData.Filer;
 
-public interface IRawFiler
+/// <summary>
+/// An interface for operating on files by specifying a path.
+/// </summary>
+public interface IFiler
 {
     bool SupportPartialWrite { get; }
 

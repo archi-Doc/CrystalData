@@ -4,7 +4,7 @@ namespace CrystalData.Filer;
 
 internal class RawFilerToFiler : ISingleFiler
 {
-    internal RawFilerToFiler(Crystalizer crystalizer, IRawFiler rawFiler, string path)
+    internal RawFilerToFiler(Crystalizer crystalizer, IFiler rawFiler, string path)
     {
         this.Crystalizer = crystalizer;
         this.RawFiler = rawFiler;
@@ -14,7 +14,7 @@ internal class RawFilerToFiler : ISingleFiler
 
     public Crystalizer Crystalizer { get; }
 
-    public IRawFiler RawFiler { get; }
+    public IFiler RawFiler { get; }
 
     public string Path { get; }
 

@@ -17,7 +17,7 @@ public class CrystalFiler
         private CrystalFiler crystalFiler;
         private FileConfiguration fileConfiguration;
 
-        private IRawFiler? rawFiler;
+        private IFiler? rawFiler;
         private Lock lockObject = new();
         private string prefix = string.Empty; // "Directory/File."
         private string extension = string.Empty; // string.Empty or ".extension"
@@ -37,7 +37,7 @@ public class CrystalFiler
         {
             if (this.rawFiler == null)
             {
-                (this.rawFiler, this.fileConfiguration) = this.crystalFiler.Crystalizer.ResolveRawFiler(this.fileConfiguration);
+                (this.rawFiler, this.fileConfiguration) = this.crystalFiler.Crystalizer.ResolveFiler(this.fileConfiguration);
                 var result = await this.rawFiler.PrepareAndCheck(param, this.fileConfiguration).ConfigureAwait(false);
                 if (result.IsFailure())
                 {

@@ -2,36 +2,36 @@
 
 namespace CrystalData.Filer;
 
-public partial class EmptyFiler : IRawFiler
+public partial class EmptyFiler : IFiler
 {
     public static readonly EmptyFiler Default = new();
 
-    bool IRawFiler.SupportPartialWrite => true;
+    bool IFiler.SupportPartialWrite => true;
 
-    Task<CrystalResult> IRawFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
+    Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
         => Task.FromResult(CrystalResult.Success);
 
-    Task IRawFiler.FlushAsync(bool terminate)
+    Task IFiler.FlushAsync(bool terminate)
         => Task.CompletedTask;
 
-    Task<CrystalMemoryOwnerResult> IRawFiler.ReadAsync(string path, long offset, int length, TimeSpan timeout)
+    Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(string path, long offset, int length, TimeSpan timeout)
         => Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.NotFound));
 
-    CrystalResult IRawFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
         => CrystalResult.Success;
 
-    Task<CrystalResult> IRawFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate)
+    Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate)
         => Task.FromResult(CrystalResult.Success);
 
-    CrystalResult IRawFiler.DeleteAndForget(string path)
+    CrystalResult IFiler.DeleteAndForget(string path)
         => CrystalResult.Success;
 
-    Task<CrystalResult> IRawFiler.DeleteAsync(string path, TimeSpan timeout)
+    Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeout)
         => Task.FromResult(CrystalResult.Success);
 
-    Task<CrystalResult> IRawFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeout)
+    Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeout)
         => Task.FromResult(CrystalResult.Success);
 
-    Task<List<PathInformation>> IRawFiler.ListAsync(string path, TimeSpan timeout)
+    Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeout)
         => Task.FromResult(new List<PathInformation>());
 }

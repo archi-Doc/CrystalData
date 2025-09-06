@@ -35,8 +35,8 @@ public partial class SimpleJournal : IJournal
 
     private Crystalizer crystalizer;
     private bool prepared;
-    private IRawFiler? rawFiler;
-    private IRawFiler? backupFiler;
+    private IFiler? rawFiler;
+    private IFiler? backupFiler;
     private SimpleJournalTask? task;
 
     // Record buffer: lockRecordBuffer
@@ -66,7 +66,7 @@ public partial class SimpleJournal : IJournal
 
         if (this.rawFiler == null)
         {
-            (this.rawFiler, this.MainConfiguration) = this.crystalizer.ResolveRawFiler(this.MainConfiguration);
+            (this.rawFiler, this.MainConfiguration) = this.crystalizer.ResolveFiler(this.MainConfiguration);
             var result = await this.rawFiler.PrepareAndCheck(param, this.MainConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {
@@ -77,7 +77,7 @@ public partial class SimpleJournal : IJournal
         if (this.BackupConfiguration is not null &&
             this.backupFiler == null)
         {
-            (this.backupFiler, this.BackupConfiguration) = this.crystalizer.ResolveRawFiler(this.BackupConfiguration);
+            (this.backupFiler, this.BackupConfiguration) = this.crystalizer.ResolveFiler(this.BackupConfiguration);
             var result = await this.backupFiler.PrepareAndCheck(param, this.BackupConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {
@@ -489,7 +489,7 @@ Load:
         this.recordBufferLength = 0;
     }
 
-    private async Task<(Book.GoshujinClass Books, ulong Position)> ListBooks(IRawFiler rawFiler, DirectoryConfiguration directoryConfiguration)
+    private async Task<(Book.GoshujinClass Books, ulong Position)> ListBooks(IFiler rawFiler, DirectoryConfiguration directoryConfiguration)
     {
         var list = await rawFiler.ListAsync(directoryConfiguration.Path).ConfigureAwait(false);
         if (list == null)

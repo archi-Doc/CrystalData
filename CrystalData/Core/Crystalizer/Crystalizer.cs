@@ -58,8 +58,8 @@ public partial class Crystalizer
     private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
 
     private Lock lockObject = new();
-    private IRawFiler? localFiler;
-    private Dictionary<string, IRawFiler> bucketToS3Filer = new();
+    private IFiler? localFiler;
+    private Dictionary<string, IFiler> bucketToS3Filer = new();
     private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new(StorageConfiguration.MainDirectoryComparer.Instance);
 
     #endregion
@@ -122,21 +122,21 @@ public partial class Crystalizer
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }*/
 
-    public (ISingleFiler Filer, FileConfiguration FixedConfiguration) ResolveFiler(FileConfiguration configuration)
+    public (ISingleFiler Filer, FileConfiguration FixedConfiguration) ResolveSingleFiler(FileConfiguration configuration)
     {
-        var resolved = this.ResolveRawFiler(configuration);
+        var resolved = this.ResolveFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }
 
-    public (ISingleFiler Filer, DirectoryConfiguration FixedConfiguration) ResolveFiler(DirectoryConfiguration configuration)
+    public (ISingleFiler Filer, DirectoryConfiguration FixedConfiguration) ResolveSingleFiler(DirectoryConfiguration configuration)
     {
-        var resolved = this.ResolveRawFiler(configuration);
+        var resolved = this.ResolveFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }
 
-    public async Task<(ISingleFiler? Filer, FileConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(FileConfiguration configuration)
+    public async Task<(ISingleFiler? Filer, FileConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckSingleFiler<TData>(FileConfiguration configuration)
     {
-        var resolved = this.ResolveRawFiler(configuration);
+        var resolved = this.ResolveFiler(configuration);
         var filer = (ISingleFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
         if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
         {
@@ -146,9 +146,9 @@ public partial class Crystalizer
         return (filer, resolved.FixedConfiguration);
     }
 
-    public async Task<(ISingleFiler? Filer, DirectoryConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckFiler<TData>(DirectoryConfiguration configuration)
+    public async Task<(ISingleFiler? Filer, DirectoryConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckSingleFiler<TData>(DirectoryConfiguration configuration)
     {
-        var resolved = this.ResolveRawFiler(configuration);
+        var resolved = this.ResolveFiler(configuration);
         var filer = (ISingleFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
         if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
         {
@@ -213,7 +213,7 @@ public partial class Crystalizer
         }
     }*/
 
-    public (IRawFiler RawFiler, FileConfiguration FixedConfiguration) ResolveRawFiler(FileConfiguration configuration)
+    public (IFiler RawFiler, FileConfiguration FixedConfiguration) ResolveFiler(FileConfiguration configuration)
     {
         using (this.lockObject.EnterScope())
         {
@@ -253,7 +253,7 @@ public partial class Crystalizer
         }
     }
 
-    public (IRawFiler RawFiler, DirectoryConfiguration FixedConfiguration) ResolveRawFiler(DirectoryConfiguration configuration)
+    public (IFiler RawFiler, DirectoryConfiguration FixedConfiguration) ResolveFiler(DirectoryConfiguration configuration)
     {
         using (this.lockObject.EnterScope())
         {
@@ -370,7 +370,7 @@ public partial class Crystalizer
             }
         }
 
-        var resolved = this.ResolveFiler(configuration);
+        var resolved = this.ResolveSingleFiler(configuration);
         var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<Crystalizer>(this), resolved.FixedConfiguration).ConfigureAwait(false);
         if (result.IsFailure())
         {
@@ -385,7 +385,7 @@ public partial class Crystalizer
 
     public async Task<CrystalResult> LoadConfigurations(FileConfiguration configuration)
     {
-        var resolved = this.ResolveFiler(configuration);
+        var resolved = this.ResolveSingleFiler(configuration);
         var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<Crystalizer>(this), resolved.FixedConfiguration).ConfigureAwait(false);
         if (result.IsFailure())
         {

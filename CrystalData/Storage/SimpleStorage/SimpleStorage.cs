@@ -31,8 +31,8 @@ internal partial class SimpleStorage : IStorage
     private ICrystal<SimpleStorageData>? storageCrystal;
     private ICrystal<StorageMap>? mapCrystal;
     private StorageMap storageMap;
-    private IRawFiler? mainFiler;
-    private IRawFiler? backupFiler;
+    private IFiler? mainFiler;
+    private IFiler? backupFiler;
     private TimeSpan timeout;
 
     public StorageMap StorageMap => this.storageMap;
@@ -68,7 +68,7 @@ internal partial class SimpleStorage : IStorage
 
         if (this.mainFiler is null)
         {
-            (this.mainFiler, directoryConfiguration) = this.crystalizer.ResolveRawFiler(directoryConfiguration);
+            (this.mainFiler, directoryConfiguration) = this.crystalizer.ResolveFiler(directoryConfiguration);
             result = await this.mainFiler.PrepareAndCheck(param, directoryConfiguration).ConfigureAwait(false);
             if (result.IsFailure())
             {
@@ -88,7 +88,7 @@ internal partial class SimpleStorage : IStorage
 
             if (this.backupFiler is null)
             {
-                (this.backupFiler, backupDirectoryConfiguration) = this.crystalizer.ResolveRawFiler(backupDirectoryConfiguration);
+                (this.backupFiler, backupDirectoryConfiguration) = this.crystalizer.ResolveFiler(backupDirectoryConfiguration);
                 result = await this.backupFiler.PrepareAndCheck(param, backupDirectoryConfiguration).ConfigureAwait(false);
                 if (result.IsFailure())
                 {

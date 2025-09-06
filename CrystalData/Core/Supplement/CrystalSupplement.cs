@@ -94,18 +94,18 @@ public sealed partial class CrystalSupplement
         {
             var fileConfiguration = this.crystalizer.Options.SupplementFile;
             fileConfiguration ??= new LocalFileConfiguration(DefaultSupplementFileName);
-            (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckFiler<CrystalSupplement>(fileConfiguration).Result;
+            (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(fileConfiguration).Result;
         }
 
         if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
         {
-            (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckFiler<CrystalSupplement>(this.crystalizer.Options.BackupSupplementFile).Result;
+            (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(this.crystalizer.Options.BackupSupplementFile).Result;
         }
 
         if (this.ripFiler is null && this.mainConfiguration is not null)
         {
             var configuration = this.mainConfiguration.AppendPath(RipSuffix);
-            (this.ripFiler, _) = this.crystalizer.ResolveAndPrepareAndCheckFiler<CrystalSupplement>(configuration).Result;
+            (this.ripFiler, _) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).Result;
 
             if (this.ripFiler is not null)
             {

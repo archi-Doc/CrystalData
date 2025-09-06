@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// An interface for operating on a single, pre-specified file.
+/// </summary>
 public interface ISingleFiler
 {
     bool SupportPartialWrite { get; }
