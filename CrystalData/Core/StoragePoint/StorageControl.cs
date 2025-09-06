@@ -28,8 +28,8 @@ public partial class StorageControl : IPersistable
     private StorageMap[] storageMaps;
     private bool isRip;
     private long memoryUsage;
-    private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
-    private StorageObject? saveQueueHead;
+    private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
+    private StorageObject? toSaveHead;
 
     internal ILogger? Logger { get; set; }
 
@@ -137,7 +137,7 @@ public partial class StorageControl : IPersistable
 
     internal async Task StoreObjects(CancellationToken cancellationToken)
     {
-        var list = this.CreateList();
+        var list = this.CreateOnMemoryList();
         if (list is null)
         {
             return;
@@ -153,7 +153,7 @@ public partial class StorageControl : IPersistable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var list = this.CreateList();
+            var list = this.CreateOnMemoryList();
             if (list is null)
             {
                 return;
@@ -164,7 +164,7 @@ public partial class StorageControl : IPersistable
                 await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
 
-            if (this.head is null)
+            if (this.onMemoryHead is null)
             {// No storage objects to release.
                 return;
             }
@@ -187,7 +187,7 @@ public partial class StorageControl : IPersistable
             StorageObject? node;
             using (this.lowestLockObject.EnterScope())
             {
-                node = this.head?.previous; // Get the least recently used node.
+                node = this.onMemoryHead?.onMemoryPrevious; // Get the least recently used node.
                 if (node is null)
                 {// No storage objects to release.
                     break;
@@ -426,24 +426,36 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void AddToSaveQueue(StorageObject storageObject)
+    internal void AddToSaveQueue(StorageObject node)
     {
         using (this.lowestLockObject.EnterScope())
         {
-            if (storageObject.saveQueueTime != 0)
+            if (node.toSaveTime != 0)
             {
                 return;
             }
 
+            node.toSaveTime = 1;
 
+            if (this.toSaveHead is null)
+            {// First node
+                this.toSaveHead = node;
+                node.toSaveNext = node;
+                node.toSavePrevious = node;
+                return;
+            }
+
+            node.toSaveNext = this.toSaveHead;
+            node.toSavePrevious = this.toSaveHead.toSavePrevious;
+            this.toSaveHead.toSavePrevious!.toSaveNext = node;
+            this.toSaveHead.toSavePrevious = node;
         }
     }
 
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
     {
-        // Least recently used list.
-        if (node.previous is not null &&
-            node.next is not null)
+        // OnMemory list (Least recently used list).
+        if (node.onMemoryPrevious is not null && node.onMemoryNext is not null)
         {
             if (node.storageMap.IsEnabled)
             {
@@ -452,22 +464,45 @@ public partial class StorageControl : IPersistable
 
             node.size = 0;
 
-            if (node.next == node)
+            if (node.onMemoryNext == node)
             {
-                this.head = null;
+                this.onMemoryHead = null;
             }
             else
             {
-                node.next.previous = node.previous;
-                node.previous.next = node.next;
-                if (this.head == node)
+                node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
+                node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
+                if (this.onMemoryHead == node)
                 {
-                    this.head = node.next;
+                    this.onMemoryHead = node.onMemoryNext;
                 }
             }
 
-            node.previous = default;
-            node.next = default;
+            node.onMemoryPrevious = default;
+            node.onMemoryNext = default;
+        }
+
+        // ToSave list.
+        if (node.toSavePrevious is not null && node.toSaveNext is not null)
+        {
+            node.toSaveTime = 0;
+
+            if (node.toSaveNext == node)
+            {
+                this.toSaveHead = null;
+            }
+            else
+            {
+                node.toSaveNext.toSavePrevious = node.toSavePrevious;
+                node.toSavePrevious.toSaveNext = node.toSaveNext;
+                if (this.toSaveHead == node)
+                {
+                    this.toSaveHead = node.toSaveNext;
+                }
+            }
+
+            node.toSavePrevious = default;
+            node.toSaveNext = default;
         }
 
         if (removeFromStorageMap)
@@ -478,55 +513,55 @@ public partial class StorageControl : IPersistable
 
     private void MoveToRecentInternal(StorageObject node)
     {
-        if (node.next is null ||
-            node.previous is null)
+        if (node.onMemoryNext is null ||
+            node.onMemoryPrevious is null)
         {// Not added to the list.
-            if (this.head is null)
+            if (this.onMemoryHead is null)
             {// First node
-                this.head = node;
-                node.next = node;
-                node.previous = node;
+                this.onMemoryHead = node;
+                node.onMemoryNext = node;
+                node.onMemoryPrevious = node;
                 return;
             }
         }
         else
         {// Remove the node from the list.
-            if (node.next == node)
+            if (node.onMemoryNext == node)
             {// Only one node in the list.
                 return;
             }
 
-            node.next.previous = node.previous;
-            node.previous.next = node.next;
-            if (this.head == node)
+            node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
+            node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
+            if (this.onMemoryHead == node)
             {
-                this.head = node.next;
+                this.onMemoryHead = node.onMemoryNext;
             }
         }
 
-        node.next = this.head;
-        node.previous = this.head!.previous;
-        this.head.previous!.next = node;
-        this.head.previous = node;
-        this.head = node;
+        node.onMemoryNext = this.onMemoryHead;
+        node.onMemoryPrevious = this.onMemoryHead!.onMemoryPrevious;
+        this.onMemoryHead.onMemoryPrevious!.onMemoryNext = node;
+        this.onMemoryHead.onMemoryPrevious = node;
+        this.onMemoryHead = node;
     }
 
-    private List<StorageObject>? CreateList()
+    private List<StorageObject>? CreateOnMemoryList()
     {
         List<StorageObject> list = new();
         using (this.lowestLockObject.EnterScope())
         {
-            if (this.head is null)
+            if (this.onMemoryHead is null)
             {// No storage objects to release.
                 return null;
             }
 
-            StorageObject node = this.head;
+            StorageObject node = this.onMemoryHead;
             while (true)
             {
                 list.Add(node);
-                node = node.next!;
-                if (node == this.head)
+                node = node.onMemoryNext!;
+                if (node == this.onMemoryHead)
                 {// Reached back to the head.
                     break;
                 }

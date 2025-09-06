@@ -36,12 +36,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal StorageId storageId2; // Lock:StorageControl
 
     internal StorageMap storageMap; // Lock:StorageControl
-    internal StorageObject? previous; // Lock:StorageControl
-    internal StorageObject? next; // Lock:StorageControl
 
-    internal long saveQueueTime; // Lock:StorageControl
-    internal StorageObject? saveQueuePrevious; // Lock:StorageControl
-    internal StorageObject? saveQueueNext; // Lock:StorageControl
+    internal StorageObject? onMemoryPrevious; // Lock:StorageControl
+    internal StorageObject? onMemoryNext; // Lock:StorageControl
+
+    internal uint toSaveTime; // Lock:StorageControl
+    internal StorageObject? toSavePrevious; // Lock:StorageControl
+    internal StorageObject? toSaveNext; // Lock:StorageControl
 
     private object? data; // Lock:this
     internal int size; // Lock:StorageControl
@@ -243,7 +244,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     public void AddToStoreQueue()
     {
-        if (this.saveQueueTime == 0)
+        if (this.toSaveTime == 0)
         {
             this.storageControl.AddToSaveQueue(this);
         }
