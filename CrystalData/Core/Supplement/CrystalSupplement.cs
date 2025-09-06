@@ -14,12 +14,28 @@ public sealed partial class CrystalSupplement
     [TinyhandObject(LockObject = "lockObject")]
     private sealed partial class Data
     {
+        [TinyhandObject]
+        [ValueLinkObject]
+        private sealed partial class PlaneItem
+        {
+            public PlaneItem()
+            {
+            }
+
+            [Key(0)]
+            [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+            public uint Plane { get; private set; }
+        }
+
         #region FieldAndProperty
 
         private readonly Lock lockObject = new();
 
         [Key(0)]
         private readonly HashSet<ulong> previouslyStoredIdentifiers = new();
+
+        [Key(1)]
+        private readonly PlaneItem.GoshujinClass planeItems = new();
 
         #endregion
 
@@ -60,6 +76,16 @@ public sealed partial class CrystalSupplement
                 }
             }
         }
+
+        public ulong GetLeadingPosition(ref Waypoint waypoint)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetLeadingPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
+        {
+            leadingJournalPosition = Math.Max(leadingJournalPosition, waypoint.JournalPosition);
+        }
     }
 
     #region FieldAndProperty
@@ -80,16 +106,26 @@ public sealed partial class CrystalSupplement
 
     #endregion
 
-    public CrystalSupplement(Crystalizer crystalizer)
+    internal CrystalSupplement(Crystalizer crystalizer)
     {
         this.crystalizer = crystalizer;
         this.logger = this.crystalizer.UnitLogger.GetLogger<CrystalSupplement>();
     }
 
-    public void PrepareAndLoad()
-    {
-        var param = PrepareParam.NoQuery<CrystalSupplement>(this.crystalizer);
+    public bool IsPreviouslyStored<TData>(FileConfiguration fileConfiguration)
+        => this.data.IsPreviouslyStored<TData>(fileConfiguration);
 
+    public void ReportStored<TData>(FileConfiguration fileConfiguration)
+        => this.data.ReportStored<TData>(fileConfiguration);
+
+    public ulong GetLeadingJournalPosition(ref Waypoint waypoint)
+        => this.data.GetLeadingPosition(ref waypoint);
+
+    public void SetLeadingJournalPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
+        => this.data.SetLeadingPosition(ref waypoint, leadingJournalPosition);
+
+    internal void PrepareAndLoad()
+    {
         if (this.mainFiler is null)
         {
             var fileConfiguration = this.crystalizer.Options.SupplementFile;
@@ -161,7 +197,7 @@ public sealed partial class CrystalSupplement
         }
     }
 
-    public async Task Store(bool rip)
+    internal async Task Store(bool rip)
     {
         this.data.OnSaving();
 
@@ -207,12 +243,6 @@ public sealed partial class CrystalSupplement
             rentMemory.Return();
         }
     }
-
-    public bool IsPreviouslyStored<TData>(FileConfiguration fileConfiguration)
-        => this.data.IsPreviouslyStored<TData>(fileConfiguration);
-
-    public void ReportStored<TData>(FileConfiguration fileConfiguration)
-        => this.data.ReportStored<TData>(fileConfiguration);
 
     private static ulong GetIdentifier<TData>(FileConfiguration fileConfiguration)
         => XxHash3Slim.Hash64(typeof(TData).FullName ?? string.Empty) ^ XxHash3Slim.Hash64(fileConfiguration.Path);
