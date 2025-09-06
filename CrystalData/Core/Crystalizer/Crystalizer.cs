@@ -1044,7 +1044,7 @@ public partial class Crystalizer
         }
 
         this.CrystalCheck.Store();
-        this.CrystalSupplement.Store(terminate);
+        await this.CrystalSupplement.Store(terminate);
 
         // Flush filers
         var tasks = new List<Task>();

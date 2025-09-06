@@ -1,11 +1,13 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Buffers.Text;
+
 namespace CrystalData.Supplement;
 
 public sealed partial class CrystalSupplement
 {
     public const string DefaultSupplementFileName = "CrystalData.Supplement";
-    public const string DefaultRipFileName = "CrystalData.Rip";
+    public const string RipSuffix = ".Rip";
     private const int PreviouslyStoredLimit = 1_000;
     private static readonly SaveFormat Format = SaveFormat.Utf8;
 
@@ -17,9 +19,6 @@ public sealed partial class CrystalSupplement
         private readonly Lock lockObject = new();
 
         [Key(0)]
-        public bool IsRip { get; private set; }
-
-        [Key(1)]
         private readonly HashSet<ulong> previouslyStoredIdentifiers = new();
 
         #endregion
@@ -48,19 +47,12 @@ public sealed partial class CrystalSupplement
             using (this.lockObject.EnterScope())
             {
             }
-
-            if (!this.IsRip)
-            {// Previously not rip.
-             // this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.IsRip);
-            }
         }
 
-        public void OnSaving(bool isRip)
+        public void OnSaving()
         {
             using (this.lockObject.EnterScope())
             {
-                this.IsRip = isRip;
-
                 while (this.previouslyStoredIdentifiers.Count > PreviouslyStoredLimit)
                 {
                     var item = this.previouslyStoredIdentifiers.First();
@@ -74,11 +66,15 @@ public sealed partial class CrystalSupplement
 
     private readonly Crystalizer crystalizer;
     private readonly ILogger logger;
+    private int ripCount;
     private Data data = new();
     private IFiler? mainFiler;
     private IFiler? backupFiler;
+    private IFiler? ripFiler;
     private FileConfiguration? mainConfiguration;
     private FileConfiguration? backupConfiguration;
+
+    public bool IsRip => this.ripCount > 0;
 
     public bool IsSupplementLoaded { get; private set; }
 
@@ -102,6 +98,23 @@ public sealed partial class CrystalSupplement
         if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
         {
             (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveFiler(this.crystalizer.Options.BackupSupplementFile);
+        }
+
+        if (this.ripFiler is null && this.mainConfiguration is not null)
+        {
+            var configuration = this.mainConfiguration.AppendPath(RipSuffix);
+            (this.ripFiler, _) = this.crystalizer.ResolveFiler(configuration);
+            var ripResult = this.ripFiler.ReadAsync(0, -1).Result;
+            if (ripResult.IsSuccess)
+            {
+                if (Utf8Parser.TryParse(ripResult.Data.Span, out int ripCount, out _))
+                {
+                    this.ripCount = ripCount;
+                }
+
+                ripResult.Return();
+                this.ripFiler.DeleteAndForget();
+            }
         }
 
         if (LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
@@ -140,9 +153,21 @@ public sealed partial class CrystalSupplement
         }
     }
 
-    public void Store(bool isRip)
+    public async Task Store(bool rip)
     {
-        this.data.OnSaving(isRip);
+        this.data.OnSaving();
+
+        if (rip)
+        {
+            this.ripCount++;
+            if (this.ripFiler is not null)
+            {
+                var rent = BytePool.Default.Rent(32);
+                Utf8Formatter.TryFormat(this.ripCount, rent.AsSpan(), out var written);
+                await this.ripFiler.WriteAsync(0, rent.AsReadOnly(0, written)).ConfigureAwait(false);
+                rent.Return();
+            }
+        }
 
         BytePool.RentMemory rentMemory = default;
         try
@@ -158,12 +183,12 @@ public sealed partial class CrystalSupplement
 
             if (this.mainFiler is not null)
             {
-                this.mainFiler.WriteAsync(0, rentMemory.ReadOnly).Wait();
+                await this.mainFiler.WriteAsync(0, rentMemory.ReadOnly).ConfigureAwait(false);
             }
 
             if (this.backupFiler is not null)
             {
-                this.backupFiler.WriteAsync(0, rentMemory.ReadOnly).Wait();
+                await this.backupFiler.WriteAsync(0, rentMemory.ReadOnly).ConfigureAwait(false);
             }
         }
         catch
