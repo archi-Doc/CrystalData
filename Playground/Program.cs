@@ -251,15 +251,16 @@ internal class Program
             }
         }
 
-        var mem = GC.GetTotalMemory(false);
-        var bb = new StorageObject[50_000_000];
+        /*var mem = GC.GetTotalMemory(false);
+        var bb = new StorageObject[10_000_000];
         for (int i = 0; i < bb.Length; i++)
         {
             bb[i] = new StorageObject();
         }
 
         var mem2 = GC.GetTotalMemory(false);
-        Console.WriteLine($"Memory {mem2 / 1000000}, {(mem2 - mem) / 1_000_000}");
+        Console.WriteLine($"Memory {mem2 / 1000000}, {(mem2 - mem) / 1_000_000}");*/
+
         data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
 
         await data2.ClassStorage.StoreData(StoreMode.TryRelease);
