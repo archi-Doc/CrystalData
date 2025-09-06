@@ -29,6 +29,7 @@ public partial class StorageControl : IPersistable
     private bool isRip;
     private long memoryUsage;
     private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
+    private StorageObject? saveQueueHead;
 
     internal ILogger? Logger { get; set; }
 
@@ -422,6 +423,19 @@ public partial class StorageControl : IPersistable
             {
                 storage.DeleteAndForget(ref id3);
             }*/
+        }
+    }
+
+    internal void AddToSaveQueue(StorageObject storageObject)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (storageObject.saveQueueTime != 0)
+            {
+                return;
+            }
+
+
         }
     }
 

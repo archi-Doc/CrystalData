@@ -39,8 +39,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal StorageObject? previous; // Lock:StorageControl
     internal StorageObject? next; // Lock:StorageControl
 
+    internal int saveQueueTime; // Lock:StorageControl
+    internal StorageObject? saveQueuePrevious; // Lock:StorageControl
+    internal StorageObject? saveQueueNext; // Lock:StorageControl
+
     private object? data; // Lock:this
     internal int size; // Lock:StorageControl
+    private SaveQueue.Item? saveQueueItem; // Lock:SaveQueue
 
     public IStructualRoot? StructualRoot
     {
@@ -235,6 +240,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Unprotected, ObjectProtectionState.Protected);
 
         this.Exit();
+    }
+
+    public void AddToStoreQueue()
+    {
+        if (this.saveQueueTime == 0)
+        {
+            this.storageControl.AddToSaveQueue(this);
+        }
     }
 
     internal void DeleteLatestStorageForDebug()
