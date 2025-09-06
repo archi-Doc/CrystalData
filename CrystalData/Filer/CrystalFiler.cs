@@ -188,7 +188,7 @@ public class CrystalFiler
                     result.Return();
                     if (r.Data is not null)
                     {// Success
-                        return (new(CrystalResult.Success, r.Data), new(Waypoint.InvalidJournalPosition, 0, hash), path);
+                        return (new(CrystalResult.Success, r.Data), new(Waypoint.InvalidJournalPosition, hash, 0), path);
                     }
 
                     _ = this.rawFiler.DeleteAsync(path);

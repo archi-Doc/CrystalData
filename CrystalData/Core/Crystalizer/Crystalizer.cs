@@ -674,7 +674,7 @@ public class Crystalizer
             journalPosition = waypoint.JournalPosition + 1;
         }
 
-        waypoint = new(journalPosition, plane, hash);
+        waypoint = new(journalPosition, hash, plane);
     }
 
     /*internal void UpdatePlane(ICrystalInternal crystal, ref Waypoint waypoint, ulong hash, ulong startingPosition)
