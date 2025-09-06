@@ -11,6 +11,7 @@ namespace CrystalData;
 public sealed partial class StorageMap : IStructualObject
 {
     public const string Filename = "Map";
+    private const int StoreBatchSize = 100;
 
     public static readonly StorageMap Disabled = new();
 
@@ -32,6 +33,12 @@ public sealed partial class StorageMap : IStructualObject
     public long StorageUsage => this.storageUsage;
 
     #endregion
+
+    public StorageMap()
+    {
+        this.StorageControl = StorageControl.Disabled;
+        this.enabledStorageMap = false;
+    }
 
     /*
     #region IStructualRoot
@@ -125,19 +132,6 @@ public sealed partial class StorageMap : IStructualObject
     }
 
     #endregion
-
-    /*public StorageMap(StorageControl storageControl)
-    {
-        this.StorageControl = storageControl;
-        this.enabledStorageMap = true;
-        storageControl.AddStorageMap(this);
-    }*/
-
-    public StorageMap()
-    {
-        this.StorageControl = StorageControl.Disabled;
-        this.enabledStorageMap = false;
-    }
 
     internal void Enable(StorageControl storageControl)
     {
