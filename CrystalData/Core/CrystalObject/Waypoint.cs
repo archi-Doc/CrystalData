@@ -106,6 +106,11 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
         this.Hash == other.Hash &&
         this.Plane == other.Plane;
 
+    public bool Equals(ref Waypoint other)
+        => this.JournalPosition == other.JournalPosition &&
+        this.Hash == other.Hash &&
+        this.Plane == other.Plane;
+
     public static bool operator >(Waypoint w1, Waypoint w2)
         => w1.CompareTo(w2) > 0;
 

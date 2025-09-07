@@ -14,7 +14,7 @@ public sealed partial class CrystalSupplement
     [TinyhandObject(LockObject = "lockObject")]
     private sealed partial class Data
     {
-        /*[TinyhandObject]
+        [TinyhandObject]
         [ValueLinkObject]
         private sealed partial class PlaneItem
         {
@@ -24,18 +24,39 @@ public sealed partial class CrystalSupplement
 
             [Key(0)]
             [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-            public uint Plane { get; private set; }
-        }*/
+#pragma warning disable SA1401 // Fields should be private
+            public uint Plane;
+
+            [Key(1)]
+            public Waypoint Waypoint0;
+
+            [Key(2)]
+            public ulong LeadingJournalPosition0;
+
+            [Key(3)]
+            public Waypoint Waypoint1;
+
+            [Key(4)]
+            public ulong LeadingJournalPosition1;
+
+            [Key(5)]
+            public Waypoint Waypoint2;
+
+            [Key(6)]
+            public ulong LeadingJournalPosition2;
+
+#pragma warning restore SA1401 // Fields should be private
+        }
 
         #region FieldAndProperty
 
         private readonly Lock lockObject = new();
 
         [Key(0)]
-        private readonly HashSet<ulong> previouslyStoredIdentifiers = new();
+        private HashSet<ulong> previouslyStoredIdentifiers = new();
 
-        // [Key(1)]
-        // private readonly PlaneItem.GoshujinClass planeItems = new();
+        [Key(1)]
+        private PlaneItem.GoshujinClass planeItems = new();
 
         #endregion
 
@@ -79,7 +100,36 @@ public sealed partial class CrystalSupplement
 
         public ulong GetLeadingPosition(ref Waypoint waypoint)
         {
-            throw new NotImplementedException();
+            var leadingJournalPosition = waypoint.JournalPosition;
+            using (this.lockObject.EnterScope())
+            {
+                if (this.planeItems.PlaneChain.TryGetValue(waypoint.Plane, out var planeItem))
+                {
+                    if (planeItem.Waypoint0.Equals(ref waypoint))
+                    {
+                        if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition0) < 0)
+                        {
+                            leadingJournalPosition = planeItem.LeadingJournalPosition0;
+                        }
+                    }
+                    else if (planeItem.Waypoint1.Equals(ref waypoint))
+                    {
+                        if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition1) < 0)
+                        {
+                            leadingJournalPosition = planeItem.LeadingJournalPosition1;
+                        }
+                    }
+                    else if (planeItem.Waypoint2.Equals(ref waypoint))
+                    {
+                        if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition2) < 0)
+                        {
+                            leadingJournalPosition = planeItem.LeadingJournalPosition2;
+                        }
+                    }
+                }
+            }
+
+            return leadingJournalPosition;
         }
 
         public void SetLeadingPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
