@@ -9,7 +9,7 @@ public sealed partial class CrystalSupplement
     public const string DefaultSupplementFileName = "CrystalData.Supplement";
     public const string RipSuffix = ".Rip";
     private const int ItemLimit = 100;
-    private static readonly SaveFormat Format = SaveFormat.Utf8;
+    private static readonly SaveFormat Format = SaveFormat.Binary; // SaveFormat.Utf8;
 
     [TinyhandObject(LockObject = "lockObject")]
     private sealed partial class Data

@@ -454,12 +454,12 @@ public partial class Crystalizer
         // Dump Plane
         // this.DumpPlane();
 
-        if (this.CrystalSupplement.IsRip == false)
+        if (this.CrystalSupplement.IsRip)
         {// Rip success
             this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
         }
         else
-        {// Rip failureRead journal
+        {// Rip failure -> Read journal
             this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
             await this.ReadJournal().ConfigureAwait(false);
         }
@@ -883,11 +883,10 @@ public partial class Crystalizer
             var array = this.crystals.Keys.ToArray();
             for (var i = 0; i < array.Length; i++)
             {
-                var max = array[i].LeadingJournalPosition;
-                max = Math.Max(max, 1);
-                if (position.CircularCompareTo(max) > 0)
-                {
-                    position = max;
+                var x = array[i].LeadingJournalPosition;
+                if (position.CircularCompareTo(x) > 0)
+                {// position > array[i].LeadingJournalPosition
+                    position = x;
                 }
             }
 
@@ -969,8 +968,8 @@ public partial class Crystalizer
                         if (crystal.Data is IStructualObject journalObject)
                         {
                             var currentPosition = position + (ulong)reader.Consumed;
-                            if (currentPosition.CircularCompareTo(crystal.Waypoint.JournalPosition) > 0)
-                            {
+                            if (currentPosition.CircularCompareTo(crystal.LeadingJournalPosition) >= 0)
+                            {// currentPosition >= crystal.LeadingJournalPosition
                                 if (journalObject.ReadRecord(ref reader))
                                 {// Success
                                     // this.logger.TryGet(LogLevel.Debug)?.Log($"Journal read, Plane: {plane}, Length: {length} => {crystal.GetType().FullName}");
