@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using CrystalData.Check;
 using CrystalData.Filer;
 using CrystalData.Journal;
 using CrystalData.Storage;
@@ -45,8 +44,6 @@ public partial class Crystalizer
     internal UnitLogger UnitLogger { get; }
 
     internal ILogger Logger { get; }
-
-    internal CrystalCheck CrystalCheck { get; }
 
     internal IServiceProvider ServiceProvider { get; }
 
@@ -96,8 +93,6 @@ public partial class Crystalizer
         this.QueryContinue = new CrystalDataQueryNo();
         this.Logger = logger;
         this.crystalizerTask = new(this);
-        this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
-        this.CrystalCheck.Load(Path.Combine(this.Options.DataDirectory, CheckFile));
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -470,10 +465,6 @@ public partial class Crystalizer
             // Read journal
             await this.ReadJournal().ConfigureAwait(false);
         }
-
-        // Save crystal check
-        this.CrystalCheck.Store();
-        this.CrystalCheck.ClearShortcutPosition();
 
         return CrystalResult.Success;
     }
@@ -1060,7 +1051,6 @@ public partial class Crystalizer
             await journal.Store().ConfigureAwait(false);
         }
 
-        this.CrystalCheck.Store();
         await this.CrystalSupplement.Store(terminate);
 
         // Flush filers
