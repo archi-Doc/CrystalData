@@ -42,6 +42,8 @@ Unload=
 CrystalSupplement=
   LoadSuccess="Successfully loaded {0}"
   LoadFailure="Failed to load {0}"
+  RipSuccess="Data was successfully saved at the previous shutdown, journal loading will be skipped."
+  RipFailure="The previous shutdown was not completed normally, the journal will be loaded."
 
 StorageControl=
   StorageReconstructed="Storage was lost, but reconstruction from the journal was successful {{ {0} }}"

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -458,14 +459,21 @@ public partial class Crystalizer
         // Dump Plane
         // this.DumpPlane();
 
-        // Read journal
-        await this.ReadJournal().ConfigureAwait(false);
+        if (this.CrystalSupplement.IsRip)
+        {
+            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
+        }
+        else
+        {
+            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
+
+            // Read journal
+            await this.ReadJournal().ConfigureAwait(false);
+        }
 
         // Save crystal check
         this.CrystalCheck.Store();
         this.CrystalCheck.ClearShortcutPosition();
-
-        // this.logger.TryGet()?.Log($"Prepared - {string.Join(", ", list)}");
 
         return CrystalResult.Success;
     }
