@@ -14,6 +14,7 @@ public sealed partial class CrystalSupplement
     [TinyhandObject(LockObject = "lockObject")]
     private sealed partial class Data
     {
+#pragma warning disable SA1401 // Fields should be private
         [TinyhandObject]
         [ValueLinkObject]
         private sealed partial class PlaneItem
@@ -24,7 +25,6 @@ public sealed partial class CrystalSupplement
 
             [Key(0)]
             [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-#pragma warning disable SA1401 // Fields should be private
             public uint Plane;
 
             [Key(1)]
@@ -44,9 +44,9 @@ public sealed partial class CrystalSupplement
 
             [Key(6)]
             public ulong LeadingJournalPosition2;
+        }
 
 #pragma warning restore SA1401 // Fields should be private
-        }
 
         #region FieldAndProperty
 
