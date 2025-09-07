@@ -280,7 +280,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
-            this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
+            this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
@@ -295,7 +295,7 @@ Exit:
         this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
         using (this.semaphore.EnterScope())
         {
-            this.Crystalizer.CrystalCheck.SetShortcutPosition(currentWaypoint, startingPosition);
+            this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;

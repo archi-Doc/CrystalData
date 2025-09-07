@@ -8,23 +8,39 @@ public sealed partial class CrystalSupplement
 {
     public const string DefaultSupplementFileName = "CrystalData.Supplement";
     public const string RipSuffix = ".Rip";
-    private const int PreviouslyStoredLimit = 1_000;
+    private const int ItemLimit = 100;
     private static readonly SaveFormat Format = SaveFormat.Utf8;
 
     [TinyhandObject(LockObject = "lockObject")]
     private sealed partial class Data
     {
 #pragma warning disable SA1401 // Fields should be private
+
+        [TinyhandObject]
+        [ValueLinkObject]
+        private sealed partial class IdentifierItem
+        {
+            [Key(0)]
+            [Link(Unique = true, Type = ChainType.Unordered)]
+            public ulong Identifier;
+
+            [Link(Name = "Timeline", Primary = true, Type = ChainType.QueueList)]
+            public IdentifierItem()
+            {
+            }
+
+            public IdentifierItem(ulong identifier)
+            {
+                this.Identifier = identifier;
+            }
+        }
+
         [TinyhandObject]
         [ValueLinkObject]
         private sealed partial class PlaneItem
         {
-            public PlaneItem()
-            {
-            }
-
             [Key(0)]
-            [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+            [Link(Unique = true, Type = ChainType.Unordered)]
             public uint Plane;
 
             [Key(1)]
@@ -44,6 +60,16 @@ public sealed partial class CrystalSupplement
 
             [Key(6)]
             public ulong LeadingJournalPosition2;
+
+            [Link(Name = "Timeline", Primary = true, Type = ChainType.QueueList)]
+            public PlaneItem()
+            {
+            }
+
+            public PlaneItem(uint plane)
+            {
+                this.Plane = plane;
+            }
         }
 
 #pragma warning restore SA1401 // Fields should be private
@@ -53,7 +79,7 @@ public sealed partial class CrystalSupplement
         private readonly Lock lockObject = new();
 
         [Key(0)]
-        private HashSet<ulong> previouslyStoredIdentifiers = new();
+        private IdentifierItem.GoshujinClass identifierItems = new();
 
         [Key(1)]
         private PlaneItem.GoshujinClass planeItems = new();
@@ -65,7 +91,18 @@ public sealed partial class CrystalSupplement
             var identifier = GetIdentifier<TData>(fileConfiguration);
             using (this.lockObject.EnterScope())
             {
-                this.previouslyStoredIdentifiers.Add(identifier);
+                if (this.identifierItems.IdentifierChain.FindFirst(identifier) is { } item)
+                {// Move to the end of the queue.
+                    this.identifierItems.TimelineChain.Enqueue(item);
+                }
+                else
+                {// New item.
+                    this.identifierItems.Add(new(identifier));
+                    while (this.identifierItems.Count > ItemLimit)
+                    {// Remove the oldest item.
+                        this.identifierItems.TimelineChain.Peek().Goshujin = default;
+                    }
+                }
             }
         }
 
@@ -74,27 +111,7 @@ public sealed partial class CrystalSupplement
             var identifier = GetIdentifier<TData>(fileConfiguration);
             using (this.lockObject.EnterScope())
             {
-                var result = this.previouslyStoredIdentifiers.Contains(identifier);
-                return result;
-            }
-        }
-
-        public void AfterLoad()
-        {
-            using (this.lockObject.EnterScope())
-            {
-            }
-        }
-
-        public void OnSaving()
-        {
-            using (this.lockObject.EnterScope())
-            {
-                while (this.previouslyStoredIdentifiers.Count > PreviouslyStoredLimit)
-                {
-                    var item = this.previouslyStoredIdentifiers.First();
-                    this.previouslyStoredIdentifiers.Remove(item);
-                }
+                return this.identifierItems.IdentifierChain.FindFirst(identifier) is not null;
             }
         }
 
@@ -103,28 +120,30 @@ public sealed partial class CrystalSupplement
             var leadingJournalPosition = waypoint.JournalPosition;
             using (this.lockObject.EnterScope())
             {
-                if (this.planeItems.PlaneChain.TryGetValue(waypoint.Plane, out var planeItem))
+                if (!this.planeItems.PlaneChain.TryGetValue(waypoint.Plane, out var planeItem))
                 {
-                    if (planeItem.Waypoint0.Equals(ref waypoint))
+                    return leadingJournalPosition;
+                }
+
+                if (planeItem.Waypoint0.Equals(ref waypoint))
+                {
+                    if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition0) < 0)
                     {
-                        if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition0) < 0)
-                        {
-                            leadingJournalPosition = planeItem.LeadingJournalPosition0;
-                        }
+                        leadingJournalPosition = planeItem.LeadingJournalPosition0;
                     }
-                    else if (planeItem.Waypoint1.Equals(ref waypoint))
+                }
+                else if (planeItem.Waypoint1.Equals(ref waypoint))
+                {
+                    if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition1) < 0)
                     {
-                        if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition1) < 0)
-                        {
-                            leadingJournalPosition = planeItem.LeadingJournalPosition1;
-                        }
+                        leadingJournalPosition = planeItem.LeadingJournalPosition1;
                     }
-                    else if (planeItem.Waypoint2.Equals(ref waypoint))
+                }
+                else if (planeItem.Waypoint2.Equals(ref waypoint))
+                {
+                    if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition2) < 0)
                     {
-                        if (leadingJournalPosition.CircularCompareTo(planeItem.LeadingJournalPosition2) < 0)
-                        {
-                            leadingJournalPosition = planeItem.LeadingJournalPosition2;
-                        }
+                        leadingJournalPosition = planeItem.LeadingJournalPosition2;
                     }
                 }
             }
@@ -135,6 +154,57 @@ public sealed partial class CrystalSupplement
         public void SetLeadingPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
         {
             leadingJournalPosition = Math.Max(leadingJournalPosition, waypoint.JournalPosition);
+
+            using (this.lockObject.EnterScope())
+            {
+                if (this.planeItems.PlaneChain.TryGetValue(waypoint.Plane, out var item))
+                {// Move to the end of the queue.
+                    this.planeItems.TimelineChain.Enqueue(item);
+                }
+                else
+                {// New item.
+                    item = new(waypoint.Plane);
+                    item.Goshujin = this.planeItems;
+                    while (this.planeItems.Count > ItemLimit)
+                    {// Remove the oldest item.
+                        this.planeItems.TimelineChain.Peek().Goshujin = default;
+                    }
+                }
+
+                if (item.Waypoint0.Equals(ref waypoint))
+                {
+                    if (leadingJournalPosition.CircularCompareTo(item.LeadingJournalPosition0) > 0)
+                    {
+                        item.LeadingJournalPosition0 = leadingJournalPosition;
+                    }
+                }
+                else if (item.Waypoint1.Equals(ref waypoint))
+                {
+                    if (leadingJournalPosition.CircularCompareTo(item.LeadingJournalPosition1) > 0)
+                    {
+                        item.LeadingJournalPosition1 = leadingJournalPosition;
+                    }
+                }
+                else if (item.Waypoint2.Equals(ref waypoint))
+                {
+                    if (leadingJournalPosition.CircularCompareTo(item.LeadingJournalPosition2) > 0)
+                    {
+                        item.LeadingJournalPosition2 = leadingJournalPosition;
+                    }
+                }
+                else
+                {// New waypoint.
+                    if (waypoint.JournalPosition.CircularCompareTo(item.Waypoint0.JournalPosition) > 0)
+                    {
+                        item.Waypoint2 = item.Waypoint1;
+                        item.LeadingJournalPosition2 = item.LeadingJournalPosition1;
+                        item.Waypoint1 = item.Waypoint0;
+                        item.LeadingJournalPosition1 = item.LeadingJournalPosition0;
+                        item.Waypoint0 = waypoint;
+                        item.LeadingJournalPosition0 = leadingJournalPosition;
+                    }
+                }
+            }
         }
     }
 
@@ -233,7 +303,6 @@ public sealed partial class CrystalSupplement
                     this.data = deserializeResult.Data;
                     this.IsSupplementLoaded = true;
                     this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, pathAndRip);
-                    this.data.AfterLoad();
                     return true;
                 }
             }
@@ -249,8 +318,6 @@ public sealed partial class CrystalSupplement
 
     internal async Task Store(bool rip)
     {
-        this.data.OnSaving();
-
         if (rip)
         {
             this.ripCount++;
