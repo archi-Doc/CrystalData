@@ -151,7 +151,7 @@ public sealed partial class CrystalSupplement
             return leadingJournalPosition;
         }
 
-        public void SetLeadingPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
+        public ulong SetLeadingPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
         {
             leadingJournalPosition = Math.Max(leadingJournalPosition, waypoint.JournalPosition);
 
@@ -205,6 +205,8 @@ public sealed partial class CrystalSupplement
                     }
                 }
             }
+
+            return leadingJournalPosition;
         }
     }
 
@@ -241,7 +243,7 @@ public sealed partial class CrystalSupplement
     public ulong GetLeadingJournalPosition(ref Waypoint waypoint)
         => this.data.GetLeadingPosition(ref waypoint);
 
-    public void SetLeadingJournalPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
+    public ulong SetLeadingJournalPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
         => this.data.SetLeadingPosition(ref waypoint, leadingJournalPosition);
 
     internal void PrepareAndLoad()

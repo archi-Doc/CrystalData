@@ -454,15 +454,13 @@ public partial class Crystalizer
         // Dump Plane
         // this.DumpPlane();
 
-        if (this.CrystalSupplement.IsRip)
-        {
+        if (this.CrystalSupplement.IsRip == false)
+        {// Rip success
             this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
         }
         else
-        {
+        {// Rip failureRead journal
             this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
-
-            // Read journal
             await this.ReadJournal().ConfigureAwait(false);
         }
 
@@ -885,14 +883,7 @@ public partial class Crystalizer
             var array = this.crystals.Keys.ToArray();
             for (var i = 0; i < array.Length; i++)
             {
-                var waypoint = array[i].Waypoint;
-                this.CrystalCheck.TryGetPlanePosition(waypoint, out var shortcutPosition);
-                /*f (!this.CrystalCheck.TryGetPlanePosition(waypoint, out var shortcutPosition))
-                {
-                    this.logger.TryGet(LogLevel.Error)?.Log($"No shortcut position: {array[i].Value.DataType.Name}");
-                }*/
-
-                var max = shortcutPosition.CircularCompareTo(waypoint.JournalPosition) > 0 ? shortcutPosition : waypoint.JournalPosition;
+                var max = array[i].LeadingJournalPosition;
                 max = Math.Max(max, 1);
                 if (position.CircularCompareTo(max) > 0)
                 {

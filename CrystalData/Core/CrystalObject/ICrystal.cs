@@ -52,6 +52,8 @@ internal interface ICrystalInternal : ICrystal
 
     Waypoint Waypoint { get; }
 
+    ulong LeadingJournalPosition { get; }
+
     void SetStorage(IStorage storage);
 
     Task? TryPeriodicStore(DateTime utc);

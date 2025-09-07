@@ -28,6 +28,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
     private CrystalFiler? crystalFiler;
     private IStorage? storage;
     private Waypoint waypoint;
+    private ulong leadingJournalPosition;
     private DateTime lastSavedTime;
     private CrystalConfiguration originalCrystalConfiguration;
     private CrystalConfiguration crystalConfiguration;
@@ -280,6 +281,7 @@ public sealed class CrystalObject<TData> : ICrystalInternal<TData>, IStructualOb
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
+            this.leadingJournalPosition =
             this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
@@ -295,7 +297,7 @@ Exit:
         this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
         using (this.semaphore.EnterScope())
         {
-            this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
+            this.leadingJournalPosition = this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
@@ -366,6 +368,9 @@ Exit:
 
     Waypoint ICrystalInternal.Waypoint
         => this.waypoint;
+
+    ulong ICrystalInternal.LeadingJournalPosition
+        => this.leadingJournalPosition;
 
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
 
@@ -664,7 +669,7 @@ Exit:
         if (loadResult.Waypoint.IsValid && this.Crystalizer.Journal is { } journal)
         {
             if (loadResult.Waypoint.JournalPosition.CircularCompareTo(journal.GetCurrentPosition()) > 0)
-            {
+            {// loadResult.Waypoint.JournalPosition > journal.GetCurrentPosition()
                 var query = await param.Query.InconsistentJournal(this.CrystalConfiguration.FileConfiguration.Path).ConfigureAwait(false);
                 if (query == AbortOrContinue.Abort)
                 {
@@ -681,6 +686,7 @@ Exit:
         {// Loaded
             this.data = data;
             this.waypoint = loadResult.Waypoint;
+            this.leadingJournalPosition = this.Crystalizer.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
             if (this.CrystalConfiguration.HasFileHistories)
             {
                 if (this.waypoint.IsValid)
