@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-public partial class StorageControl
+/*public partial class StorageControl
 {
     private const int IntervalInMilliseconds = 100;
 
@@ -43,4 +43,4 @@ public partial class StorageControl
             }
         }
     }
-}
+}*/

@@ -14,6 +14,7 @@ public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 256;
     private const int SaveBatchSize = 32;
+    private const int IntervalInMilliseconds = 100;
 
     /// <summary>
     /// Represents the disabled storage control.
@@ -28,13 +29,12 @@ public partial class StorageControl : IPersistable
     /// </summary>
     private readonly Lock lowestLockObject;
 
-    private StorageCore? core;
+    private Crystalizer? crystalizer;
     private StorageMap[] storageMaps;
     private bool isRip;
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
 
-    private uint currentTime; // System time in seconds
     private uint saveDelay; // Save delay in seconds
     private StorageObject? toSaveHead;
     private StorageObject[] saveArray = new StorageObject[SaveBatchSize];
@@ -102,6 +102,7 @@ public partial class StorageControl : IPersistable
 
     internal void Initialize(Crystalizer crystalizer)
     {
+        this.crystalizer = crystalizer;
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
         this.SaveInterval = crystalizer.Options.StorageSaveInterval;
@@ -110,10 +111,6 @@ public partial class StorageControl : IPersistable
         {
             this.saveDelay = 1;
         }
-
-        this.UpdateTime();
-        this.core = new StorageCore(this);
-        this.core.Start();
     }
 
     internal void Rip() => this.isRip = true;
@@ -443,14 +440,9 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal async Task<bool> ProcessSaveQueue(CancellationToken cancellationToken)
+    internal async Task<bool> ProcessSaveQueue(Crystalizer crystalizer, CancellationToken cancellationToken)
     {
-        if (!this.UpdateTime())
-        {// The SaveQueue is not processed because the current time has not been updated.
-            return false;
-        }
-
-        var threshold = this.currentTime - this.saveDelay;
+        var threshold = crystalizer.SystemTimeInSeconds - this.saveDelay;
         var result = false;
         while (true)
         {
@@ -510,6 +502,11 @@ public partial class StorageControl : IPersistable
 
     internal void AddToSaveQueue(StorageObject node)
     {
+        if (this.crystalizer is null)
+        {
+            return;
+        }
+
         using (this.lowestLockObject.EnterScope())
         {
             if (node.toSaveTime != 0)
@@ -517,7 +514,7 @@ public partial class StorageControl : IPersistable
                 return;
             }
 
-            node.toSaveTime = this.currentTime;
+            node.toSaveTime = this.crystalizer.SystemTimeInSeconds;
 
             if (this.toSaveHead is null)
             {// First node
@@ -532,13 +529,6 @@ public partial class StorageControl : IPersistable
             this.toSaveHead.toSavePrevious!.toSaveNext = node;
             this.toSaveHead.toSavePrevious = node;
         }
-    }
-
-    private bool UpdateTime()
-    {
-        var previous = this.currentTime;
-        this.currentTime = (uint)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
-        return previous != this.currentTime;
     }
 
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)

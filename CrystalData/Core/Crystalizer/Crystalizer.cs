@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -24,6 +25,8 @@ public partial class Crystalizer
     public const string CheckFile = "Crystal.check";
 
     #region FieldAndProperty
+
+    public uint SystemTimeInSeconds { get; private set; } // System time in seconds
 
     public CrystalizerOptions Options { get; }
 
@@ -49,11 +52,10 @@ public partial class Crystalizer
 
     private readonly CrystalizerConfiguration configuration;
 
-    private readonly CrystalizerTask crystalizerTask;
+    private readonly CrystalizerCore crystalizerCore;
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private ConcurrentDictionary<ICrystalInternal, int> crystals = new(); // All crystals
     private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
-    private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
 
     private Lock lockObject = new();
     private IFiler? localFiler;
@@ -64,6 +66,7 @@ public partial class Crystalizer
 
     public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
+        this.UpdateTime();
         this.configuration = configuration;
         this.UnitLogger = unitLogger;
         this.ServiceProvider = serviceProvider;
@@ -92,7 +95,7 @@ public partial class Crystalizer
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
         this.Logger = logger;
-        this.crystalizerTask = new(this);
+        this.crystalizerCore = new(this);
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -106,6 +109,7 @@ public partial class Crystalizer
         }
 
         this.CrystalSupplement.PrepareAndLoad();
+        this.crystalizerCore.Start();
     }
 
     #region Resolvers
@@ -488,11 +492,6 @@ public partial class Crystalizer
         this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
     }
 
-    public void AddToSaveQueue(ICrystal crystal)
-    {
-        this.saveQueue.TryAdd(crystal, 0);
-    }
-
     public async Task<CrystalResult[]> DeleteAll()
     {
         var tasks = this.crystals.Keys.Select(x => x.Delete()).ToArray();
@@ -803,6 +802,13 @@ public partial class Crystalizer
         return crystal!.Data;
     }
 
+    internal bool UpdateTime()
+    {
+        var previous = this.SystemTimeInSeconds;
+        this.SystemTimeInSeconds = (uint)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
+        return previous != this.SystemTimeInSeconds;
+    }
+
     private Task PeriodicStore()
     {
         var tasks = new List<Task>();
@@ -813,22 +819,6 @@ public partial class Crystalizer
             if (x.TryPeriodicStore(utc) is { } task)
             {
                 tasks.Add(task);
-            }
-        }
-
-        return Task.WhenAll(tasks);
-    }
-
-    private Task QueuedStore()
-    {
-        var tasks = new List<Task>();
-        var array = this.saveQueue.Keys.ToArray();
-        this.saveQueue.Clear();
-        foreach (var x in array)
-        {
-            if (x.State == CrystalState.Prepared)
-            {
-                tasks.Add(x.Store(StoreMode.StoreOnly));
             }
         }
 
