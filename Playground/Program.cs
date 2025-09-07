@@ -66,7 +66,7 @@ public partial class FirstData
     }
 
     [Key(0)] // The key attribute specifies the index at serialization
-    public int Id { get; set; }
+    public partial int Id { get; set; }
 
     [Key(1)]
     [DefaultValue("Hoge")] // The default value for the name property.
