@@ -518,7 +518,7 @@ Exit:
         }
     }
 
-    ulong IStructualRoot.AddJournal(ref TinyhandWriter writer)
+    ulong IStructualRoot.WriteJournalAndDispose(ref TinyhandWriter writer)
     {
         if (this.Crystalizer.Journal is not null)
         {
@@ -556,7 +556,7 @@ Exit:
 
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadRecord(out var length, out var journalType))
+            if (!reader.TryReadJournal(out var length, out var journalType))
             {
                 return false;
             }
@@ -571,7 +571,7 @@ Exit:
 
                     if (plane == currentPlane)
                     {
-                        if (journalObject.ReadRecord(ref reader))
+                        if (journalObject.ProcessJournalRecord(ref reader))
                         {// Success
                         }
                         else

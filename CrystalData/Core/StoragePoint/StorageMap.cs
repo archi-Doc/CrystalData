@@ -136,7 +136,7 @@ public sealed partial class StorageMap : IStructualObject
 
     int IStructualObject.StructualKey { get; set; }
 
-    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -161,7 +161,7 @@ public sealed partial class StorageMap : IStructualObject
             var pointId = reader.ReadUInt64();
             if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
             {
-                return ((IStructualObject)storageObject).ReadRecord(ref reader);
+                return ((IStructualObject)storageObject).ProcessJournalRecord(ref reader);
             }
         }
 

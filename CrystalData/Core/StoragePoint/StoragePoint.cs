@@ -214,7 +214,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }*/
 
-    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -313,7 +313,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             writer.Write(JournalRecord.Value);
             writer.Write(this.pointId);
-            root.AddJournal(ref writer);
+            root.WriteJournalAndDispose(ref writer);
         }
 
         return this.storageObject;

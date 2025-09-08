@@ -329,7 +329,7 @@ public partial class StorageControl : IPersistable
                 writer.Write(JournalRecord.AddItem);
                 writer.Write(pointId);
                 writer.Write(typeIdentifier);
-                root.AddJournal(ref writer);
+                root.WriteJournalAndDispose(ref writer);
             }
         }
     }

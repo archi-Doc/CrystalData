@@ -636,6 +636,15 @@ public partial class Crystalizer
         ulong journalPosition;
         if (this.Journal != null)
         {
+            journalPosition = this.Journal.GetCurrentPosition();
+        }
+        else
+        {
+            journalPosition = waypoint.JournalPosition;
+        }
+
+        /*if (this.Journal != null)
+        {
             this.Journal.GetWriter(JournalType.Waypoint, out var writer);
             writer.Write(plane);
             writer.Write(hash);
@@ -644,7 +653,7 @@ public partial class Crystalizer
         else
         {
             journalPosition = waypoint.JournalPosition + 1;
-        }
+        }*/
 
         waypoint = new(journalPosition, hash, plane);
     }
@@ -932,7 +941,7 @@ public partial class Crystalizer
         var reader = new TinyhandReader(data.Span);
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadRecord(out var length, out var journalType))
+            if (!reader.TryReadJournal(out var length, out var journalType))
             {
                 this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.Corrupted);
                 return;
@@ -941,7 +950,7 @@ public partial class Crystalizer
             var fork = reader.Fork();
             try
             {
-                if (journalType == JournalType.Startingpoint)
+                /*if (journalType == JournalType.Startingpoint)
                 {
                 }
                 else if (journalType == JournalType.Waypoint)
@@ -949,7 +958,7 @@ public partial class Crystalizer
                     reader.ReadUInt32();
                     reader.ReadUInt64();
                 }
-                else if (journalType == JournalType.Record)
+                else */if (journalType == JournalType.Record)
                 {
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();
@@ -960,7 +969,7 @@ public partial class Crystalizer
                             var currentPosition = position + (ulong)reader.Consumed;
                             if (currentPosition.CircularCompareTo(crystal.LeadingJournalPosition) >= 0)
                             {// currentPosition >= crystal.LeadingJournalPosition
-                                if (journalObject.ReadRecord(ref reader))
+                                if (journalObject.ProcessJournalRecord(ref reader))
                                 {// Success
                                     // this.logger.TryGet(LogLevel.Debug)?.Log($"Journal read, Plane: {plane}, Length: {length} => {crystal.GetType().FullName}");
                                     restored.Add(plane);

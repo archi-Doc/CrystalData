@@ -383,7 +383,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             {
                 writer.Write(JournalRecord.AddItem);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
-                root.AddJournal(ref writer);
+                root.WriteJournalAndDispose(ref writer);
             }
         }
 
@@ -454,7 +454,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal Task Delete(DateTime forceDeleteAfter)
         => this.DeleteStorage(true, forceDeleteAfter);
 
-    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -490,7 +490,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (this.data is IStructualObject structualObject)
         {
-            return structualObject.ReadRecord(ref reader);
+            return structualObject.ProcessJournalRecord(ref reader);
         }
         else
         {
@@ -504,7 +504,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {// Key or Locator
             if (this.data is IStructualObject structualObject)
             {
-                return structualObject.ReadRecord(ref reader);
+                return structualObject.ProcessJournalRecord(ref reader);
             }
             else
             {
@@ -674,7 +674,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             writer.Write(JournalRecord.Value);
             writer.WriteSpan(original.Span);
-            root.AddJournal(ref writer);
+            root.WriteJournalAndDispose(ref writer);
         }
 
         if (rentMemory.IsRent)
@@ -732,8 +732,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         var reader = new TinyhandReader(memory.Span);
         while (reader.Consumed < memory.Length)
         {
-            if (!reader.TryReadRecord(out var length, out var journalType))
-            {// Not record
+            if (!reader.TryReadJournal(out var length, out var journalType))
+            {// Not journal
                 return false;
             }
 
