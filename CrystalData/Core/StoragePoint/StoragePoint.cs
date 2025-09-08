@@ -313,7 +313,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             writer.Write(JournalRecord.Value);
             writer.Write(this.pointId);
-            root.WriteJournalAndDispose(ref writer);
+            root.AddJournalAndDispose(ref writer);
         }
 
         return this.storageObject;

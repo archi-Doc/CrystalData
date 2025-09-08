@@ -383,7 +383,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             {
                 writer.Write(JournalRecord.AddItem);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
-                root.WriteJournalAndDispose(ref writer);
+                root.AddJournalAndDispose(ref writer);
             }
         }
 
@@ -674,7 +674,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             writer.Write(JournalRecord.Value);
             writer.WriteSpan(original.Span);
-            root.WriteJournalAndDispose(ref writer);
+            root.AddJournalAndDispose(ref writer);
         }
 
         if (rentMemory.IsRent)

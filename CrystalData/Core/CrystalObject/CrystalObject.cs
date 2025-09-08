@@ -518,7 +518,7 @@ Exit:
         }
     }
 
-    ulong IStructualRoot.WriteJournalAndDispose(ref TinyhandWriter writer)
+    ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
     {
         if (this.Crystalizer.Journal is not null)
         {
