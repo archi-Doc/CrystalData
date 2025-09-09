@@ -40,7 +40,7 @@ public class SecondExample
 
         await this.crystal.Store(); // Save data.
 
-        var firstCrystal = this.crystalizer.CreateCrystal<FirstData>(new(SaveFormat.Utf8, SavePolicy.Manual, new LocalFileConfiguration("Local/SecondExample/FirstData.tinyhand")));
+        var firstCrystal = this.crystalizer.CreateCrystal<FirstData>(new(SaveFormat.Utf8, new LocalFileConfiguration("Local/SecondExample/FirstData.tinyhand")));
         firstCrystal.Data.Id++;
         firstCrystal.Data.Name += "Nupo";
 
@@ -78,7 +78,6 @@ public partial class Program
                 context.AddCrystal<SecondData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         NumberOfFileHistories = 2, // 2 history files.
                         FileConfiguration = new LocalFileConfiguration("Local/SecondExample/SecondData.tinyhand"), // Specify the file name to save.

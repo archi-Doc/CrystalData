@@ -45,7 +45,6 @@ public partial class Program
                 context.AddCrystal<JournalData.GoshujinClass>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual,
                         SaveFormat = SaveFormat.Utf8,
                         NumberOfFileHistories = 3, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
                         FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData.tinyhand"), // Specify the file name to save.

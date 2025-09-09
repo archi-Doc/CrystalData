@@ -24,7 +24,6 @@ public partial record AdvancedExample
             new()
             {
                 SaveFormat = SaveFormat.Binary,
-                SavePolicy = SavePolicy.Periodic,
                 SaveInterval = TimeSpan.FromMinutes(10),
                 FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain.tinyhand"),
                 BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup.tinyhand"),

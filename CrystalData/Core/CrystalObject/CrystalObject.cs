@@ -9,16 +9,16 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+[ValueLinkObject]
+internal abstract partial class CrystalObject
+{
+    [Link(Unique = true, Type = ChainType.Unordered)]
+    public uint Plane { get; }
+}
+
 internal sealed class CrystalObject<TData> : ICrystal<TData>, ICrystalInternal, IStructualObject
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {// Data + Journal/Waypoint + Filer/FileConfiguration + Storage/StorageConfiguration
-    public CrystalObject(Crystalizer crystalizer)
-    {
-        this.Crystalizer = crystalizer;
-        this.originalCrystalConfiguration = CrystalConfiguration.Default;
-        this.crystalConfiguration = CrystalConfiguration.Default;
-        ((IStructualObject)this).StructualRoot = this;
-    }
 
     #region FieldAndProperty
 
@@ -31,10 +31,6 @@ internal sealed class CrystalObject<TData> : ICrystal<TData>, ICrystalInternal, 
     private DateTime lastSavedTime;
     private CrystalConfiguration originalCrystalConfiguration;
     private CrystalConfiguration crystalConfiguration;
-
-    #endregion
-
-    #region ICrystal
 
     public Crystalizer Crystalizer { get; }
 
@@ -106,6 +102,30 @@ internal sealed class CrystalObject<TData> : ICrystal<TData>, ICrystalInternal, 
 
     public IJournal? Journal => this.Crystalizer.Journal;
 
+    Waypoint ICrystalInternal.Waypoint
+        => this.waypoint;
+
+    ulong ICrystalInternal.LeadingJournalPosition
+        => this.leadingJournalPosition;
+
+    IStructualRoot? IStructualObject.StructualRoot { get; set; }
+
+    IStructualObject? IStructualObject.StructualParent { get; set; } = null;
+
+    int IStructualObject.StructualKey { get; set; } = -1;
+
+    #endregion
+
+    public CrystalObject(Crystalizer crystalizer)
+    {
+        this.Crystalizer = crystalizer;
+        this.originalCrystalConfiguration = CrystalConfiguration.Default;
+        this.crystalConfiguration = CrystalConfiguration.Default;
+        ((IStructualObject)this).StructualRoot = this;
+    }
+
+    #region ICrystal
+
     void ICrystal.Configure(CrystalConfiguration configuration)
     {
         using (this.semaphore.EnterScope())
@@ -157,9 +177,83 @@ internal sealed class CrystalObject<TData> : ICrystal<TData>, ICrystalInternal, 
         }
     }
 
+    async Task<CrystalResult> ICrystal.Delete()
+    {
+        using (this.semaphore.EnterScope())
+        {
+            if (this.State == CrystalState.Initial)
+            {// Initial
+                await this.PrepareAndLoadInternal(false).ConfigureAwait(false);
+            }
+            else if (this.State == CrystalState.Deleted)
+            {// Deleted
+                return CrystalResult.Success;
+            }
+
+            // Delete file
+            this.ResolveAndPrepareFiler();
+            await this.crystalFiler.DeleteAll().ConfigureAwait(false);
+
+            // Delete storage
+            if (this.CrystalConfiguration.StorageConfiguration != EmptyStorageConfiguration.Default)
+            {// StorageMap uses Storage internally, and this prevents infinite recursive calls caused by it.
+                this.ResolveAndPrepareStorage();
+                await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+            }
+
+            // Journal/Waypoint
+            this.Crystalizer.RemovePlane(this.waypoint);
+            this.waypoint = default;
+
+            // Clear
+            TinyhandSerializer.DeserializeObject(TinyhandSerializer.SerializeObject(TinyhandSerializer.ReconstructObject<TData>()), ref this.data);
+            this.SetupData();
+            // this.obj = default;
+            // TinyhandSerializer.ReconstructObject<TData>(ref this.obj);
+
+            this.State = CrystalState.Deleted;
+        }
+
+        this.Crystalizer.DeleteInternal(this);
+        return CrystalResult.Success;
+    }
+
+    #endregion
+
+    #region ICrystalInternal
+
+    Task? ICrystalInternal.TryPeriodicStore(DateTime utc)
+    {
+        /*f (this.CrystalConfiguration.SavePolicy != SavePolicy.Periodic)
+        {
+            return null;
+        }*/
+
+        var elapsed = utc - this.lastSavedTime;
+        if (elapsed < this.CrystalConfiguration.SaveInterval)
+        {
+            return null;
+        }
+
+        this.lastSavedTime = utc;
+        return ((ICrystal)this).Store(StoreMode.StoreOnly);
+    }
+
+    void ICrystalInternal.SetStorage(IStorage storage)
+    {
+        using (this.semaphore.EnterScope())
+        {
+            this.storage = storage;
+        }
+    }
+
+    #endregion
+
+    #region IPersistable
+
     async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
     {
-        if (this.CrystalConfiguration.SavePolicy == SavePolicy.Volatile)
+        if (this.CrystalConfiguration.Volatile)
         {// Volatile
             if (storeMode != StoreMode.StoreOnly)
             {// Release
@@ -307,82 +401,6 @@ Exit:
         return CrystalResult.Success;
     }
 
-    async Task<CrystalResult> ICrystal.Delete()
-    {
-        using (this.semaphore.EnterScope())
-        {
-            if (this.State == CrystalState.Initial)
-            {// Initial
-                await this.PrepareAndLoadInternal(false).ConfigureAwait(false);
-            }
-            else if (this.State == CrystalState.Deleted)
-            {// Deleted
-                return CrystalResult.Success;
-            }
-
-            // Delete file
-            this.ResolveAndPrepareFiler();
-            await this.crystalFiler.DeleteAll().ConfigureAwait(false);
-
-            // Delete storage
-            if (this.CrystalConfiguration.StorageConfiguration != EmptyStorageConfiguration.Default)
-            {// StorageMap uses Storage internally, and this prevents infinite recursive calls caused by it.
-                this.ResolveAndPrepareStorage();
-                await this.storage.DeleteStorageAsync().ConfigureAwait(false);
-            }
-
-            // Journal/Waypoint
-            this.Crystalizer.RemovePlane(this.waypoint);
-            this.waypoint = default;
-
-            // Clear
-            TinyhandSerializer.DeserializeObject(TinyhandSerializer.SerializeObject(TinyhandSerializer.ReconstructObject<TData>()), ref this.data);
-            this.SetupData();
-            // this.obj = default;
-            // TinyhandSerializer.ReconstructObject<TData>(ref this.obj);
-
-            this.State = CrystalState.Deleted;
-        }
-
-        this.Crystalizer.DeleteInternal(this);
-        return CrystalResult.Success;
-    }
-
-    Task? ICrystalInternal.TryPeriodicStore(DateTime utc)
-    {
-        if (this.CrystalConfiguration.SavePolicy != SavePolicy.Periodic)
-        {
-            return null;
-        }
-
-        var elapsed = utc - this.lastSavedTime;
-        if (elapsed < this.CrystalConfiguration.SaveInterval)
-        {
-            return null;
-        }
-
-        this.lastSavedTime = utc;
-        return ((ICrystal)this).Store(StoreMode.StoreOnly);
-    }
-
-    Waypoint ICrystalInternal.Waypoint
-        => this.waypoint;
-
-    ulong ICrystalInternal.LeadingJournalPosition
-        => this.leadingJournalPosition;
-
-    IStructualRoot? IStructualObject.StructualRoot { get; set; }
-
-    IStructualObject? IStructualObject.StructualParent { get; set; } = null;
-
-    int IStructualObject.StructualKey { get; set; } = -1;
-
-    /*void IStructualObject.WriteLocator(ref Tinyhand.IO.TinyhandWriter writer)
-    {
-        writer.Write_Locator();
-        writer.Write(this.waypoint.Plane);
-    }*/
-
     async Task<bool> IPersistable.TestJournal()
     {
         if (this.Crystalizer.Journal is not CrystalData.Journal.SimpleJournal journal)
@@ -488,14 +506,6 @@ Exit:
         return testResult;
     }
 
-    void ICrystalInternal.SetStorage(IStorage storage)
-    {
-        using (this.semaphore.EnterScope())
-        {
-            this.storage = storage;
-        }
-    }
-
     #endregion
 
     #region Structual
@@ -533,20 +543,6 @@ Exit:
     {
         //this.Crystalizer.AddToSaveQueue(this);
     }
-
-    /*ulong ICrystal.AddStartingPoint()
-    {
-        if (this.Crystalizer.Journal is not null)
-        {
-            return this.Crystalizer.Journal.AddStartingPoint();
-        }
-        else
-        {
-            return 0;
-        }
-    }*/
-
-    #endregion
 
     private bool ReadJournal(IStructualObject journalObject, ReadOnlyMemory<byte> data, uint currentPlane)
     {
@@ -716,6 +712,8 @@ Exit:
         }
     }
 
+    #endregion
+
 #pragma warning disable SA1204 // Static elements should appear before instance elements
     private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration, TData? singletonData)
 #pragma warning restore SA1204 // Static elements should appear before instance elements
@@ -832,9 +830,6 @@ Exit:
         var saveFormat = configuration.SaveFormat;
         saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.Options.DefaultSaveFormat : saveFormat;
 
-        var savePolicy = configuration.SavePolicy;
-        savePolicy = savePolicy == SavePolicy.Default ? this.Crystalizer.Options.DefaultSavePolicy : savePolicy;
-
         var saveInterval = configuration.SaveInterval;
         saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.Options.DefaultSaveInterval : saveInterval;
 
@@ -865,11 +860,10 @@ Exit:
         }
 
         if (saveFormat != configuration.SaveFormat ||
-            savePolicy != configuration.SavePolicy ||
             saveInterval != configuration.SaveInterval ||
             fileConfiguration != configuration.FileConfiguration)
         {
-            configuration = configuration with { SaveFormat = saveFormat, SavePolicy = savePolicy, SaveInterval = saveInterval, FileConfiguration = fileConfiguration, };
+            configuration = configuration with { SaveFormat = saveFormat, SaveInterval = saveInterval, FileConfiguration = fileConfiguration, };
         }
 
         this.crystalConfiguration = configuration;

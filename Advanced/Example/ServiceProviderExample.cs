@@ -37,7 +37,6 @@ public partial class Program
                 context.AddCrystal<ServiceProviderData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/ServiceProviderExample/ServiceProviderExample.tinyhand"), // Specify the file name to save.

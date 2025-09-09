@@ -34,7 +34,6 @@ public partial class Program
                 context.SetOptions(context.GetOptions<CrystalizerOptions>() with
                 {
                     DefaultSaveFormat = SaveFormat.Utf8,
-                    DefaultSavePolicy = SavePolicy.Periodic,
                 });
             });
 

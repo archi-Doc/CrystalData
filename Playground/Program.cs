@@ -218,7 +218,6 @@ internal class Program
                     new CrystalConfiguration()
                     {
                         RequiredForLoading = true,
-                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 2,
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
@@ -229,7 +228,6 @@ internal class Program
                 context.AddCrystal<SecondData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 2, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.

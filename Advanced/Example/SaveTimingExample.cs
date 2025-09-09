@@ -27,7 +27,6 @@ public partial class Program
                 context.AddCrystal<SaveTimingData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Periodic, // Data will be saved at regular intervals.
                         SaveInterval = TimeSpan.FromMinutes(1), // The interval at which data is stored.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.

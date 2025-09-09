@@ -28,7 +28,7 @@ public static class TestHelper
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
             context.AddCrystal<TData>(
-                new(SavePolicy.Manual, new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
+                new(new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
                 {
                     SaveFormat = SaveFormat.Utf8,
                     NumberOfFileHistories = DefaultNumberOfFileHistories,
@@ -55,7 +55,7 @@ public static class TestHelper
         {
             context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
             context.AddCrystal<TData>(
-                new(SavePolicy.Manual, new GlobalFileConfiguration("Test.tinyhand"))
+                new(new GlobalFileConfiguration("Test.tinyhand"))
                 {
                     SaveFormat = SaveFormat.Utf8,
                     NumberOfFileHistories = DefaultNumberOfFileHistories,

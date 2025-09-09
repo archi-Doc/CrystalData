@@ -34,8 +34,6 @@ public partial record class CrystalizerOptions
 
     public SaveFormat DefaultSaveFormat { get; init; } = SaveFormat.Binary;
 
-    public SavePolicy DefaultSavePolicy { get; init; } = SavePolicy.Manual;
-
     public TimeSpan DefaultSaveInterval { get; init; }
 
     public DirectoryConfiguration? DefaultBackup { get; init; }
