@@ -6,14 +6,13 @@ namespace CrystalData;
 public partial record class CrystalizerOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
-    public static readonly TimeSpan DefaultStorageSaveInterval = TimeSpan.FromHours(1);
+    public static readonly TimeSpan DefaultSaveInterval = TimeSpan.FromHours(1);
     public static readonly TimeSpan DefaultSaveDelay = TimeSpan.FromMinutes(1);
 
     public CrystalizerOptions()
     {
         this.FilerTimeout = TimeSpan.MinValue; // TimeSpan.FromSeconds(3);
         this.TimeoutUntilForcedRelease = TimeSpan.FromSeconds(10);
-        this.DefaultSaveInterval = CrystalConfiguration.DefaultSaveInterval;
     }
 
     public bool EnableFilerLogger { get; init; } = false;
@@ -30,11 +29,9 @@ public partial record class CrystalizerOptions
 
     public TimeSpan SaveDelay { get; init; } = DefaultSaveDelay;
 
-    public TimeSpan StorageSaveInterval { get; init; } = DefaultStorageSaveInterval;
+    public TimeSpan SaveInterval { get; init; } = DefaultSaveInterval;
 
     public SaveFormat DefaultSaveFormat { get; init; } = SaveFormat.Binary;
-
-    public TimeSpan DefaultSaveInterval { get; init; }
 
     public DirectoryConfiguration? DefaultBackup { get; init; }
 

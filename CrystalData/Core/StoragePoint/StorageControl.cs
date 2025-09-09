@@ -35,7 +35,7 @@ public partial class StorageControl : IPersistable
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
 
-    private uint saveDelay; // Save delay in seconds
+    private uint saveDelayInSeconds; // Save delay in seconds
     private StorageObject? toSaveHead;
     private StorageObject[] saveArray = new StorageObject[SaveBatchSize];
 
@@ -45,7 +45,7 @@ public partial class StorageControl : IPersistable
 
     public long MemoryUsageLimit { get; private set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
 
-    public TimeSpan SaveInterval { get; private set; } = CrystalizerOptions.DefaultStorageSaveInterval;
+    public TimeSpan SaveInterval { get; private set; } = CrystalizerOptions.DefaultSaveInterval;
 
     /// <summary>
     /// Gets an estimated memory usage.<br/>
@@ -105,11 +105,11 @@ public partial class StorageControl : IPersistable
         this.crystalizer = crystalizer;
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
-        this.SaveInterval = crystalizer.Options.StorageSaveInterval;
-        this.saveDelay = (uint)crystalizer.Options.SaveDelay.TotalSeconds;
-        if (this.saveDelay == 0)
+        this.SaveInterval = crystalizer.Options.SaveInterval;
+        this.saveDelayInSeconds = (uint)crystalizer.Options.SaveDelay.TotalSeconds;
+        if (this.saveDelayInSeconds == 0)
         {
-            this.saveDelay = 1;
+            this.saveDelayInSeconds = 1;
         }
     }
 
@@ -442,7 +442,7 @@ public partial class StorageControl : IPersistable
 
     internal async Task<bool> ProcessSaveQueue(Crystalizer crystalizer, CancellationToken cancellationToken)
     {
-        var threshold = crystalizer.SystemTimeInSeconds - this.saveDelay;
+        var threshold = crystalizer.SystemTimeInSeconds - this.saveDelayInSeconds;
         var result = false;
         while (true)
         {

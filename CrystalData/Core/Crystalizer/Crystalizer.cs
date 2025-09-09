@@ -83,12 +83,10 @@ public partial class Crystalizer
         }
 
         var defaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
-        var defaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
         this.Options = options with
         {
             DataDirectory = dataDirectory,
             DefaultSaveFormat = defaultSaveFormat,
-            DefaultSaveInterval = defaultSaveInterval,
         };
 
         this.CrystalSupplement = new(this);

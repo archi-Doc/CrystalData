@@ -830,9 +830,6 @@ Exit:
         var saveFormat = configuration.SaveFormat;
         saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.Options.DefaultSaveFormat : saveFormat;
 
-        var saveInterval = configuration.SaveInterval;
-        saveInterval = saveInterval == TimeSpan.Zero ? this.Crystalizer.Options.DefaultSaveInterval : saveInterval;
-
         var fileConfiguration = configuration.FileConfiguration;
         var filePath = fileConfiguration.Path;
         if (string.IsNullOrEmpty(filePath))
@@ -860,10 +857,9 @@ Exit:
         }
 
         if (saveFormat != configuration.SaveFormat ||
-            saveInterval != configuration.SaveInterval ||
             fileConfiguration != configuration.FileConfiguration)
         {
-            configuration = configuration with { SaveFormat = saveFormat, SaveInterval = saveInterval, FileConfiguration = fileConfiguration, };
+            configuration = configuration with { SaveFormat = saveFormat, FileConfiguration = fileConfiguration, };
         }
 
         this.crystalConfiguration = configuration;
