@@ -600,7 +600,7 @@ Exit:
 
     private async Task<CrystalResult> PrepareAndLoadInternal(bool useQuery)
     {// this.semaphore.EnterScope()
-        if (!this.Crystalizer.Prepared)
+        if (!this.Crystalizer.IsPrepared)
         {
             Crystalizer.ThrowNotPrepared();
         }

@@ -37,7 +37,7 @@ public partial class Program
 
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.Prepare(true, false); // Prepare resources for storage operations and read data from files.
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
         var data = crystal.Data;

@@ -27,7 +27,7 @@ public partial class Crystalizer
 
     #region FieldAndProperty
 
-    public bool Prepared { get; private set; }
+    public bool IsPrepared { get; private set; }
 
     public uint SystemTimeInSeconds { get; private set; } // System time in seconds
 
@@ -110,9 +110,6 @@ public partial class Crystalizer
             this.typeToCrystal.TryAdd(x.Key, crystal);
             this.crystals.TryAdd(crystal, 0);
         }
-
-        this.CrystalSupplement.PrepareAndLoad();
-        this.crystalizerCore.Start();
     }
 
     #region Resolvers
@@ -436,8 +433,16 @@ public partial class Crystalizer
         }
     }
 
-    public async Task<CrystalResult> PrepareAndLoadAll(bool useQuery = true)
+    public async Task<CrystalResult> Prepare(bool loadCrystals = true, bool useQuery = true)
     {
+        if (this.IsPrepared)
+        {
+            return CrystalResult.Success;
+        }
+
+        this.CrystalSupplement.PrepareAndLoad();
+        this.crystalizerCore.Start();
+
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);
         if (result.IsFailure())
@@ -445,17 +450,18 @@ public partial class Crystalizer
             return result;
         }
 
-        // Crystals
-        var crystals = this.crystals.Keys.ToArray();
-        foreach (var x in crystals)
-        {
-            result = await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
-            if (result.IsFailure())
+        this.IsPrepared = true;
+        if (loadCrystals)
+        {// Load crystals
+            var crystals = this.crystals.Keys.ToArray();
+            foreach (var x in crystals)
             {
-                return result;
+                result = await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
+                if (result.IsFailure())
+                {
+                    return result;
+                }
             }
-
-            // list.Add(x.Data.GetType().Name);
         }
 
         // Dump Plane

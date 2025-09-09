@@ -42,7 +42,7 @@ public static class TestHelper
         crystalizer.StorageControl.MemoryUsage.Is(0);
 
         var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoadAll(false);
+        var result = await crystalizer.Prepare(true, false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
@@ -76,7 +76,7 @@ public static class TestHelper
         crystalizer.StorageControl.MemoryUsage.Is(0);
 
         var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoadAll(false);
+        var result = await crystalizer.Prepare(true, false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
