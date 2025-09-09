@@ -443,7 +443,7 @@ public partial class Crystalizer
         }
     }
 
-    public async Task<CrystalResult> Prepare(bool useQuery = true, bool loadCrystals = true)
+    public async Task<CrystalResult> PrepareAndLoad(bool useQuery = true, bool loadCrystals = true)
     {
         if (this.IsPrepared)
         {
@@ -459,9 +459,6 @@ public partial class Crystalizer
         {
             return result;
         }
-
-        // Dump Plane
-        // this.DumpPlane();
 
         this.IsPrepared = true;
         if (this.CrystalSupplement.IsRip)
@@ -824,7 +821,7 @@ public partial class Crystalizer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal object GetObject(Type type)
+    internal object GetData(Type type)
     {
         if (!this.typeToCrystal.TryGetValue(type, out var crystal))
         {

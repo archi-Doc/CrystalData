@@ -72,7 +72,7 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
                 }
                 else
                 {// Singleton: T => Crystalizer.GetObject<T>()
-                    context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetObject(x.Key)));
+                    context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetData(x.Key)));
                 }
             }
         }
