@@ -99,7 +99,7 @@ internal partial class SimpleStorage : IStorage
 
         if (this.storageCrystal == null)
         {// SimpleStorageData (file to size)
-            this.storageCrystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, false);
+            this.storageCrystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null);
             var mainConfiguration = directoryConfiguration.CombineFile(Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(Filename);
             this.storageCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)
@@ -118,7 +118,7 @@ internal partial class SimpleStorage : IStorage
 
         if (this.mapCrystal == null)
         {// StorageMap (StorageObject)
-            this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null, false);
+            this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null);
             var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
             this.mapCrystal.Configure(new CrystalConfiguration(SavePolicy.Manual, mainConfiguration)

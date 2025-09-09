@@ -529,14 +529,11 @@ public partial class Crystalizer
         }
     }
 
-    public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool managedByCrystalizer = true)
+    public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var crystal = new CrystalObject<TData>(this);
-        if (managedByCrystalizer)
-        {
-            this.crystals.TryAdd(crystal, 0);
-        }
+        this.crystals.TryAdd(crystal, 0);
 
         if (configuration is not null)
         {
