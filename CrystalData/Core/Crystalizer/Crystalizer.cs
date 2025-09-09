@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -25,6 +26,8 @@ public partial class Crystalizer
     public const string CheckFile = "Crystal.check";
 
     #region FieldAndProperty
+
+    public bool Prepared { get; private set; }
 
     public uint SystemTimeInSeconds { get; private set; } // System time in seconds
 
@@ -764,15 +767,22 @@ public partial class Crystalizer
 
     #region Misc
 
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void ThrowNotPrepared()
+        => throw new InvalidOperationException("Crystalizer is not prepared. Call Prepare() first.");
+
     internal static string GetRootedFile(Crystalizer? crystalizer, string file)
         => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.Options.DataDirectory, file);
 
+    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowTypeNotRegistered(Type type)
     {
         throw new InvalidOperationException($"The specified data type '{type.Name}' is not registered. Register the data type within ConfigureCrystal().");
     }
 
+    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowConfigurationNotRegistered(Type type)
     {
@@ -958,7 +968,8 @@ public partial class Crystalizer
                     reader.ReadUInt32();
                     reader.ReadUInt64();
                 }
-                else */if (journalType == JournalType.Record)
+                else */
+                if (journalType == JournalType.Record)
                 {
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();

@@ -600,6 +600,11 @@ Exit:
 
     private async Task<CrystalResult> PrepareAndLoadInternal(bool useQuery)
     {// this.semaphore.EnterScope()
+        if (!this.Crystalizer.Prepared)
+        {
+            Crystalizer.ThrowNotPrepared();
+        }
+
         CrystalResult result;
         var param = PrepareParam.New<TData>(this.Crystalizer, useQuery);
 
