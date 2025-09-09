@@ -469,7 +469,19 @@ public class CrystalFiler
         }
     }
 
-    public async Task<CrystalResult> DeleteAllAsync()
+    public async Task<CrystalResult> Delete(Waypoint waypoint)
+    {
+        if (this.main is null)
+        {
+            return CrystalResult.NotPrepared;
+        }
+
+        var result = await this.main.Delete(waypoint).ConfigureAwait(false);
+        _ = this.backup?.Delete(waypoint);
+        return result;
+    }
+
+    public async Task<CrystalResult> DeleteAll()
     {
         if (this.main is null)
         {

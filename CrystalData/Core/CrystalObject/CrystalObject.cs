@@ -323,7 +323,7 @@ Exit:
 
             // Delete file
             this.ResolveAndPrepareFiler();
-            await this.crystalFiler.DeleteAllAsync().ConfigureAwait(false);
+            await this.crystalFiler.DeleteAll().ConfigureAwait(false);
 
             // Delete storage
             if (this.CrystalConfiguration.StorageConfiguration != EmptyStorageConfiguration.Default)
@@ -670,19 +670,11 @@ Exit:
         {
             if (loadResult.Waypoint.JournalPosition.CircularCompareTo(journal.GetCurrentPosition()) > 0)
             {// loadResult.Waypoint.JournalPosition > journal.GetCurrentPosition()
-                var query = await param.Query.InconsistentJournal(this.CrystalConfiguration.FileConfiguration.Path).ConfigureAwait(false);
-                if (query == AbortOrContinue.Abort)
-                {
-                    return CrystalResult.CorruptedData;
-                }
-                else
-                {
-                    journal.ResetJournal(loadResult.Waypoint.JournalPosition);
-                }
+                this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalDataQueryDefault.InconsistentJournal, this.CrystalConfiguration.FileConfiguration.Path);
 
                 // Wayback
+                await this.crystalFiler.Delete(loadResult.Waypoint).ConfigureAwait(false);
                 loadResult.Waypoint = new(journal.GetCurrentPosition(), loadResult.Waypoint.Hash, loadResult.Waypoint.Plane);
-                this.crystalFiler.
             }
         }
 
