@@ -10,10 +10,17 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 [ValueLinkObject]
-internal abstract partial class CrystalObject
+internal abstract partial class CrystalObjectBase
 {
     [Link(Unique = true, Type = ChainType.Unordered)]
     public uint Plane { get; }
+
+    [Link(Type = ChainType.Ordered)]
+    public uint ToSaveTime { get; }
+
+    public CrystalObjectBase()
+    {
+    }
 }
 
 internal sealed class CrystalObject<TData> : ICrystal<TData>, ICrystalInternal, IStructualObject
