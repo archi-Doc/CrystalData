@@ -70,6 +70,12 @@ public partial class Crystalizer
 
     public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
+        var g = new CrystalObjectBase.GoshujinClass();//
+        var ob = new CrystalObject<StorageConfiguration>(this);
+        g.Add(ob);
+        g.PlaneChain.Add(ob.Plane,ob);
+        var a = (ICrystalInternal)g.PlaneChain.FindFirst(ob.Plane);
+
         this.UpdateTime();
         this.configuration = configuration;
         this.UnitLogger = unitLogger;

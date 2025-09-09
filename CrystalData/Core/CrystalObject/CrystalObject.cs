@@ -12,18 +12,18 @@ namespace CrystalData;
 [ValueLinkObject]
 internal abstract partial class CrystalObjectBase
 {
-    [Link(Unique = true, Type = ChainType.Unordered)]
-    public uint Plane { get; }
+    [Link(Unique = true, Type = ChainType.Unordered, AutoLink = false)]
+    public uint Plane { get; protected set; }
 
-    [Link(Type = ChainType.Ordered)]
-    public uint ToSaveTime { get; }
+    [Link(Type = ChainType.Ordered, AutoLink = false)]
+    public uint ToSaveTime { get; protected set; }
 
     public CrystalObjectBase()
     {
     }
 }
 
-internal sealed class CrystalObject<TData> : ICrystal<TData>, ICrystalInternal, IStructualObject
+internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>, ICrystalInternal, IStructualObject
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {// Data + Journal/Waypoint + Filer/FileConfiguration + Storage/StorageConfiguration
 
