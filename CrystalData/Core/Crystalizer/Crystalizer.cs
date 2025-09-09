@@ -433,7 +433,7 @@ public partial class Crystalizer
         }
     }
 
-    public async Task<CrystalResult> Prepare(bool loadCrystals = true, bool useQuery = true)
+    public async Task<CrystalResult> Prepare(bool useQuery = true)
     {
         if (this.IsPrepared)
         {
@@ -450,9 +450,19 @@ public partial class Crystalizer
             return result;
         }
 
+        // Dump Plane
+        // this.DumpPlane();
+
         this.IsPrepared = true;
-        if (loadCrystals)
-        {// Load crystals
+        if (this.CrystalSupplement.IsRip)
+        {// Rip success
+            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
+        }
+        else
+        {// Rip failure -> Read journal
+            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
+
+            // Load all crystals
             var crystals = this.crystals.Keys.ToArray();
             foreach (var x in crystals)
             {
@@ -462,18 +472,8 @@ public partial class Crystalizer
                     return result;
                 }
             }
-        }
 
-        // Dump Plane
-        // this.DumpPlane();
-
-        if (this.CrystalSupplement.IsRip)
-        {// Rip success
-            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
-        }
-        else
-        {// Rip failure -> Read journal
-            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
+            // Read journal
             await this.ReadJournal().ConfigureAwait(false);
         }
 

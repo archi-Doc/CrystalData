@@ -43,7 +43,7 @@ internal class Program
 
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.Prepare(true, false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.Prepare(false); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 

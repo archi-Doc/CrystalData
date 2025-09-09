@@ -106,7 +106,7 @@ public partial class Program
 
         var unit = myBuilder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        var result = await crystalizer.Prepare(true, true); // Use the default query.
+        var result = await crystalizer.Prepare(true); // Use the default query.
         if (result.IsFailure())
         {// Abort
             return default;
