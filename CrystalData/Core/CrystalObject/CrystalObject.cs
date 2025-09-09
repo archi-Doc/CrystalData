@@ -637,7 +637,7 @@ Exit:
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
         }
-
+        //
         var singletonData = this.data;
         if (singletonData is null &&
             this.originalCrystalConfiguration.IsSingleton)
