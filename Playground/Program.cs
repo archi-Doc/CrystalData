@@ -247,7 +247,7 @@ internal class Program
         var unit = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.Prepare(true, true); // Prepare resources for storage operations and read data from files.
+        await crystalizer.Prepare(true); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
