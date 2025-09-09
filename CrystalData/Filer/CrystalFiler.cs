@@ -225,7 +225,21 @@ public class CrystalFiler
             return (new(CrystalResult.NotFound), Waypoint.Invalid, string.Empty);
         }
 
-        public Task<CrystalResult> DeleteAllAsync()
+        public async Task<CrystalResult> Delete(Waypoint waypoint)
+        {
+            if (this.rawFiler == null)
+            {
+                return CrystalResult.NotPrepared;
+            }
+            else if (this.waypoints == null)
+            {
+                return CrystalResult.NotFound;
+            }
+
+            return await this.rawFiler.DeleteAsync(this.GetFilePath(waypoint)).ConfigureAwait(false);
+        }
+
+        public Task<CrystalResult> DeleteAll()
         {
             if (this.rawFiler == null)
             {
@@ -462,8 +476,8 @@ public class CrystalFiler
             return CrystalResult.NotPrepared;
         }
 
-        var result = await this.main.DeleteAllAsync().ConfigureAwait(false);
-        _ = this.backup?.DeleteAllAsync();
+        var result = await this.main.DeleteAll().ConfigureAwait(false);
+        _ = this.backup?.DeleteAll();
         return result;
     }
 }

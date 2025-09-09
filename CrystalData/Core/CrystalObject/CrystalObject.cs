@@ -679,6 +679,10 @@ Exit:
                 {
                     journal.ResetJournal(loadResult.Waypoint.JournalPosition);
                 }
+
+                // Wayback
+                loadResult.Waypoint = new(journal.GetCurrentPosition(), loadResult.Waypoint.Hash, loadResult.Waypoint.Plane);
+                this.crystalFiler.
             }
         }
 
