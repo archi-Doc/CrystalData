@@ -14,6 +14,7 @@ using CrystalData.Supplement;
 using CrystalData.Unload;
 using CrystalData.UserInterface;
 using Tinyhand.IO;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 #pragma warning disable SA1204
 
@@ -381,6 +382,15 @@ public partial class Crystalizer
         return result;
     }
 
+    public async Task LoadAllCrystals(bool useQuery = false)
+    {
+        var crystals = this.crystals.Keys.ToArray();
+        foreach (var x in crystals)
+        {
+            await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
+        }
+    }
+
     public async Task<CrystalResult> LoadConfigurations(FileConfiguration configuration)
     {
         var resolved = this.ResolveSingleFiler(configuration);
@@ -463,15 +473,7 @@ public partial class Crystalizer
             this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
 
             // Load all crystals
-            var crystals = this.crystals.Keys.ToArray();
-            foreach (var x in crystals)
-            {
-                result = await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
-                if (result.IsFailure())
-                {
-                    return result;
-                }
-            }
+            await this.LoadAllCrystals(useQuery);
 
             // Read journal
             await this.ReadJournal().ConfigureAwait(false);
