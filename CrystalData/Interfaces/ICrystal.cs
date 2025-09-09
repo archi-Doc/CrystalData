@@ -8,8 +8,6 @@ public interface ICrystal : IStructualRoot, IPersistable
 
     CrystalConfiguration CrystalConfiguration { get; }
 
-    bool IsConfigured => this.CrystalConfiguration != CrystalConfiguration.Default;
-
     object Data { get; }
 
     CrystalState State { get; }
