@@ -142,7 +142,6 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
     {// this.syncObject
         while (true)
         {
-
             var file = RandomVault.Default.NextUInt32();
             if (this.fileToSize.TryAdd(file, size))
             {

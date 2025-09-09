@@ -443,7 +443,7 @@ public partial class Crystalizer
         }
     }
 
-    public async Task<CrystalResult> Prepare(bool useQuery = true)
+    public async Task<CrystalResult> Prepare(bool useQuery = true, bool loadCrystals = true)
     {
         if (this.IsPrepared)
         {
@@ -467,6 +467,11 @@ public partial class Crystalizer
         if (this.CrystalSupplement.IsRip)
         {// Rip success
             this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
+
+            if (loadCrystals)
+            {// Load all crystals
+                await this.LoadAllCrystals(useQuery);
+            }
         }
         else
         {// Rip failure -> Read journal
