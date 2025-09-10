@@ -36,7 +36,7 @@ public partial class StorageControl : IPersistable
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
 
     private uint saveDelayInSeconds; // Save delay in seconds
-    private StorageObject? toSaveHead;
+    private StorageObject? saveQueueHead;
     private StorageObject[] saveArray = new StorageObject[SaveBatchSize];
 
     internal ILogger? Logger { get; set; }
@@ -449,28 +449,28 @@ public partial class StorageControl : IPersistable
             var count = 0;
             using (this.lowestLockObject.EnterScope())
             {
-                while (this.toSaveHead is not null && count < SaveBatchSize)
+                while (this.saveQueueHead is not null && count < SaveBatchSize)
                 {
-                    var node = this.toSaveHead;
-                    if (node.toSaveTime > threshold)
+                    var node = this.saveQueueHead;
+                    if (node.saveQueueTime > threshold)
                     {// Not yet time to save.
                         break;
                     }
 
-                    this.toSaveHead = node.toSaveNext;
-                    if (this.toSaveHead == node)
+                    this.saveQueueHead = node.saveQueueNext;
+                    if (this.saveQueueHead == node)
                     {// Only one node in the list.
-                        this.toSaveHead = null;
+                        this.saveQueueHead = null;
                     }
                     else
                     {
-                        node.toSaveNext!.toSavePrevious = node.toSavePrevious;
-                        node.toSavePrevious!.toSaveNext = node.toSaveNext;
+                        node.saveQueueNext!.saveQueuePrevious = node.saveQueuePrevious;
+                        node.saveQueuePrevious!.saveQueueNext = node.saveQueueNext;
                     }
 
-                    node.toSavePrevious = default;
-                    node.toSaveNext = default;
-                    node.toSaveTime = 0;
+                    node.saveQueuePrevious = default;
+                    node.saveQueueNext = default;
+                    node.saveQueueTime = 0;
 
                     this.saveArray[count++] = node;
                 }
@@ -509,25 +509,25 @@ public partial class StorageControl : IPersistable
 
         using (this.lowestLockObject.EnterScope())
         {
-            if (node.toSaveTime != 0)
+            if (node.saveQueueTime != 0)
             {
                 return;
             }
 
-            node.toSaveTime = this.crystalizer.SystemTimeInSeconds;
+            node.saveQueueTime = this.crystalizer.SystemTimeInSeconds;
 
-            if (this.toSaveHead is null)
+            if (this.saveQueueHead is null)
             {// First node
-                this.toSaveHead = node;
-                node.toSaveNext = node;
-                node.toSavePrevious = node;
+                this.saveQueueHead = node;
+                node.saveQueueNext = node;
+                node.saveQueuePrevious = node;
                 return;
             }
 
-            node.toSaveNext = this.toSaveHead;
-            node.toSavePrevious = this.toSaveHead.toSavePrevious;
-            this.toSaveHead.toSavePrevious!.toSaveNext = node;
-            this.toSaveHead.toSavePrevious = node;
+            node.saveQueueNext = this.saveQueueHead;
+            node.saveQueuePrevious = this.saveQueueHead.saveQueuePrevious;
+            this.saveQueueHead.saveQueuePrevious!.saveQueueNext = node;
+            this.saveQueueHead.saveQueuePrevious = node;
         }
     }
 
@@ -562,26 +562,26 @@ public partial class StorageControl : IPersistable
         }
 
         // ToSave list.
-        if (node.toSavePrevious is not null && node.toSaveNext is not null)
+        if (node.saveQueuePrevious is not null && node.saveQueueNext is not null)
         {
-            node.toSaveTime = 0;
+            node.saveQueueTime = 0;
 
-            if (node.toSaveNext == node)
+            if (node.saveQueueNext == node)
             {
-                this.toSaveHead = null;
+                this.saveQueueHead = null;
             }
             else
             {
-                node.toSaveNext.toSavePrevious = node.toSavePrevious;
-                node.toSavePrevious.toSaveNext = node.toSaveNext;
-                if (this.toSaveHead == node)
+                node.saveQueueNext.saveQueuePrevious = node.saveQueuePrevious;
+                node.saveQueuePrevious.saveQueueNext = node.saveQueueNext;
+                if (this.saveQueueHead == node)
                 {
-                    this.toSaveHead = node.toSaveNext;
+                    this.saveQueueHead = node.saveQueueNext;
                 }
             }
 
-            node.toSavePrevious = default;
-            node.toSaveNext = default;
+            node.saveQueuePrevious = default;
+            node.saveQueueNext = default;
         }
 
         if (removeFromStorageMap)

@@ -14,7 +14,6 @@ using CrystalData.Supplement;
 using CrystalData.Unload;
 using CrystalData.UserInterface;
 using Tinyhand.IO;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 #pragma warning disable SA1204
 
@@ -73,7 +72,7 @@ public partial class Crystalizer
         var g = new CrystalObjectBase.GoshujinClass();//
         var ob = new CrystalObject<StorageConfiguration>(this);
         g.Add(ob);
-        g.PlaneChain.Add(ob.Plane,ob);
+        g.PlaneChain.Add(ob.Plane, ob);
         var a = (ICrystalInternal)g.PlaneChain.FindFirst(ob.Plane);
 
         this.UpdateTime();
