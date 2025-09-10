@@ -53,7 +53,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
                 {// Deleted
                     TinyhandSerializer.ReconstructObject<TData>(ref this.data);
                     this.SetupData();
-                    return this.data;
+                    this.State = CrystalState.Prepared;
                 }
 
                 if (this.data is not null)
@@ -686,7 +686,13 @@ Exit:
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
-                    this.Crystalizer.SetPlane(this, ref this.waypoint);
+                    if (this.Goshujin is not null)
+                    {
+                        using (this.Goshujin.LockObject.EnterScope())
+                        {
+                            this.PlaneValue = this.waypoint.Plane;
+                        }
+                    }
                 }
                 else
                 {// Invalid waypoint

@@ -52,11 +52,11 @@ internal abstract partial class CrystalObjectBase
     /// </summary>
     public bool IsUnmanaged { get; set; }
 
-    [Link(Unique = true, Type = ChainType.Unordered, AutoLink = false)]
-    protected uint Plane { get; set; }
+    [Link(Unique = true, Type = ChainType.Unordered, AutoLink = false, AddValue = true)]
+    public uint Plane { get; set; }
 
     [Link(Type = ChainType.Ordered, AutoLink = false)]
-    protected uint TimeForDataSaving { get; set; }
+    public uint TimeForDataSaving { get; set; }
 
     [Link(Primary = true, Name = "List", Type = ChainType.LinkedList)]
     public CrystalObjectBase()

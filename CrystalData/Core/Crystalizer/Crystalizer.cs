@@ -633,17 +633,21 @@ public partial class Crystalizer
 
     #region Waypoint/Plane
 
-    internal void UpdateWaypoint(ICrystalInternal crystal, ref Waypoint waypoint, ulong hash)
+    internal void UpdateWaypoint(CrystalObjectBase crystalObjectBase, ref Waypoint waypoint, ulong hash)
     {
         var plane = waypoint.Plane;
         if (plane == 0)
         {
-            while (true)
+            using (this.crystals.LockObject.EnterScope())
             {
-                plane = RandomVault.Default.NextUInt32();
-                if (plane != 0 && this.planeToCrystal.TryAdd(plane, crystal))
-                {// Success
-                    break;
+                while (true)
+                {
+                    plane = RandomVault.Default.NextUInt32();
+                    if (plane != 0 && !this.crystals.PlaneChain.ContainsKey(plane))
+                    {// Success
+                        crystalObjectBase.PlaneValue = plane;
+                        break;
+                    }
                 }
             }
         }
@@ -672,14 +676,6 @@ public partial class Crystalizer
         }*/
 
         waypoint = new(journalPosition, hash, plane);
-    }
-
-    internal void SetPlane(ICrystalInternal crystal, ref Waypoint waypoint)
-    {
-        if (waypoint.Plane != 0)
-        {
-            this.planeToCrystal[waypoint.Plane] = crystal;
-        }
     }
 
     /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
