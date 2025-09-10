@@ -162,8 +162,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
     }
 
-    public void DeleteLatestStorageForDebug()
-        => this.GetOrCreateStorageObject().DeleteLatestStorageForDebug();
+    public void DeleteLatestStorageForTest()
+        => this.GetOrCreateStorageObject().DeleteLatestStorageForTest();
 
     #region IStructualObject
 

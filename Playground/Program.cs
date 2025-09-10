@@ -295,9 +295,9 @@ internal class Program
 
         data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
 
-        // await data2.ClassStorage.StoreData(StoreMode.TryRelease);
-        // data2.ClassStorage.DeleteLatestStorageForDebug();
-        // await crystalizer.StoreJournal();
+        await data2.ClassStorage.StoreData(StoreMode.TryRelease);
+        data2.ClassStorage.DeleteLatestStorageForTest();
+        await crystalizer.StoreJournal();
 
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
         Console.WriteLine($"Second: {await data2.ClassStorage.TryGet()}");

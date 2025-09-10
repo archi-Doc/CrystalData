@@ -250,7 +250,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
-    internal void DeleteLatestStorageForDebug()
+    internal void DeleteLatestStorageForTest()
     {
         this.storageControl.DeleteLatestStorageForTest(this);
     }
