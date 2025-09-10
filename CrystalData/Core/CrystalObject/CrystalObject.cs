@@ -9,24 +9,9 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-[ValueLinkObject]
-internal abstract partial class CrystalObjectBase
-{
-    [Link(Unique = true, Type = ChainType.Unordered, AutoLink = false)]
-    protected uint Plane { get; set; }
-
-    [Link(Type = ChainType.Ordered, AutoLink = false)]
-    protected uint TimeForDataSaving { get; set; }
-
-    public CrystalObjectBase()
-    {
-    }
-}
-
 internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>, ICrystalInternal, IStructualObject
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {// Data + Journal/Waypoint + Filer/FileConfiguration + Storage/StorageConfiguration
-
     #region FieldAndProperty
 
     private SemaphoreLock semaphore = new();
@@ -209,7 +194,6 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
 
             // Journal/Waypoint
-            this.Crystalizer.RemovePlane(this.waypoint);
             this.waypoint = default;
 
             // Clear
@@ -221,7 +205,15 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             this.State = CrystalState.Deleted;
         }
 
-        this.Crystalizer.DeleteInternal(this);
+        if (this.Goshujin is not null &&
+            !this.IsRegistered)
+        {// Remove from Goshujin only if not registered in the Unit builder
+            using (this.Goshujin.LockObject.EnterScope())
+            {
+                this.Goshujin = default;
+            }
+        }
+
         return CrystalResult.Success;
     }
 

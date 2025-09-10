@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -57,8 +58,7 @@ public partial class Crystalizer
 
     private readonly CrystalizerCore crystalizerCore;
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
-    private ConcurrentDictionary<ICrystalInternal, int> crystals = new(); // All crystals
-    private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
+    private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
 
     private Lock lockObject = new();
     private IFiler? localFiler;
@@ -101,10 +101,12 @@ public partial class Crystalizer
         {
             // new CrystalImpl<TData>
             var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, [this,], null)!;
-            crystal.Configure(x.Value);
-
+            var crystalObjectBase = (CrystalObjectBase)crystal;
+            crystalObjectBase.IsRegistered = true;
+            crystalObjectBase.Goshujin = this.crystals;
             this.typeToCrystal.TryAdd(x.Key, crystal);
-            this.crystals.TryAdd(crystal, 0);
+
+            crystal.Configure(x.Value);
         }
     }
 
@@ -379,7 +381,7 @@ public partial class Crystalizer
 
     public async Task LoadAllCrystals(bool useQuery = false)
     {
-        var crystals = this.crystals.Keys.ToArray();
+        var crystals = this.crystals.GetCrystals(true);
         foreach (var x in crystals)
         {
             await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
@@ -502,7 +504,8 @@ public partial class Crystalizer
 
     public async Task<CrystalResult[]> DeleteAll()
     {
-        var tasks = this.crystals.Keys.Select(x => x.Delete()).ToArray();
+        var crystals = this.crystals.GetCrystals(false);
+        var tasks = crystals.Select(x => x.Delete()).ToArray();
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return results;
     }
@@ -526,13 +529,14 @@ public partial class Crystalizer
         }
     }
 
-    public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool managedByCrystalizer = true)
+    public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool isUnmanaged = false)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var crystal = new CrystalObject<TData>(this);
-        if (managedByCrystalizer)
+        using (this.crystals.LockObject.EnterScope())
         {
-            this.crystals.TryAdd(crystal, 0);
+            crystal.IsUnmanaged = isUnmanaged;
+            crystal.Goshujin = this.crystals;
         }
 
         if (configuration is not null)
@@ -553,7 +557,11 @@ public partial class Crystalizer
         }
 
         var crystalObject = new CrystalObject<TData>(this);
-        this.crystals.TryAdd(crystalObject, 0);
+        using (this.crystals.LockObject.EnterScope())
+        {
+            crystalObject.Goshujin = this.crystals;
+        }
+
         ((ICrystal)crystalObject).Configure(configuration);
         return crystalObject;
     }
@@ -581,7 +589,7 @@ public partial class Crystalizer
 
     public async Task<bool> TestJournalAll()
     {
-        var crystals = this.crystals.Keys.ToArray();
+        var crystals = this.crystals.GetCrystals(true);
         var result = true;
         foreach (var x in crystals)
         {
@@ -666,73 +674,6 @@ public partial class Crystalizer
         waypoint = new(journalPosition, hash, plane);
     }
 
-    /*internal void UpdatePlane(ICrystalInternal crystal, ref Waypoint waypoint, ulong hash, ulong startingPosition)
-    {
-        if (waypoint.CurrentPlane != 0)
-        {// Remove the current plane
-            this.planeToCrystal.TryRemove(waypoint.CurrentPlane, out _);
-        }
-
-        // Next plane
-        var nextPlane = waypoint.NextPlane;
-        if (nextPlane == 0)
-        {
-            while (true)
-            {
-                nextPlane = RandomVault.Pseudo.NextUInt32();
-                if (nextPlane != 0 && this.planeToCrystal.TryAdd(nextPlane, crystal))
-                {// Success
-                    break;
-                }
-            }
-        }
-
-        // New plane
-        uint newPlane;
-        while (true)
-        {
-            newPlane = RandomVault.Pseudo.NextUInt32();
-            if (newPlane != 0 && this.planeToCrystal.TryAdd(newPlane, crystal))
-            {// Success
-                break;
-            }
-        }
-
-        // Current/Next -> Next/New
-
-        // Add journal
-        ulong journalPosition;
-        ulong depth = 0;
-        if (this.Journal != null)
-        {
-            this.Journal.GetWriter(JournalType.Waypoint, out var writer);
-            writer.Write(newPlane);
-            writer.Write(hash);
-            journalPosition = this.Journal.Add(writer);
-
-            depth = journalPosition - startingPosition;
-            if (depth < 0 || depth > Waypoint.MaxDepth || startingPosition == 0)
-            {
-                depth = 0;
-            }
-        }
-        else
-        {
-            journalPosition = waypoint.JournalPosition + 1;
-        }
-
-        waypoint = new(journalPosition, nextPlane, newPlane, hash, (uint)depth);
-    }*/
-
-    internal void RemovePlane(Waypoint waypoint)
-    {
-        if (waypoint.Plane != 0)
-        {
-            this.planeToCrystal.TryRemove(waypoint.Plane, out _);
-            // this.CrystalCheck.TryRemovePlane(waypoint.CurrentPlane);
-        }
-    }
-
     internal void SetPlane(ICrystalInternal crystal, ref Waypoint waypoint)
     {
         if (waypoint.Plane != 0)
@@ -794,16 +735,6 @@ public partial class Crystalizer
         throw new InvalidOperationException($"The specified configuration type '{type.Name}' is not registered.");
     }
 
-    internal bool DeleteInternal(ICrystalInternal crystal)
-    {
-        if (!this.typeToCrystal.TryGetValue(crystal.DataType, out _))
-        {// Created crystals
-            return this.crystals.TryRemove(crystal, out _);
-        }
-
-        return true;
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal ICrystal GetCrystal(Type type)
     {
@@ -836,7 +767,7 @@ public partial class Crystalizer
     private Task PeriodicStore()
     {
         var tasks = new List<Task>();
-        var crystals = this.crystals.Keys.ToArray();
+        var crystals = this.crystals.GetCrystals(true);
         var utc = DateTime.UtcNow;
         foreach (var x in crystals)
         {
@@ -893,14 +824,14 @@ public partial class Crystalizer
         if (this.Journal is { } journal)
         {// Load journal
             ulong position = journal.GetCurrentPosition();
+            var dictionary = this.crystals.GetPlaneDictionary();
 
-            var array = this.crystals.Keys.ToArray();
-            for (var i = 0; i < array.Length; i++)
+            foreach (var x in dictionary.Values)
             {
-                var x = array[i].LeadingJournalPosition;
-                if (position.CircularCompareTo(x) > 0)
+                var p = x.LeadingJournalPosition;
+                if (position.CircularCompareTo(p) > 0)
                 {// position > array[i].LeadingJournalPosition
-                    position = x;
+                    position = p;
                 }
             }
 
@@ -919,7 +850,7 @@ public partial class Crystalizer
 
                 try
                 {
-                    this.ProcessJournal(position, journalResult.Data.Memory, ref restored, ref failure);
+                    this.ProcessJournal(dictionary, position, journalResult.Data.Memory, ref restored, ref failure);
                 }
                 finally
                 {
@@ -940,7 +871,7 @@ public partial class Crystalizer
                 var sb = new StringBuilder();
                 foreach (var x in restored)
                 {
-                    if (this.planeToCrystal.TryGetValue(x, out var crystal))
+                    if (dictionary.TryGetValue(x, out var crystal))
                     {
                         sb.Append($"{crystal.DataType.FullName}, ");
                     }
@@ -951,7 +882,7 @@ public partial class Crystalizer
         }
     }
 
-    private void ProcessJournal(ulong position, Memory<byte> data, ref HashSet<uint> restored, ref bool failure)
+    private void ProcessJournal(FrozenDictionary<uint, ICrystalInternal> dictionary, ulong position, Memory<byte> data, ref HashSet<uint> restored, ref bool failure)
     {
         var reader = new TinyhandReader(data.Span);
         while (reader.Consumed < data.Length)
@@ -978,7 +909,7 @@ public partial class Crystalizer
                 {
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();
-                    if (this.planeToCrystal.TryGetValue(plane, out var crystal))
+                    if (dictionary.TryGetValue(plane, out var crystal))
                     {
                         if (crystal.Data is IStructualObject journalObject)
                         {
@@ -1020,7 +951,8 @@ public partial class Crystalizer
     private async Task Store(bool terminate, StoreMode storeMode, CancellationToken cancellationToken)
     {
         var goshujin = new ReleaseTask.GoshujinClass();
-        foreach (var x in this.crystals.Keys)
+        var crystals = this.crystals.GetCrystals(false);
+        foreach (var x in crystals)
         {// Crystals
             goshujin.Add(new(x));
         }
@@ -1089,7 +1021,7 @@ public partial class Crystalizer
 
     private void DumpPlane()
     {
-        foreach (var x in this.planeToCrystal)
+        foreach (var x in this.crystals.GetPlaneKeyValue())
         {
             this.Logger.TryGet(LogLevel.Debug)?.Log($"Plane: {x.Key} = {x.Value.GetType().FullName}");
         }
