@@ -775,7 +775,9 @@ public partial class Crystalizer
                         break;
                     }
 
-                    this.crystals.TimeForDataSavingChain.Remove(first);
+                    // this.crystals.TimeForDataSavingChain.Remove(first);
+                    var crystalInternal = (ICrystalInternal)first;
+                    this.crystals.TimeForDataSavingChain.Add(this.SystemTimeInSeconds + (int)crystalInternal.CrystalConfiguration.SaveInterval.TotalSeconds, first);//
                     tempArray[count++] = (ICrystalInternal)first;
                 }
             }

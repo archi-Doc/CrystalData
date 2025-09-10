@@ -34,7 +34,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
         return true;
     }
 
-    void IUnitCustomContext.Configure(IUnitConfigurationContext context)
+    void IUnitCustomContext.ProcessContext(IUnitConfigurationContext context)
     {
         if (this.crystalizerOptions is null)
         {

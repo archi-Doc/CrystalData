@@ -307,8 +307,6 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
         }
 
-        this.LastSavedTime = DateTime.UtcNow;//
-
         // Starting position
         var startingPosition = this.Crystalizer.GetJournalPosition();
 
@@ -379,6 +377,9 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
         }
 
+        // this.SetTimeForDataSaving(this.CrystalConfiguration.SaveInterval);
+        this.LastSavedTime = DateTime.UtcNow;
+
         _ = filer.LimitNumberOfFiles();
         return CrystalResult.Success;
 
@@ -393,6 +394,9 @@ Exit:
                 this.State = CrystalState.Initial;
             }
         }
+
+        // this.SetTimeForDataSaving(this.CrystalConfiguration.SaveInterval);
+        this.LastSavedTime = DateTime.UtcNow;
 
         return CrystalResult.Success;
     }
@@ -542,7 +546,18 @@ Exit:
             delaySeconds = this.Crystalizer.DefaultSaveDelaySeconds;
         }
 
-        var timeForDataSaving = this.Crystalizer.SystemTimeInSeconds + delaySeconds;
+        this.SetTimeForDataSaving(delaySeconds);
+    }
+
+    private void SetTimeForDataSaving(TimeSpan saveInterval)
+    {
+        this.SetTimeForDataSaving((int)saveInterval.TotalSeconds);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetTimeForDataSaving(int secondsUntilSave)
+    {
+        var timeForDataSaving = this.Crystalizer.SystemTimeInSeconds + secondsUntilSave;
         if (this.TimeForDataSaving == 0 || timeForDataSaving < this.TimeForDataSaving)
         {
             using (this.Goshujin!.LockObject.EnterScope())
@@ -874,5 +889,7 @@ Exit:
         }
 
         this.crystalConfiguration = configuration;
+
+        this.SetTimeForDataSaving(this.crystalConfiguration.SaveInterval);
     }
 }
