@@ -53,7 +53,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
                 {// Deleted
                     TinyhandSerializer.ReconstructObject<TData>(ref this.data);
                     this.SetupData();
-                    this.State = CrystalState.Prepared;
+                    return this.data; // Keep the state as Deleted and temporarily return a valid value.
                 }
 
                 if (this.data is not null)
