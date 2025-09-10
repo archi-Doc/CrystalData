@@ -205,12 +205,14 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             this.State = CrystalState.Deleted;
         }
 
-        if (this.Goshujin is not null &&
-            !this.IsRegistered)
+        if (!this.IsRegistered)
         {// Remove from Goshujin only if not registered in the Unit builder
-            using (this.Goshujin.LockObject.EnterScope())
+            using (this.Goshujin!.LockObject.EnterScope())
             {
-                this.Goshujin = default;
+                this.Goshujin!.PlaneChain.Remove(this);
+                this.Goshujin!.TimeForDataSavingChain.Remove(this);
+                this.Goshujin!.ListChain.Remove(this);
+                // this.Goshujin = default; // Leave as is, since changing the Goshujin instance may cause inconsistencies.
             }
         }
 
@@ -370,6 +372,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         }
 
         this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
+        // Console.WriteLine($"{typeof(TData).Name} Stored");
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
@@ -538,9 +541,21 @@ Exit:
         }
     }
 
-    void IStructualRoot.AddToSaveQueue()
+    void IStructualRoot.AddToSaveQueue(int delaySeconds)
     {
-        //this.Crystalizer.AddToSaveQueue(this);
+        if (delaySeconds == 0)
+        {
+            delaySeconds = this.Crystalizer.DefaultSaveDelaySeconds;
+        }
+
+        var timeForDataSaving = this.Crystalizer.SystemTimeInSeconds + delaySeconds;
+        if (this.TimeForDataSaving == 0 || timeForDataSaving < this.TimeForDataSaving)
+        {
+            using (this.Goshujin!.LockObject.EnterScope())
+            {
+                this.TimeForDataSavingValue = timeForDataSaving;
+            }
+        }
     }
 
     private bool ReadJournal(IStructualObject journalObject, ReadOnlyMemory<byte> data, uint currentPlane)
@@ -686,12 +701,9 @@ Exit:
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
-                    if (this.Goshujin is not null)
+                    using (this.Goshujin!.LockObject.EnterScope())
                     {
-                        using (this.Goshujin.LockObject.EnterScope())
-                        {
-                            this.PlaneValue = this.waypoint.Plane;
-                        }
+                        this.PlaneValue = this.waypoint.Plane;
                     }
                 }
                 else

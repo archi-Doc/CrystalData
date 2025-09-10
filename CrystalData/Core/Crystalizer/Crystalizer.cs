@@ -1,8 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Collections.Concurrent;
 using System.Collections.Frozen;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -24,13 +22,14 @@ public partial class Crystalizer
 {
     public const string BinaryExtension = ".th";
     public const string Utf8Extension = ".tinyhand";
-    public const string CheckFile = "Crystal.check";
 
     #region FieldAndProperty
 
     public bool IsPrepared { get; private set; }
 
-    public uint SystemTimeInSeconds { get; private set; } // System time in seconds
+    public int SystemTimeInSeconds { get; private set; } // System time in seconds
+
+    public int DefaultSaveDelaySeconds { get; set; }// Default save delay seconds
 
     public CrystalizerOptions Options { get; }
 
@@ -55,8 +54,8 @@ public partial class Crystalizer
     internal IServiceProvider ServiceProvider { get; }
 
     private readonly CrystalizerConfiguration configuration;
-
     private readonly CrystalizerCore crystalizerCore;
+
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
 
@@ -82,6 +81,7 @@ public partial class Crystalizer
         }
 
         var defaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
+        this.DefaultSaveDelaySeconds = (int)options.SaveDelay.TotalSeconds;
         this.Options = options with
         {
             DataDirectory = dataDirectory,
@@ -756,24 +756,52 @@ public partial class Crystalizer
     internal bool UpdateTime()
     {
         var previous = this.SystemTimeInSeconds;
-        this.SystemTimeInSeconds = (uint)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
+        this.SystemTimeInSeconds = (int)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
         return previous != this.SystemTimeInSeconds;
     }
 
-    private Task PeriodicStore()
+    internal async Task<bool> ProcessSaveQueue(ICrystalInternal[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>();
-        var crystals = this.crystals.GetCrystals(true);
-        var utc = DateTime.UtcNow;
-        foreach (var x in crystals)
+        var result = false;
+        while (true)
         {
-            if (x.TryPeriodicStore(utc) is { } task)
+            var count = 0;
+            using (this.crystals.LockObject.EnterScope())
             {
-                tasks.Add(task);
+                while (this.crystals.TimeForDataSavingChain.First is { } first && count < tempArray.Length)
+                {
+                    if (first.TimeForDataSaving > this.SystemTimeInSeconds)
+                    {// Not yet time to save.
+                        break;
+                    }
+
+                    this.crystals.TimeForDataSavingChain.Remove(first);
+                    tempArray[count++] = (ICrystalInternal)first;
+                }
+            }
+
+            if (count == 0)
+            {
+                break;
+            }
+            else
+            {
+                result = true;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                await tempArray[i].Store(StoreMode.StoreOnly).ConfigureAwait(false);
+            }
+
+            Array.Clear(tempArray, 0, count);
+            if (count < tempArray.Length)
+            {
+                break;
             }
         }
 
-        return Task.WhenAll(tasks);
+        return result;
     }
 
     #endregion

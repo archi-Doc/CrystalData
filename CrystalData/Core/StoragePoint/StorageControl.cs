@@ -4,7 +4,6 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Metrics;
 using CrystalData.Internal;
 using Tinyhand.IO;
 
@@ -13,7 +12,6 @@ namespace CrystalData;
 public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 256;
-    private const int SaveBatchSize = 32;
     private const int IntervalInMilliseconds = 100;
 
     /// <summary>
@@ -35,9 +33,7 @@ public partial class StorageControl : IPersistable
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
 
-    private uint saveDelayInSeconds; // Save delay in seconds
     private StorageObject? saveQueueHead;
-    private StorageObject[] saveArray = new StorageObject[SaveBatchSize];
 
     internal ILogger? Logger { get; set; }
 
@@ -106,11 +102,6 @@ public partial class StorageControl : IPersistable
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
         this.SaveInterval = crystalizer.Options.SaveInterval;
-        this.saveDelayInSeconds = (uint)crystalizer.Options.SaveDelay.TotalSeconds;
-        if (this.saveDelayInSeconds == 0)
-        {
-            this.saveDelayInSeconds = 1;
-        }
     }
 
     internal void Rip() => this.isRip = true;
@@ -440,16 +431,16 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal async Task<bool> ProcessSaveQueue(Crystalizer crystalizer, CancellationToken cancellationToken)
+    internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
     {
-        var threshold = crystalizer.SystemTimeInSeconds - this.saveDelayInSeconds;
+        var threshold = crystalizer.SystemTimeInSeconds - crystalizer.DefaultSaveDelaySeconds;
         var result = false;
         while (true)
         {
             var count = 0;
             using (this.lowestLockObject.EnterScope())
             {
-                while (this.saveQueueHead is not null && count < SaveBatchSize)
+                while (this.saveQueueHead is not null && count < tempArray.Length)
                 {
                     var node = this.saveQueueHead;
                     if (node.saveQueueTime > threshold)
@@ -472,7 +463,7 @@ public partial class StorageControl : IPersistable
                     node.saveQueueNext = default;
                     node.saveQueueTime = 0;
 
-                    this.saveArray[count++] = node;
+                    tempArray[count++] = node;
                 }
             }
 
@@ -487,11 +478,11 @@ public partial class StorageControl : IPersistable
 
             for (var i = 0; i < count; i++)
             {
-                await this.saveArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+                await tempArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
             }
 
-            Array.Clear(this.saveArray, 0, count);
-            if (count < SaveBatchSize)
+            Array.Clear(tempArray, 0, count);
+            if (count < tempArray.Length)
             {
                 break;
             }

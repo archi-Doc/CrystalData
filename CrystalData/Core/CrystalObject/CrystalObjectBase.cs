@@ -7,6 +7,8 @@ namespace CrystalData;
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 internal abstract partial class CrystalObjectBase
 {
+    #region Goshujin
+
     public partial class GoshujinClass
     {
         public ICrystalInternal[] GetCrystals(bool includeUnmanaged)
@@ -27,7 +29,7 @@ internal abstract partial class CrystalObjectBase
         public FrozenDictionary<uint, ICrystalInternal> GetPlaneDictionary()
         {
             using (this.LockObject.EnterScope())
-            {// plane, icrystalinternal
+            {
                 return this.PlaneChain.ToFrozenDictionary(x => x.Plane, x => (ICrystalInternal)x);
             }
         }
@@ -40,6 +42,8 @@ internal abstract partial class CrystalObjectBase
             }
         }
     }
+
+    #endregion
 
     /// <summary>
     /// Gets or sets a value indicating whether this crystal object is registered in the Unit builder.
@@ -55,8 +59,8 @@ internal abstract partial class CrystalObjectBase
     [Link(Unique = true, Type = ChainType.Unordered, AutoLink = false, AddValue = true)]
     public uint Plane { get; set; }
 
-    [Link(Type = ChainType.Ordered, AutoLink = false)]
-    public uint TimeForDataSaving { get; set; }
+    [Link(Type = ChainType.Ordered, AutoLink = false, AddValue = true)]
+    public int TimeForDataSaving { get; set; }
 
     [Link(Primary = true, Name = "List", Type = ChainType.LinkedList)]
     public CrystalObjectBase()

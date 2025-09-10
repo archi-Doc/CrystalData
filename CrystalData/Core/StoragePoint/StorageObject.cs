@@ -40,7 +40,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal StorageObject? onMemoryPrevious; // Lock:StorageControl
     internal StorageObject? onMemoryNext; // Lock:StorageControl
 
-    internal uint saveQueueTime; // Lock:StorageControl System time in seconds registered in the save queue
+    internal int saveQueueTime; // Lock:StorageControl System time in seconds registered in the save queue
     internal StorageObject? saveQueuePrevious; // Lock:StorageControl
     internal StorageObject? saveQueueNext; // Lock:StorageControl
 

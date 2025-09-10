@@ -238,6 +238,7 @@ internal class Program
             {
                 context.SetOptions(context.GetOptions<CrystalizerOptions>() with
                 {
+                    SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")),
                 });
             });
@@ -252,6 +253,7 @@ internal class Program
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
         Console.WriteLine($"Save {data.ToString()}");
+        // await Task.Delay(10_000);
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         data = crystal.Data;

@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using CrystalData.Internal;
+
 namespace CrystalData;
 
 public partial class Crystalizer
@@ -7,9 +9,12 @@ public partial class Crystalizer
     private class CrystalizerCore : TaskCore
     {
         private const int IntervalInMilliseconds = 100;
+        private const int SaveBatchSize = 32;
 
         private readonly Crystalizer crystalizer;
         private readonly StorageControl storageControl;
+        private StorageObject[] tempArray = new StorageObject[SaveBatchSize];
+        private ICrystalInternal[] tempArray2 = new ICrystalInternal[SaveBatchSize];
 
         public CrystalizerCore(Crystalizer crystalizer)
             : base(null, Process, false)
@@ -37,19 +42,15 @@ public partial class Crystalizer
 
                 if (timeUpdated)
                 {
-                    if (await storageControl.ProcessSaveQueue(crystalizer, core.CancellationToken))
+                    if (await storageControl.ProcessSaveQueue(core.tempArray, crystalizer, core.CancellationToken))
                     {// Processes the save queue.
                         delayFlag = false;
                     }
 
-                    //
-                    /*await core.crystalizer.QueuedStore().ConfigureAwait(false);
-                    elapsedMilliseconds += TaskIntervalInMilliseconds;
-                    if (elapsedMilliseconds >= PeriodicSaveInMilliseconds)
-                    {
-                        elapsedMilliseconds = 0;
-                        await core.crystalizer.PeriodicStore().ConfigureAwait(false);
-                    }*/
+                    if (await crystalizer.ProcessSaveQueue(core.tempArray2, crystalizer, core.CancellationToken))
+                    {// Processes the save queue.
+                        delayFlag = false;
+                    }
                 }
 
                 if (delayFlag)
