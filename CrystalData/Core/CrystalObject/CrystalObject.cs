@@ -13,10 +13,10 @@ namespace CrystalData;
 internal abstract partial class CrystalObjectBase
 {
     [Link(Unique = true, Type = ChainType.Unordered, AutoLink = false)]
-    public uint Plane { get; protected set; }
+    protected uint Plane { get; set; }
 
     [Link(Type = ChainType.Ordered, AutoLink = false)]
-    public uint ToSaveTime { get; protected set; }
+    protected uint TimeForDataSaving { get; set; }
 
     public CrystalObjectBase()
     {
