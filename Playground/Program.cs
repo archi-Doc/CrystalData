@@ -203,6 +203,7 @@ internal class Program
             })
             .ConfigureCrystal(context =>
             {
+                context.Set
                 context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
@@ -253,9 +254,11 @@ internal class Program
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
         Console.WriteLine($"Save {data.ToString()}");
-        // await Task.Delay(10_000);
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        crystal.AddToSaveQueue(2);
+        await Task.Delay(10_000);
+
         data = crystal.Data;
         data.Id += 1;
         Console.WriteLine($"Crystal {data.ToString()}");

@@ -94,11 +94,9 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     public IJournal? Journal => this.Crystalizer.Journal;
 
-    Waypoint ICrystalInternal.Waypoint
-        => this.waypoint;
+    Waypoint ICrystalInternal.Waypoint => this.waypoint;
 
-    ulong ICrystalInternal.LeadingJournalPosition
-        => this.leadingJournalPosition;
+    ulong ICrystalInternal.LeadingJournalPosition => this.leadingJournalPosition;
 
     IStructualRoot? IStructualObject.StructualRoot { get; set; }
 
