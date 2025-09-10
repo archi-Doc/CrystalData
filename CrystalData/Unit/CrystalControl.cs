@@ -8,7 +8,6 @@ global using Arc.Threading;
 global using Arc.Unit;
 global using Tinyhand;
 global using ValueLink;
-using CrystalData.Supplement;
 using CrystalData.Storage;
 using CrystalData.UserInterface;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,6 +43,11 @@ public class CrystalControl
                 {
                     x(crystalContext);
                 }
+
+                foreach (var x in this.crystalActions2)
+                {
+                    x(context, crystalContext);
+                }
             });
         }
 
@@ -65,9 +69,15 @@ public class CrystalControl
             return this;
         }
 
-        public Builder ConfigureCrystal(Action<ICrystalUnitContext> @delegate)
+        public Builder ConfigureCrystal(Action<ICrystalConfigurationContext> @delegate)
         {
             this.crystalActions.Add(@delegate);
+            return this;
+        }
+
+        public Builder ConfigureCrystal(Action<IUnitConfigurationContext, ICrystalConfigurationContext> @delegate)
+        {
+            this.crystalActions2.Add(@delegate);
             return this;
         }
 
@@ -84,7 +94,8 @@ public class CrystalControl
             }
         }
 
-        private List<Action<ICrystalUnitContext>> crystalActions = new();
+        private List<Action<ICrystalConfigurationContext>> crystalActions = new();
+        private List<Action<IUnitConfigurationContext, ICrystalConfigurationContext>> crystalActions2 = new();
     }
 
     public class Unit : BuiltUnit

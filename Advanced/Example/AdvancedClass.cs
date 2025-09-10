@@ -18,7 +18,7 @@ public partial record SimpleExample
 [TinyhandObject(Structual = true)]
 public partial record AdvancedExample
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
-    public static void Register(ICrystalUnitContext context)
+    public static void Register(ICrystalConfigurationContext context)
     {
         context.AddCrystal<AdvancedExample>(
             new()

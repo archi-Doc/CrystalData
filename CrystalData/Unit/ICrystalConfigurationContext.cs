@@ -2,8 +2,10 @@
 
 namespace CrystalData;
 
-public interface ICrystalUnitContext
+public interface ICrystalConfigurationContext
 {
+    void SetCrystalizerOptions(CrystalizerOptions options);
+
     void AddCrystal<TData>(CrystalConfiguration configuration)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>;
 

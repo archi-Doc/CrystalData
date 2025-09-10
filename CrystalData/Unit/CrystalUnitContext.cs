@@ -6,19 +6,24 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrystalData;
 
-internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
+internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomContext
 {
-    void ICrystalUnitContext.AddCrystal<TData>(CrystalConfiguration configuration)
+    void ICrystalConfigurationContext.SetCrystalizerOptions(CrystalizerOptions options)
+    {
+        this.crystalizerOptions = options;
+    }
+
+    void ICrystalConfigurationContext.AddCrystal<TData>(CrystalConfiguration configuration)
     {
         this.typeToCrystalConfiguration[typeof(TData)] = configuration;
     }
 
-    void ICrystalUnitContext.SetJournal(JournalConfiguration configuration)
+    void ICrystalConfigurationContext.SetJournal(JournalConfiguration configuration)
     {
         this.journalConfiguration = configuration;
     }
 
-    bool ICrystalUnitContext.TrySetJournal(JournalConfiguration configuration)
+    bool ICrystalConfigurationContext.TrySetJournal(JournalConfiguration configuration)
     {
         if (this.journalConfiguration != EmptyJournalConfiguration.Default)
         {
@@ -31,6 +36,13 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
 
     void IUnitCustomContext.Configure(IUnitConfigurationContext context)
     {
+        if (this.crystalizerOptions is null)
+        {
+            this.crystalizerOptions = new CrystalizerOptions() with { DataDirectory = context.DataDirectory, };
+        }
+
+        context.SetOptions(this.crystalizerOptions);
+
         var serviceTypeToLifetime = context.Services.ToDictionary(x => x.ServiceType, x => x.Lifetime);
 
         foreach (var x in this.typeToCrystalConfiguration)
@@ -89,11 +101,9 @@ internal class CrystalUnitContext : ICrystalUnitContext, IUnitCustomContext
         }
 
         context.SetOptions(crystalizerConfiguration);
-
-        var options = new CrystalizerOptions() with { DataDirectory = context.DataDirectory, };
-        context.SetOptions(options);
     }
 
+    private CrystalizerOptions? crystalizerOptions;
     private Dictionary<Type, CrystalConfiguration> typeToCrystalConfiguration = new();
     private JournalConfiguration journalConfiguration = EmptyJournalConfiguration.Default;
 }

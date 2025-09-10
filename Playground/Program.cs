@@ -201,10 +201,14 @@ internal class Program
                 // context.AddSingleton<FirstData>();
                 context.AddSingleton<SecondData>();
             })
-            .ConfigureCrystal(context =>
+            .ConfigureCrystal((unitContext, crystalContext) =>
             {
-                context.Set
-                context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                crystalContext.SetCrystalizerOptions(new CrystalizerOptions() with
+                {
+                    SaveDelay = TimeSpan.FromSeconds(5),
+                    GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
+                });
+                crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage")/*,
@@ -215,7 +219,7 @@ internal class Program
                 };
 
                 // Register FirstData configuration.
-                context.AddCrystal<FirstData>(
+                crystalContext.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
                         RequiredForLoading = true,
@@ -226,7 +230,7 @@ internal class Program
                         // StorageConfiguration = storageConfiguration,
                     });
 
-                context.AddCrystal<SecondData>(
+                crystalContext.AddCrystal<SecondData>(
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
@@ -237,11 +241,6 @@ internal class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
-                {
-                    SaveDelay = TimeSpan.FromSeconds(5),
-                    GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")),
-                });
             });
 
         var unit = builder.Build(); // Build.
@@ -257,7 +256,7 @@ internal class Program
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         crystal.AddToSaveQueue(2);
-        await Task.Delay(10_000);
+        // await Task.Delay(10_000);
 
         data = crystal.Data;
         data.Id += 1;
