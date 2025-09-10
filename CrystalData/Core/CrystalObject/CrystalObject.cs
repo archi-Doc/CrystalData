@@ -20,7 +20,6 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     private IStorage? storage;
     private Waypoint waypoint;
     private ulong leadingJournalPosition;
-    private DateTime lastSavedTime;
     private CrystalConfiguration originalCrystalConfiguration;
     private CrystalConfiguration crystalConfiguration;
 
@@ -69,6 +68,8 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     }
 
     public CrystalState State { get; private set; }
+
+    public DateTime LastSavedTime { get; private set; }
 
     public IStorage Storage
     {
@@ -221,13 +222,8 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     #region ICrystalInternal
 
-    Task? ICrystalInternal.TryPeriodicStore(DateTime utc)
+    /*Task? ICrystalInternal.TryPeriodicStore(DateTime utc)
     {
-        /*f (this.CrystalConfiguration.SavePolicy != SavePolicy.Periodic)
-        {
-            return null;
-        }*/
-
         var elapsed = utc - this.lastSavedTime;
         if (elapsed < this.CrystalConfiguration.SaveInterval)
         {
@@ -236,7 +232,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         this.lastSavedTime = utc;
         return ((ICrystal)this).Store(StoreMode.StoreOnly);
-    }
+    }*/
 
     void ICrystalInternal.SetStorage(IStorage storage)
     {
@@ -311,7 +307,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
         }
 
-        this.lastSavedTime = DateTime.UtcNow;
+        this.LastSavedTime = DateTime.UtcNow;//
 
         // Starting position
         var startingPosition = this.Crystalizer.GetJournalPosition();

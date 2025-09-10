@@ -42,8 +42,6 @@ internal interface ICrystalInternal : ICrystal
     ulong LeadingJournalPosition { get; }
 
     void SetStorage(IStorage storage);
-
-    Task? TryPeriodicStore(DateTime utc);
 }
 
 /*internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal
