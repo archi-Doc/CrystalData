@@ -49,12 +49,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public IStructualRoot? StructualRoot
     {
+        // get => this;
         get => ((IStructualObject)this.storageMap).StructualRoot;
         set { }
     }
 
     public IStructualObject? StructualParent
     {
+        // get => default;
         get => this.storageMap;
         set { }
     }

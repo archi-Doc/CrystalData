@@ -6,6 +6,8 @@ namespace CrystalData.Journal;
 
 public class EmptyJournal : IJournal
 {
+    public static readonly EmptyJournal Default = new();
+
     Task<CrystalResult> IJournal.Prepare(PrepareParam param)
     {
         return Task.FromResult(CrystalResult.Success);

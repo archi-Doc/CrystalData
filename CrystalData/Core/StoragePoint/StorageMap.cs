@@ -3,6 +3,7 @@
 #pragma warning disable SA1202
 
 using CrystalData.Internal;
+using CrystalData.Journal;
 using CrystalData.Storage;
 using Tinyhand.IO;
 
@@ -19,9 +20,11 @@ public sealed partial class StorageMap : IStructualObject
 
     public Crystalizer? Crystalizer { get; private set; }
 
-    public StorageControl StorageControl { get; private set; }
+    public IJournal? Journal { get; private set; }
 
     public IStorage Storage { get; private set; }
+
+    public StorageControl StorageControl { get; private set; }
 
     private bool enabledStorageMap;
 
@@ -41,7 +44,7 @@ public sealed partial class StorageMap : IStructualObject
     public StorageMap()
     {
         this.StorageControl = StorageControl.Disabled;
-        this.Crystalizer = this.StorageControl.Crystalizer;
+        this.Journal = EmptyJournal.Default;
         this.Storage = EmptyStorage.Default;
         this.enabledStorageMap = false;
     }
@@ -143,6 +146,7 @@ public sealed partial class StorageMap : IStructualObject
     {
         this.StorageControl = storageControl;
         this.Crystalizer = this.StorageControl.Crystalizer;
+        this.Journal = this.Crystalizer?.Journal;
         this.Storage = storage;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);

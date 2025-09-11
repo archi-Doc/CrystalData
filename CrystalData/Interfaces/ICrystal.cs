@@ -8,13 +8,13 @@ public interface ICrystal : IStructualObject, IStructualRoot, IPersistable
 
     CrystalConfiguration CrystalConfiguration { get; }
 
-    object Data { get; }
-
-    CrystalState State { get; }
+    IJournal? Journal { get; }
 
     IStorage Storage { get; }
 
-    IJournal? Journal { get; }
+    CrystalState State { get; }
+
+    object Data { get; }
 
     void Configure(CrystalConfiguration configuration);
 
