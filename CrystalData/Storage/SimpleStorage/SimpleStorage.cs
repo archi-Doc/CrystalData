@@ -138,7 +138,7 @@ internal partial class SimpleStorage : IStorage
             else
             {
                 this.storageMap = this.mapCrystal.Data;
-                this.storageMap.Enable(this.crystalizer.StorageControl, this);
+                this.storageMap.Enable(this.crystalizer.StorageControl, (CrystalObjectBase)this.mapCrystal, this);
             }
         }
 

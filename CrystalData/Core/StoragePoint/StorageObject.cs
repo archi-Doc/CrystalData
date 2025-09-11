@@ -267,12 +267,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (this.storageMap.Crystalizer?.Journal is { } journal)
+        if (this.storageMap.Crystalizer?.Journal is { } journal &&
+            this.storageMap.CrystalObject is { } crystalObject)
         {
             journal.GetWriter(recordType, out writer);
 
             writer.Write_Locator();
-            writer.Write(this.PointId);
+            writer.Write(crystalObject.Plane);
             return true;
         }
         else
@@ -757,6 +758,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                         }
                     }
                 }
+            }
+            catch
+            {
             }
             finally
             {

@@ -26,6 +26,8 @@ public sealed partial class StorageMap : IStructualObject
 
     public StorageControl StorageControl { get; private set; }
 
+    internal CrystalObjectBase? CrystalObject { get; private set; }
+
     private bool enabledStorageMap;
 
     [Key(0)]
@@ -142,12 +144,13 @@ public sealed partial class StorageMap : IStructualObject
 
     #endregion
 
-    internal void Enable(StorageControl storageControl, IStorage storage)
+    internal void Enable(StorageControl storageControl, CrystalObjectBase crystalObject, IStorage storage)
     {
         this.StorageControl = storageControl;
         this.Crystalizer = this.StorageControl.Crystalizer;
         this.Journal = this.Crystalizer?.Journal;
         this.Storage = storage;
+        this.CrystalObject = crystalObject;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
     }
