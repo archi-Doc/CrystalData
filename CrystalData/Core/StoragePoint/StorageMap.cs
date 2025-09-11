@@ -8,44 +8,6 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-/*internal sealed partial class SaveQueue
-{
-    private readonly ObjectPool<Item> itemPool = new(() => new(), 500);
-
-    [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-    internal partial class Item
-    {
-        private readonly IPersistable persistable;
-
-        [Link(Primary = true, Type = ChainType.LinkedList, Name = "Time")]
-        public Item()
-        {
-        }
-    }
-
-    private readonly Item.GoshujinClass items = new();
-
-    public SaveQueue()
-    {
-    }
-
-    public bool Add(IPersistable persistable, ref SaveQueue.Item? item)
-    {
-        using (this.items.LockObject.EnterScope())
-        {
-            if (item is not null)
-            {
-                return false;
-            }
-
-            item = new(persistable);
-            item.Goshujin = this.items;
-        }
-
-        return true;
-    }
-}*/
-
 [TinyhandObject(UseServiceProvider = true, ExplicitKeyOnly = true)]
 public sealed partial class StorageMap : IStructualObject
 {
@@ -54,6 +16,8 @@ public sealed partial class StorageMap : IStructualObject
     public static readonly StorageMap Disabled = new();
 
     #region FiendAndProperty
+
+    public Crystalizer? Crystalizer { get; private set; }
 
     public StorageControl StorageControl { get; private set; }
 
@@ -77,6 +41,7 @@ public sealed partial class StorageMap : IStructualObject
     public StorageMap()
     {
         this.StorageControl = StorageControl.Disabled;
+        this.Crystalizer = this.StorageControl.Crystalizer;
         this.Storage = EmptyStorage.Default;
         this.enabledStorageMap = false;
     }
@@ -177,6 +142,7 @@ public sealed partial class StorageMap : IStructualObject
     internal void Enable(StorageControl storageControl, IStorage storage)
     {
         this.StorageControl = storageControl;
+        this.Crystalizer = this.StorageControl.Crystalizer;
         this.Storage = storage;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);

@@ -260,7 +260,7 @@ internal class Program
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         crystal.AddToSaveQueue(2);
-        await Task.Delay(10_000);
+        // await Task.Delay(10_000);
 
         data = crystal.Data;
         data.Id += 1;

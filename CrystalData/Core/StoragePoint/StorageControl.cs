@@ -27,13 +27,13 @@ public partial class StorageControl : IPersistable
     /// </summary>
     private readonly Lock lowestLockObject;
 
-    private Crystalizer? crystalizer;
     private StorageMap[] storageMaps;
     private bool isRip;
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
-
     private StorageObject? saveQueueHead;
+
+    public Crystalizer? Crystalizer { get; private set; }
 
     internal ILogger? Logger { get; set; }
 
@@ -98,7 +98,7 @@ public partial class StorageControl : IPersistable
 
     internal void Initialize(Crystalizer crystalizer)
     {
-        this.crystalizer = crystalizer;
+        this.Crystalizer = crystalizer;
         this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
         this.SaveInterval = crystalizer.Options.SaveInterval;
@@ -493,7 +493,7 @@ public partial class StorageControl : IPersistable
 
     internal void AddToSaveQueue(StorageObject node)
     {
-        if (this.crystalizer is null)
+        if (this.Crystalizer is null)
         {
             return;
         }
@@ -505,7 +505,7 @@ public partial class StorageControl : IPersistable
                 return;
             }
 
-            node.saveQueueTime = this.crystalizer.SystemTimeInSeconds;
+            node.saveQueueTime = this.Crystalizer.SystemTimeInSeconds;
 
             if (this.saveQueueHead is null)
             {// First node

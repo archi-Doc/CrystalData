@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -510,9 +509,9 @@ Exit:
 
     bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (this.Crystalizer.Journal is not null)
+        if (this.Crystalizer.Journal is { } journal)
         {
-            this.Crystalizer.Journal.GetWriter(recordType, out writer);
+            journal.GetWriter(recordType, out writer);
 
             writer.Write_Locator();
             writer.Write(this.waypoint.Plane);

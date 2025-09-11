@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
+using static CrystalData.CrystalDataHashed;
 
 namespace CrystalData.Internal;
 
@@ -11,7 +12,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlocker
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
 {
     public const int MaxHistories = 3;
 
@@ -242,14 +243,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         this.Exit();
     }
 
-    public void AddToStoreQueue()
-    {
-        if (this.saveQueueTime == 0)
-        {
-            this.storageControl.AddToSaveQueue(this);
-        }
-    }
-
     internal void DeleteLatestStorageForTest()
     {
         this.storageControl.DeleteLatestStorageForTest(this);
@@ -268,6 +261,56 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             this.SetDataInternal(data, true, default);
         }
     }
+
+    #region IStructualRoot
+
+    bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
+    {
+        if (this.storageMap.Crystalizer?.Journal is { } journal)
+        {
+            journal.GetWriter(recordType, out writer);
+
+            writer.Write_Locator();
+            writer.Write(this.PointId);
+            return true;
+        }
+        else
+        {
+            writer = default;
+            return false;
+        }
+    }
+
+    ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
+    {
+        if (this.storageMap.Crystalizer?.Journal is { } journal)
+        {
+            return journal.Add(ref writer);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    void IStructualRoot.AddToSaveQueue(int delaySeconds)
+    {
+        // The delay time for Storage saving is configured collectively in StorageControl (Crystalizer.DefaultSaveDelaySeconds).
+        /*if (this.storageMap.Crystalizer is { } crystalizer)
+        {
+            if (delaySeconds == 0)
+            {
+                delaySeconds = crystalizer.DefaultSaveDelaySeconds;
+            }
+        }*/
+
+        if (this.saveQueueTime == 0)
+        {
+            this.storageControl.AddToSaveQueue(this);
+        }
+    }
+
+    #endregion
 
     #region IStructualObject
 
@@ -391,55 +434,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         return result;
     }
-
-    /*internal async Task<bool> StoreData(StoreMode storeMode)
-    {
-        if (this.data is not { } data ||
-            this.StructualRoot is not ICrystal crystal)
-        {// No data
-            return true;
-        }
-
-        // this.SetPendingReleaseStateBit();
-        // if (storeMode == StoreMode.Release)
-        // {// Release
-        //    this.SetPendingReleaseStateBit();
-        // }
-
-        // bool result;
-        // if (this.TryEnter())
-        // {
-        //    try
-        //    {
-        //        result = await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
-        //        this.ReleaseIfPendingInternal();
-        //    }
-        //    finally
-        //    {
-        //        this.Exit();
-        //    }
-        // }
-
-        await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
-
-        if (storeMode == StoreMode.Release)
-        {// Release
-            this.SetPendingReleaseStateBit();
-            if (this.TryEnter())
-            {
-                try
-                {
-                    this.ReleaseIfPendingInternal();
-                }
-                finally
-                {
-                    this.Exit();
-                }
-            }
-        }
-
-        return true;
-    }*/
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {

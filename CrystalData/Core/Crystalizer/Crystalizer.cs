@@ -469,7 +469,7 @@ public partial class Crystalizer
         }
         else
         {// Rip failure -> Read journal
-            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
+            this.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
 
             // Load all crystals
             await this.LoadAllCrystals(useQuery);
