@@ -262,15 +262,6 @@ internal class Program
         crystal.AddToSaveQueue(2);
         // await Task.Delay(10_000);
 
-        data = crystal.Data;
-        data.Id += 1;
-        Console.WriteLine($"Crystal {data.ToString()}");
-
-        await crystal.Store(StoreMode.ForceRelease);
-        Console.WriteLine($"Unload {crystal.Data.ToString()}");
-        crystal.Data.Id++;
-        Console.WriteLine($"Unload++ {crystal.Data.ToString()}");
-
         data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"Data {data.ToString()}");
 
