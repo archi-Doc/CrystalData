@@ -481,12 +481,29 @@ public partial class Crystalizer
         return CrystalResult.Success;
     }
 
+    /// <summary>
+    /// Stores all managed crystals and storage asynchronously.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous store operation.</returns>
     public Task Store(CancellationToken cancellationToken = default)
         => this.Store(false, StoreMode.StoreOnly, cancellationToken);
 
+    /// <summary>
+    /// Stores all managed crystals and storage asynchronously., then attempts to release resources.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous store and release operation.</returns>
     public Task StoreAndRelease(CancellationToken cancellationToken = default)
         => this.Store(false, StoreMode.TryRelease, cancellationToken);
 
+    /// <summary>
+    /// Stores all crystals and storage and journal.<br/>
+    /// Always call this function when the application shuts down.<br/>
+    /// The database cannot be used after this point.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous store and rip operation.</returns>
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         this.StorageControl.Rip();
@@ -502,12 +519,17 @@ public partial class Crystalizer
         this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
     }
 
-    public async Task<CrystalResult[]> DeleteAll()
+    /// <summary>
+    /// Deletes all crystals asynchronously.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous delete operation.
+    /// </returns>
+    public async Task DeleteAll()
     {
         var crystals = this.crystals.GetCrystals(false);
         var tasks = crystals.Select(x => x.Delete()).ToArray();
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-        return results;
     }
 
     public void DeleteDirectory(DirectoryConfiguration directoryConfiguration)

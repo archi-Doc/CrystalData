@@ -48,9 +48,9 @@ internal class Program
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id += 1;
-        data.Name = "Fuga";
+        data.Name += "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.Store(); // Save all data.
+        await crystalizer.StoreAndRip(); // Save data and perform the shutdown process.
     }
 }
