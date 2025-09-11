@@ -2,7 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
-using static CrystalData.CrystalDataHashed;
 
 namespace CrystalData.Internal;
 
@@ -78,7 +77,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     #endregion
 
-    public StorageObject()
+    internal StorageObject()
     {
         this.storageMap = StorageMap.Disabled;
     }
