@@ -32,19 +32,3 @@ public interface ICrystal<TData> : ICrystal
 {
     public new TData Data { get; }
 }
-
-internal interface ICrystalInternal : ICrystal
-{
-    CrystalConfiguration OriginalCrystalConfiguration { get; }
-
-    Waypoint Waypoint { get; }
-
-    ulong LeadingJournalPosition { get; }
-
-    void SetStorage(IStorage storage);
-}
-
-/*internal interface ICrystalInternal<TData> : ICrystal<TData>, ICrystalInternal
-    where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
-{
-}*/

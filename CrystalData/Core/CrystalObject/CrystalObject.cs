@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -12,6 +13,8 @@ namespace CrystalData;
 internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>, ICrystalInternal, IStructualObject
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {// Data + Journal/Waypoint + Filer/FileConfiguration + Storage/StorageConfiguration
+    private const int MinimumSaveIntervalInSeconds = 5; // 5 seconds
+
     #region FieldAndProperty
 
     private SemaphoreLock semaphore = new();
@@ -22,6 +25,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     private ulong leadingJournalPosition;
     private CrystalConfiguration originalCrystalConfiguration;
     private CrystalConfiguration crystalConfiguration;
+    private int saveIntervalInSeconds = MinimumSaveIntervalInSeconds;
 
     public Crystalizer Crystalizer { get; }
 
@@ -222,18 +226,6 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     #region ICrystalInternal
 
-    /*Task? ICrystalInternal.TryPeriodicStore(DateTime utc)
-    {
-        var elapsed = utc - this.lastSavedTime;
-        if (elapsed < this.CrystalConfiguration.SaveInterval)
-        {
-            return null;
-        }
-
-        this.lastSavedTime = utc;
-        return ((ICrystal)this).Store(StoreMode.StoreOnly);
-    }*/
-
     void ICrystalInternal.SetStorage(IStorage storage)
     {
         using (this.semaphore.EnterScope())
@@ -248,6 +240,12 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
     {
+        // this.TryGetLogger(LogLevel.Debug)?.Log("Store called");
+        using (this.Goshujin!.LockObject.EnterScope())
+        {// Set the next save time for periodic data saving.
+            this.TimeForDataSavingValue = this.Crystalizer.SystemTimeInSeconds + this.saveIntervalInSeconds;
+        }
+
         if (this.CrystalConfiguration.Volatile)
         {// Volatile
             if (storeMode != StoreMode.StoreOnly)
@@ -357,6 +355,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         this.Crystalizer.UpdateWaypoint(this, ref currentWaypoint, hash);
 
+        // this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Debug)?.Log("Saved");
         var result = await filer.Save(rentMemory.ReadOnly, currentWaypoint).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {// Write error
@@ -364,7 +363,6 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         }
 
         this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
-        // Console.WriteLine($"{typeof(TData).Name} Stored");
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
@@ -549,11 +547,6 @@ Exit:
         this.SetTimeForDataSaving(delaySeconds);
     }
 
-    private void SetTimeForDataSaving(TimeSpan saveInterval)
-    {
-        this.SetTimeForDataSaving((int)saveInterval.TotalSeconds);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetTimeForDataSaving(int secondsUntilSave)
     {
@@ -562,7 +555,10 @@ Exit:
         {
             using (this.Goshujin!.LockObject.EnterScope())
             {
-                this.TimeForDataSavingValue = timeForDataSaving;
+                if (this.TimeForDataSaving == 0 || timeForDataSaving < this.TimeForDataSaving)
+                {
+                    this.TimeForDataSavingValue = timeForDataSaving;
+                }
             }
         }
     }
@@ -889,7 +885,13 @@ Exit:
         }
 
         this.crystalConfiguration = configuration;
+        if (this.saveIntervalInSeconds < configuration.SaveInterval.TotalSeconds)
+        {
+            this.saveIntervalInSeconds = (int)configuration.SaveInterval.TotalSeconds;
+        }
 
-        this.SetTimeForDataSaving(this.crystalConfiguration.SaveInterval);
+        this.SetTimeForDataSaving(this.saveIntervalInSeconds);
     }
+
+    private ILogWriter? TryGetLogger(LogLevel logLevel = LogLevel.Information) => this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(logLevel);
 }

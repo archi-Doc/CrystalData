@@ -203,11 +203,14 @@ internal class Program
             })
             .ConfigureCrystal((unitContext, crystalContext) =>
             {
+                // CrystalizerOptions
                 crystalContext.SetCrystalizerOptions(new CrystalizerOptions() with
                 {
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
                 });
+
+                // Journal
                 crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
@@ -224,6 +227,7 @@ internal class Program
                     {
                         RequiredForLoading = true,
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
+                        SaveInterval = TimeSpan.FromSeconds(5), // Save every 5 seconds.
                         NumberOfFileHistories = 2,
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
@@ -256,7 +260,7 @@ internal class Program
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         crystal.AddToSaveQueue(2);
-        // await Task.Delay(10_000);
+        await Task.Delay(10_000);
 
         data = crystal.Data;
         data.Id += 1;
