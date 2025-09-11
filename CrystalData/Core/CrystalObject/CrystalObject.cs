@@ -756,11 +756,7 @@ Exit:
             return (CrystalResult.Success, default, default); // Reconstruct
         }
 
-        /*if (configuration.RequiredForLoading &&
-            await param.Query.FailedToLoad(configuration.FileConfiguration, CrystalResult.DeserializationFailed).ConfigureAwait(false) == AbortOrContinue.Abort)
-        {
-            return (data.Result.Result, default, default);
-        }*/
+        //Read journal (LeadingJournalPosition -> StoredJournalPosition) 
 
         if (configuration.HasFileHistories)
         {
