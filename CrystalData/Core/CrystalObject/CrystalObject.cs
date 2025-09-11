@@ -10,7 +10,7 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>, ICrystalInternal, IStructualObject
+internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>, ICrystalInternal
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {// Data + Journal/Waypoint + Filer/FileConfiguration + Storage/StorageConfiguration
     private const int MinimumSaveIntervalInSeconds = 5; // 5 seconds
