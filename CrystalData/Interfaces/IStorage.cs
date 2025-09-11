@@ -4,6 +4,8 @@ namespace CrystalData;
 
 public interface IStorage : IPersistable
 {
+    int NumberOfHistoryFiles { get; }
+
     StorageMap StorageMap { get; }
 
     long StorageUsage { get; }

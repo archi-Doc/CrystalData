@@ -333,9 +333,9 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void AddStorage(StorageObject storageObject, ICrystal crystal, StorageId storageId)
+    internal void AddStorage(StorageObject storageObject, IStorage storage, StorageId storageId)
     {
-        var numberOfHistories = crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles;
+        var numberOfHistories = storage.NumberOfHistoryFiles;
         ulong fileIdToDelete = default;
 
         using (this.lowestLockObject.EnterScope())
@@ -362,7 +362,7 @@ public partial class StorageControl : IPersistable
 
         if (fileIdToDelete != 0)
         {// Delete the oldest file.
-            crystal.Storage.DeleteAndForget(ref fileIdToDelete);
+            storage.DeleteAndForget(ref fileIdToDelete);
         }
     }
 
@@ -377,9 +377,9 @@ public partial class StorageControl : IPersistable
             }
         }
 
-        if (fileId != 0 && storageObject.StructualRoot is ICrystal crystal)
+        if (fileId != 0)
         {
-            crystal.Storage.DeleteAsync(ref fileId).Wait();
+            storageObject.storageMap.Storage.DeleteAsync(ref fileId).Wait();
         }
     }
 
@@ -405,30 +405,28 @@ public partial class StorageControl : IPersistable
             // this.storageId3 = default;
         }
 
-        if (storageObject.StructualRoot is ICrystal crystal)
-        {// Delete storage
-            var storage = crystal.Storage;
+        // Delete storage
+        var storage = storageObject.storageMap.Storage;
 
-            if (id0 != 0)
-            {
-                storage.DeleteAndForget(ref id0);
-            }
-
-            if (id1 != 0)
-            {
-                storage.DeleteAndForget(ref id1);
-            }
-
-            if (id2 != 0)
-            {
-                storage.DeleteAndForget(ref id2);
-            }
-
-            /*if (id3 != 0)
-            {
-                storage.DeleteAndForget(ref id3);
-            }*/
+        if (id0 != 0)
+        {
+            storage.DeleteAndForget(ref id0);
         }
+
+        if (id1 != 0)
+        {
+            storage.DeleteAndForget(ref id1);
+        }
+
+        if (id2 != 0)
+        {
+            storage.DeleteAndForget(ref id2);
+        }
+
+        /*if (id3 != 0)
+        {
+            storage.DeleteAndForget(ref id3);
+        }*/
     }
 
     internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)

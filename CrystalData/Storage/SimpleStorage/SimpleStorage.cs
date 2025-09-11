@@ -35,6 +35,8 @@ internal partial class SimpleStorage : IStorage
     private IFiler? backupFiler;
     private TimeSpan timeout;
 
+    public int NumberOfHistoryFiles { get; private set; }
+
     public StorageMap StorageMap => this.storageMap;
 
     public long StorageUsage => this.storageData == null ? 0 : this.storageData.StorageUsage;
@@ -56,6 +58,7 @@ internal partial class SimpleStorage : IStorage
     {
         CrystalResult result;
         var directoryConfiguration = storageConfiguration.DirectoryConfiguration;
+        this.NumberOfHistoryFiles = storageConfiguration.NumberOfHistoryFiles;
 
         if (string.IsNullOrEmpty(this.directory))
         {
