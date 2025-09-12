@@ -361,7 +361,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             return result;
         }
 
-        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
+        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
@@ -381,7 +381,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         return CrystalResult.Success;
 
 Exit:
-        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration);
+        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
         using (this.semaphore.EnterScope())
         {
             this.leadingJournalPosition = this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
@@ -739,7 +739,7 @@ Exit:
     private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration, TData? singletonData)
 #pragma warning restore SA1204 // Static elements should appear before instance elements
     {
-        var isPreviouslyStored = filer.Crystalizer.CrystalSupplement.IsPreviouslyStored<TData>(configuration.FileConfiguration);
+        var isPreviouslyStored = filer.Crystalizer.CrystalSupplement.TryGetStoredJournalPosition<TData>(configuration.FileConfiguration, out var storedJournalPosition);
         // param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)
@@ -756,7 +756,10 @@ Exit:
             return (CrystalResult.Success, default, default); // Reconstruct
         }
 
-        //Read journal (LeadingJournalPosition -> StoredJournalPosition) 
+        if (data.Waypoint.JournalPosition < storedJournalPosition)
+        {// Data loaded but not up-to-date, attempt to rebuild using the Journal
+            //Read journal (LeadingJournalPosition -> StoredJournalPosition) 
+        }
 
         if (configuration.HasFileHistories)
         {

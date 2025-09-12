@@ -24,14 +24,19 @@ public sealed partial class CrystalSupplement
             [Link(Unique = true, Type = ChainType.Unordered)]
             public ulong Identifier;
 
+            [Key(1)]
+            public ulong JournalPosition;
+
             [Link(Name = "Timeline", Primary = true, Type = ChainType.QueueList)]
             public IdentifierItem()
             {
             }
 
-            public IdentifierItem(ulong identifier)
+            public IdentifierItem(ulong identifier, ulong journalPosition)
             {
                 this.Identifier = identifier;
+                this.JournalPosition = journalPosition;
+
             }
         }
 
@@ -86,18 +91,19 @@ public sealed partial class CrystalSupplement
 
         #endregion
 
-        public void ReportStored<TData>(FileConfiguration fileConfiguration)
+        public void ReportStored<TData>(FileConfiguration fileConfiguration, ulong journalPosition)
         {
             var identifier = GetIdentifier<TData>(fileConfiguration);
             using (this.lockObject.EnterScope())
             {
                 if (this.identifierItems.IdentifierChain.FindFirst(identifier) is { } item)
                 {// Move to the end of the queue.
+                    item.JournalPosition = journalPosition;
                     this.identifierItems.TimelineChain.Enqueue(item);
                 }
                 else
                 {// New item.
-                    this.identifierItems.Add(new(identifier));
+                    this.identifierItems.Add(new(identifier, journalPosition));
                     while (this.identifierItems.Count > ItemLimit)
                     {// Remove the oldest item.
                         this.identifierItems.TimelineChain.Peek().Goshujin = default;
@@ -106,12 +112,21 @@ public sealed partial class CrystalSupplement
             }
         }
 
-        public bool IsPreviouslyStored<TData>(FileConfiguration fileConfiguration)
+        public bool TryGetStoredJournalPosition<TData>(FileConfiguration fileConfiguration, out ulong journalPosition)
         {
             var identifier = GetIdentifier<TData>(fileConfiguration);
             using (this.lockObject.EnterScope())
             {
-                return this.identifierItems.IdentifierChain.FindFirst(identifier) is not null;
+                if (this.identifierItems.IdentifierChain.FindFirst(identifier) is { } item)
+                {
+                    journalPosition = item.JournalPosition;
+                    return true;
+                }
+                else
+                {
+                    journalPosition = 0;
+                    return false;
+                }
             }
         }
 
@@ -234,11 +249,11 @@ public sealed partial class CrystalSupplement
         this.logger = this.crystalizer.UnitLogger.GetLogger<CrystalSupplement>();
     }
 
-    public bool IsPreviouslyStored<TData>(FileConfiguration fileConfiguration)
-        => this.data.IsPreviouslyStored<TData>(fileConfiguration);
+    public bool TryGetStoredJournalPosition<TData>(FileConfiguration fileConfiguration, out ulong journalPosition)
+        => this.data.TryGetStoredJournalPosition<TData>(fileConfiguration, out journalPosition);
 
-    public void ReportStored<TData>(FileConfiguration fileConfiguration)
-        => this.data.ReportStored<TData>(fileConfiguration);
+    public void ReportStored<TData>(FileConfiguration fileConfiguration, ulong journalPosition)
+        => this.data.ReportStored<TData>(fileConfiguration, journalPosition);
 
     public ulong GetLeadingJournalPosition(ref Waypoint waypoint)
         => this.data.GetLeadingPosition(ref waypoint);
