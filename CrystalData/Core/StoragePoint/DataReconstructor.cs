@@ -108,7 +108,7 @@ public static class JournalExtensions
     }
 
     private static bool ReadValueRecord<TData>(ref TinyhandReader reader, ref TData? data)
-    {
+    {//
         if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
         {// Key or Locator
             if (data is IStructualObject structualObject)
