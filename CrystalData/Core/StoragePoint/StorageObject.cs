@@ -575,10 +575,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
                 var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
                 var reconstruct = false;
-                if (plane != 0)
+                if (this.storageMap.Journal is { } journal)
+                {
+                    reconstruct = await journal.ReconstructData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+                }
+
+                /*if (plane != 0)
                 {
                     reconstruct = await this.ReconstructFromJournal(plane, journalPosition).ConfigureAwait(false);
-                }
+                }*/
 
                 var dataType = this.data?.GetType();
                 string storageInfo;
