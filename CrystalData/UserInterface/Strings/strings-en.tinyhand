@@ -11,27 +11,27 @@ Do you want to load the backup file?"""
 CrystalFiler=
   BackupLoaded="The backup file '{0}' has been loaded."
 
+CrystalObject=
+  RestoreSuccess="Failed to load the latest data, but successfully reconstructed."
+  RestoreFailure="Failed to load and reconstruct the latest data."
+
 Journal=
   Corrupted="Reading the journal was aborted due to a corrupted journal file."
   Restored="Data has been restored from the journal file: {0}"
   ReadFailure="The journal file was read, but data recovery was unsuccessful."
 
-
 LocalFiler=
   FailedToAccess="Failed to access files in directory '{0}"
-
 
 S3Filer=
   NoAccessKey="No access key for bucket '{0}'"
   FailedToAccess="Failed to access files in bucket '{0}/{1}'"
-
 
 TestJournal=
   LoadingFailure="Could not load: {0}"
   DeserializationFailure="Could not deserialize: {0}"
   Success="Journal test: Success, Waypoint: {0}"
   Failure="Journal test: Failure, Waypoint: {0}"
-
 
 Unload=
   ForceUnloaded="Forcibly unloaded: {0}"

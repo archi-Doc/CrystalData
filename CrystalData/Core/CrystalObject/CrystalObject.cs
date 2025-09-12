@@ -758,7 +758,12 @@ Exit:
 
         if (data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
-            //Read journal (LeadingJournalPosition -> StoredJournalPosition) 
+            if (filer.Crystalizer.Journal is { } journal)
+            {
+                // journal.ReconstructData<TData>(data.Waypoint.JournalPosition, data.Result.Object, )
+            }
+            //Read journal (LeadingJournalPosition -> StoredJournalPosition)
+            filer.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
         }
 
         if (configuration.HasFileHistories)
