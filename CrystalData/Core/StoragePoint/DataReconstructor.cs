@@ -11,7 +11,7 @@ internal interface IReconstructor
 
 public static class JournalExtensions
 {
-    public static async Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, TData? data, uint plane, ulong pointId = 0)
+    public static async Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, TData data, uint plane, ulong pointId = 0)
     {
         var result = true;
         var upperLimit = journal.GetCurrentPosition();
@@ -47,7 +47,7 @@ public static class JournalExtensions
         return result;
     }
 
-    private static bool RestoreFromMemory<TData>(ulong position, ReadOnlyMemory<byte> memory, ref TData? data, uint targetPlane, ulong targetPointId)
+    private static bool RestoreFromMemory<TData>(ulong position, ReadOnlyMemory<byte> memory, ref TData data, uint targetPlane, ulong targetPointId)
     {
         var result = true;
         var reader = new TinyhandReader(memory.Span);
@@ -107,8 +107,15 @@ public static class JournalExtensions
         return result;
     }
 
-    private static bool ReadValueRecord<TData>(ref TinyhandReader reader, ref TData? data)
-    {//
+    /// <summary>
+    /// This function targets CrystalObject or StorageObject.
+    /// - CrystalObject JournalRecord: contains only Key or Locator
+    /// - StorageObject JournalRecord: may also include AddItem, etc.
+    /// Processing AddItem updates the StorageId and causes issues during restore,
+    /// so only Key, Locator, and Value JournalRecords are processed.
+    /// </summary>
+    private static bool ReadValueRecord<TData>(ref TinyhandReader reader, ref TData data)
+    {
         if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
         {// Key or Locator
             if (data is IStructualObject structualObject)
@@ -124,9 +131,15 @@ public static class JournalExtensions
         if (record == JournalRecord.Value)
         {
             reader.Read_Value();
-            data = TinyhandSerializer.Deserialize<TData>(ref reader);
-            // data = TinyhandTypeIdentifier.TryDeserializeReader(typeIdentifier, ref reader);
-            return data is not null;
+            if (TinyhandSerializer.Deserialize<TData>(ref reader) is { } newData)
+            {
+                data = newData;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         return true;
