@@ -221,7 +221,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             // Get or GetOrCreate
         }
         else
-        {
+        {// Data not loaded
             if (acquisitionMode == AcquisitionMode.Get)
             {// Get only
                 this.Exit();
@@ -450,41 +450,40 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryReadJournalRecord(out JournalRecord record))
-        {
-            return false;
+        if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
+        {// Key or Locator
+            if (this.data is IStructualObject structualObject)
+            {
+                return structualObject.ProcessJournalRecord(ref reader);
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        if (record == JournalRecord.Delete)
-        {// Delete storage
-            this.DeleteStorage(false, default).Wait();
-            return true;
-        }
-        else if (record == JournalRecord.Value)
+        if (record == JournalRecord.Value)
         {
             this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
+        else if (record == JournalRecord.Delete)
+        {// Delete storage
+            this.DeleteStorage(false, default).Wait();
+            return true;
+        }
         else if (record == JournalRecord.AddItem)
         {
-            //
-            /*var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
+            var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             if (storageId > this.storageId0)
             {
-                this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
-            }*/
+                this.storageMap.StorageControl.AddStorage(this, this.storageMap.Storage, storageId);
+            }
 
             return true;
         }
 
-        if (this.data is IStructualObject structualObject)
-        {
-            return structualObject.ProcessJournalRecord(ref reader);
-        }
-        else
-        {
-            return false;
-        }
+        return false;
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
@@ -510,7 +509,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         {
             fileId = this.storageId0.FileId;
             result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-            if (result.IsSuccess)
+            if (result.IsSuccess &&
+                FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
             {
                 break;
             }
@@ -532,52 +532,38 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             TData? data;
             if (typeof(TData) == typeof(object))
             {// // If the type is object, use the TypeIdentifier instead.
-                if (TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span) is { } obj)
-                {
-                    data = (TData)obj;
-                }
-                else
-                {
-                    return;
-                }
+                data = (TData?)TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
             }
             else
             {
                 TinyhandSerializer.TryDeserialize<TData>(result.Data.Span, out data);
             }
 
+            if (data is null)
+            {
+                return;
+            }
+
             this.SetDataInternal(data, false, result.Data);
             if (journalPosition > 0)
             {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
-                var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                var reconstruct = false;
-                if (this.storageMap.Journal is { } journal)
+                var restoreResult = false;
+                if (data is not null &&
+                    this.storageMap.Journal is { } journal)
                 {
-                    reconstruct = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+                    var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+                    restoreResult = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
                 }
 
-                /*if (plane != 0)
-                {
-                    reconstruct = await this.ReconstructFromJournal(plane, journalPosition).ConfigureAwait(false);
-                }*/
+                var dataType = this.data.GetType();
+                var storageInfo = $"Type = {dataType.Name}, PointId = {this.pointId}";
 
-                var dataType = this.data?.GetType();
-                string storageInfo;
-                if (dataType == null)
-                {
-                    storageInfo = $"PointId = {this.pointId}";
-                }
-                else
-                {
-                    storageInfo = $"Type = {dataType.Name}, PointId = {this.pointId}";
-                }
-
-                if (reconstruct)
-                {// Successfully reconstructed
+                if (restoreResult)
+                {// Successfully restored
                     this.storageControl.Logger?.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
                 }
                 else
-                {// Could not reconstruct
+                {// Could not restore
                     this.storageControl.Logger?.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
                 }
             }
@@ -592,10 +578,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         => this.typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     [MemberNotNull(nameof(data))]
-    internal void SetDataInternal<TData>(TData data, bool recordJournal, BytePool.RentReadOnlyMemory original)
+    internal void SetDataInternal<TData>(TData newData, bool recordJournal, BytePool.RentReadOnlyMemory original)
     {// Lock:this
         BytePool.RentMemory rentMemory = default;
-        this.data = data!;
+        this.data = newData!;
         if (this.data is IStructualObject structualObject)
         {
             structualObject.SetupStructure(this);
@@ -607,11 +593,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 if (typeof(TData) == typeof(object))
                 {
-                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data!);
+                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, newData!);
                 }
                 else
                 {
-                    rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                    rentMemory = TinyhandSerializer.SerializeToRentMemory(newData);
                 }
 
                 original = rentMemory.ReadOnly;
@@ -627,11 +613,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 if (typeof(TData) == typeof(object))
                 {
-                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data!);
+                    (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, newData!);
                 }
                 else
                 {
-                    rentMemory = TinyhandSerializer.SerializeToRentMemory(data);
+                    rentMemory = TinyhandSerializer.SerializeToRentMemory(newData);
                 }
 
                 original = rentMemory.ReadOnly;

@@ -208,6 +208,7 @@ internal class Program
                 {
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
+                    DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global/Backup")),
                 });
 
                 // Journal
@@ -231,6 +232,7 @@ internal class Program
                         NumberOfFileHistories = 2,
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                        // BackupFileConfiguration = new GlobalFileConfiguration("Backup/"),
                         // StorageConfiguration = storageConfiguration,
                     });
 

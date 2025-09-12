@@ -175,6 +175,10 @@ public static partial class StorageHelper
                 omitLast1 = true;
             }
         }
+        else
+        {
+            return path2;
+        }
 
         var omitFirst2 = false;
         if (path2.Length > 0)
@@ -183,6 +187,10 @@ public static partial class StorageHelper
             {
                 omitFirst2 = true;
             }
+        }
+        else
+        {
+            return path1;
         }
 
         if (omitLast1)
