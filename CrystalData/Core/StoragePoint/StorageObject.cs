@@ -450,41 +450,40 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryReadJournalRecord(out JournalRecord record))
-        {
-            return false;
+        if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
+        {// Key or Locator
+            if (this.data is IStructualObject structualObject)
+            {
+                return structualObject.ProcessJournalRecord(ref reader);
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        if (record == JournalRecord.Delete)
-        {// Delete storage
-            this.DeleteStorage(false, default).Wait();
-            return true;
-        }
-        else if (record == JournalRecord.Value)
+        if (record == JournalRecord.Value)
         {
             this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
+        else if (record == JournalRecord.Delete)
+        {// Delete storage
+            this.DeleteStorage(false, default).Wait();
+            return true;
+        }
         else if (record == JournalRecord.AddItem)
-        {
-            //
-            /*var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
+        {//
+            var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             if (storageId > this.storageId0)
             {
-                this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
-            }*/
+                this.storageMap.StorageControl.AddStorage(this, this.storageMap.Storage, storageId);
+            }
 
             return true;
         }
 
-        if (this.data is IStructualObject structualObject)
-        {
-            return structualObject.ProcessJournalRecord(ref reader);
-        }
-        else
-        {
-            return false;
-        }
+        return false;
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
