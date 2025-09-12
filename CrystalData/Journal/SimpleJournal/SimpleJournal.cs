@@ -500,7 +500,7 @@ Load:
         Book.GoshujinClass books = new();
         foreach (var x in list)
         {
-            var book = Book.TryAdd(this, books, x);
+            _ = Book.TryAdd(this, books, x);
         }
 
         foreach (var x in books)

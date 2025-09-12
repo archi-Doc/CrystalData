@@ -56,6 +56,11 @@ public partial class SimpleJournal
 
         public static Book? TryAdd(SimpleJournal simpleJournal, Book.GoshujinClass books, PathInformation pathInformation)
         {
+            if (pathInformation.Length == 0)
+            {// Empty
+                return null;
+            }
+
             BookType bookType;
 
             // BookTitle.complete or BookTitle.incomplete
@@ -95,8 +100,13 @@ public partial class SimpleJournal
             return book;
         }
 
-        public static Book AppendNewBook(SimpleJournal simpleJournal, ulong position, byte[] data, int dataLength)
+        public static Book? AppendNewBook(SimpleJournal simpleJournal, ulong position, byte[] data, int dataLength)
         {
+            if (data.Length == 0)
+            {
+                return default;
+            }
+
             var book = new Book(simpleJournal);
             book.position = position;
             book.length = dataLength;
