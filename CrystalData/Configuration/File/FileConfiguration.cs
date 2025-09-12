@@ -18,6 +18,36 @@ public abstract partial record FileConfiguration : PathConfiguration, IEquatable
     {
     }
 
+    public string DirectoryName
+    {
+        get
+        {
+            try
+            {
+                return System.IO.Path.GetDirectoryName(this.Path) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+    }
+
+    public string FileName
+    {
+        get
+        {
+            try
+            {
+                return System.IO.Path.GetFileName(this.Path) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+    }
+
     public override Type PathType => Type.File;
 
     public abstract FileConfiguration AppendPath(string file);

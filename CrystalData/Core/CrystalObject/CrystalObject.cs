@@ -863,35 +863,62 @@ Exit:
         saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.Options.DefaultSaveFormat : saveFormat;
 
         var fileConfiguration = configuration.FileConfiguration;
-        var filePath = fileConfiguration.Path;
-        if (string.IsNullOrEmpty(filePath))
+        var fileName = fileConfiguration.FileName;
+        if (string.IsNullOrEmpty(fileName))
         {
-            fileConfiguration = fileConfiguration with { Path = $"{typeof(TData).Name}{saveFormat.ToExtension()}", };
+            var path = StorageHelper.CombineWithSlash(fileConfiguration.DirectoryName, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
+            fileConfiguration = fileConfiguration with { Path = path, };
         }
-        else if (Path.GetFileName(filePath).IndexOf('.') < 0)
+        else if (fileName.IndexOf('.') < 0)
         {
-            fileConfiguration = fileConfiguration with { Path = $"{filePath}{saveFormat.ToExtension()}", };
+            fileConfiguration = fileConfiguration with { Path = $"{fileConfiguration.Path}{saveFormat.ToExtension()}", };
+        }
+
+        var backupFileConfiguration = configuration.BackupFileConfiguration;
+        if (backupFileConfiguration is not null)
+        {
+            var backupFileName = backupFileConfiguration.FileName;
+            if (string.IsNullOrEmpty(backupFileName))
+            {
+                var path = StorageHelper.CombineWithSlash(backupFileConfiguration.DirectoryName, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
+                backupFileConfiguration = backupFileConfiguration with { Path = path, };
+            }
+            else if (backupFileName.IndexOf('.') < 0)
+            {
+                backupFileConfiguration = backupFileConfiguration with { Path = $"{backupFileConfiguration.Path}{saveFormat.ToExtension()}", };
+            }
         }
 
         if (this.Crystalizer.Options.DefaultBackup is { } globalBackup)
         {
-            if (configuration.BackupFileConfiguration == null)
+            if (backupFileConfiguration is null)
             {
-                configuration = configuration with { BackupFileConfiguration = globalBackup.CombineFile(fileConfiguration.Path) };
+                backupFileConfiguration = globalBackup.CombineFile(fileConfiguration.Path);
             }
 
             if (configuration.StorageConfiguration is not null &&
-                configuration.StorageConfiguration.BackupDirectoryConfiguration == null)
+                configuration.StorageConfiguration.BackupDirectoryConfiguration is null)
             {
                 var storageConfiguration = configuration.StorageConfiguration with { BackupDirectoryConfiguration = globalBackup.CombineDirectory(configuration.StorageConfiguration.DirectoryConfiguration), };
                 configuration = configuration with { StorageConfiguration = storageConfiguration, };
             }
         }
 
+        if (backupFileConfiguration == fileConfiguration)
+        {// Invalidate the backup file because it is identical to the main file.
+            backupFileConfiguration = null;
+        }
+
         if (saveFormat != configuration.SaveFormat ||
-            fileConfiguration != configuration.FileConfiguration)
+            fileConfiguration != configuration.FileConfiguration ||
+            backupFileConfiguration != configuration.BackupFileConfiguration)
         {
-            configuration = configuration with { SaveFormat = saveFormat, FileConfiguration = fileConfiguration, };
+            configuration = configuration with
+            {
+                SaveFormat = saveFormat,
+                FileConfiguration = fileConfiguration,
+                BackupFileConfiguration = backupFileConfiguration,
+            };
         }
 
         this.crystalConfiguration = configuration;
