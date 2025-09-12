@@ -577,7 +577,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 var reconstruct = false;
                 if (this.storageMap.Journal is { } journal)
                 {
-                    reconstruct = await journal.ReconstructData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+                    reconstruct = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
                 }
 
                 /*if (plane != 0)

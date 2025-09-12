@@ -658,15 +658,15 @@ Exit:
             singletonData = this.Crystalizer.ServiceProvider.GetRequiredService<TData>();
         }
 
-        var filer = Volatile.Read(ref this.crystalFiler);
-        var configuration = this.CrystalConfiguration;
+        // var filer = Volatile.Read(ref this.crystalFiler);
+        // var configuration = this.CrystalConfiguration;
 
         // !!! EXIT !!!
         this.semaphore.Exit();
         (CrystalResult Result, TData? Data, Waypoint Waypoint) loadResult;
         try
         {
-            loadResult = await LoadAndDeserializeNotInternal(filer, param, configuration, singletonData).ConfigureAwait(false);
+            loadResult = await this.LoadAndDeserializeNotInternal(param, singletonData).ConfigureAwait(false);
         }
         finally
         {
@@ -735,15 +735,14 @@ Exit:
 
     #endregion
 
-#pragma warning disable SA1204 // Static elements should appear before instance elements
-    private static async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(CrystalFiler filer, PrepareParam param, CrystalConfiguration configuration, TData? singletonData)
-#pragma warning restore SA1204 // Static elements should appear before instance elements
+    private async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(PrepareParam param, TData? singletonData)
     {
-        var isPreviouslyStored = filer.Crystalizer.CrystalSupplement.TryGetStoredJournalPosition<TData>(configuration.FileConfiguration, out var storedJournalPosition);
+        var configuration = this.CrystalConfiguration;
+        var isPreviouslyStored = this.Crystalizer.CrystalSupplement.TryGetStoredJournalPosition<TData>(configuration.FileConfiguration, out var storedJournalPosition);
         // param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)
-        var data = await filer.LoadLatest<TData>(param, configuration.SaveFormat, singletonData).ConfigureAwait(false);
+        var data = await this.crystalFiler!.LoadLatest<TData>(param, configuration.SaveFormat, singletonData).ConfigureAwait(false);
         if (data.Result.IsFailure)
         {
             if (isPreviouslyStored &&
@@ -758,12 +757,20 @@ Exit:
 
         if (data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
-            if (filer.Crystalizer.Journal is { } journal)
-            {
-                // journal.ReconstructData<TData>(data.Waypoint.JournalPosition, data.Result.Object, )
+            var restoreResult = false;
+            if (this.Crystalizer.Journal is { } journal)
+            {// Read journal (LeadingJournalPosition -> StoredJournalPosition)
+                restoreResult = await journal.RestoreData(data.Waypoint.JournalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false);
             }
-            //Read journal (LeadingJournalPosition -> StoredJournalPosition)
-            filer.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
+
+            if (restoreResult)
+            {
+                this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
+            }
+            else
+            {
+                this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalObject.RestoreFailure);
+            }
         }
 
         if (configuration.HasFileHistories)

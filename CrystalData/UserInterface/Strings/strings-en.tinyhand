@@ -12,8 +12,8 @@ CrystalFiler=
   BackupLoaded="The backup file '{0}' has been loaded."
 
 CrystalObject=
-  RestoreSuccess="Failed to load the latest data, but successfully reconstructed."
-  RestoreFailure="Failed to load and reconstruct the latest data."
+  RestoreSuccess="The latest data was lost but successfully restored from the journal."
+  RestoreFailure="The latest data was lost and could not be restored from the journal."
 
 Journal=
   Corrupted="Reading the journal was aborted due to a corrupted journal file."
@@ -45,5 +45,5 @@ CrystalSupplement=
   RipFailure="The previous shutdown was not completed normally, the journal will be loaded."
 
 StorageControl=
-  StorageReconstructed="Storage was lost, but reconstruction from the journal was successful {{ {0} }}"
-  StorageNotReconstructed="Storage was lost, and reconstruction from the journal failed {{ {0} }}"
+  StorageReconstructed="Storage was lost but successfully restored from the journal {{ {0} }}"
+  StorageNotReconstructed="Storage was lost and could not be restored from the journal {{ {0} }}"

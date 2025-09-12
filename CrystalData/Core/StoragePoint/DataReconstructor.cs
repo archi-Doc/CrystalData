@@ -11,7 +11,7 @@ internal interface IReconstructor
 
 public static class JournalExtensions
 {
-    public static async Task<bool> ReconstructData<TData>(this IJournal journal, ulong startPosition, TData? data, uint plane, ulong pointId = 0)
+    public static async Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, TData? data, uint plane, ulong pointId = 0)
     {
         var result = true;
         var upperLimit = journal.GetCurrentPosition();
@@ -26,7 +26,7 @@ public static class JournalExtensions
 
             try
             {
-                if (!ReconstructFromMemory(startPosition, journalResult.Data.Memory, ref data, plane, pointId))
+                if (!RestoreFromMemory(startPosition, journalResult.Data.Memory, ref data, plane, pointId))
                 {
                     result = false;
                 }
@@ -47,7 +47,7 @@ public static class JournalExtensions
         return result;
     }
 
-    private static bool ReconstructFromMemory<TData>(ulong position, ReadOnlyMemory<byte> memory, ref TData? data, uint targetPlane, ulong targetPointId)
+    private static bool RestoreFromMemory<TData>(ulong position, ReadOnlyMemory<byte> memory, ref TData? data, uint targetPlane, ulong targetPointId)
     {
         var result = true;
         var reader = new TinyhandReader(memory.Span);
@@ -70,12 +70,6 @@ public static class JournalExtensions
                         continue;
                     }
 
-                    if (!reader.TryReadJournalRecord(out var journalRecord) ||
-                        journalRecord != JournalRecord.Locator)
-                    {// No journal record, or not locator
-                        continue;
-                    }
-
                     if (targetPointId == 0)
                     {// No point id specified, read all
                         if (!ReadValueRecord(ref reader, ref data))
@@ -85,6 +79,7 @@ public static class JournalExtensions
                     }
                     else
                     {// Point id specified, read only matching point id
+                        reader.Read_Locator();
                         var pointId = reader.ReadUInt64();
                         if (pointId == targetPointId)
                         {// Matching point id

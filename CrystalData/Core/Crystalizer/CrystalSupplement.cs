@@ -36,7 +36,6 @@ public sealed partial class CrystalSupplement
             {
                 this.Identifier = identifier;
                 this.JournalPosition = journalPosition;
-
             }
         }
 
