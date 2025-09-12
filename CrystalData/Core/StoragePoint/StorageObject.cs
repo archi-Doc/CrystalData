@@ -487,30 +487,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    private bool ReadValueRecord(ref TinyhandReader reader)
-    {
-        if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
-        {// Key or Locator
-            if (this.data is IStructualObject structualObject)
-            {
-                return structualObject.ProcessJournalRecord(ref reader);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        if (record == JournalRecord.Value)
-        {
-            reader.Read_Value();
-            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
-            return this.data is not null;
-        }
-
-        return true;
-    }
-
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
     {
         writer.Write_Locator();
@@ -670,101 +646,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         {
             rentMemory.Return();
         }
-    }
-
-    private async Task<bool> ReconstructFromJournal(uint plane, ulong position)
-    {
-        if (this.storageMap.Journal is not { } journal)
-        {
-            return false;
-        }
-
-        var result = true;
-        var upperLimit = journal.GetCurrentPosition();
-
-        while (position != 0)
-        {
-            var endPosition = position;
-            var journalResult = await journal.ReadJournalAsync(position).ConfigureAwait(false);
-            if (journalResult.NextPosition == 0)
-            {
-                break;
-            }
-
-            try
-            {
-                if (!this.ReconstructFromMemory(plane, position, journalResult.Data.Memory))
-                {
-                    result = false;
-                }
-            }
-            finally
-            {
-                journalResult.Data.Return();
-            }
-
-            if (journalResult.NextPosition >= upperLimit)
-            {
-                break;
-            }
-
-            position = journalResult.NextPosition;
-        }
-
-        return result;
-    }
-
-    private bool ReconstructFromMemory(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
-    {
-        var result = true;
-        var reader = new TinyhandReader(memory.Span);
-        while (reader.Consumed < memory.Length)
-        {
-            if (!reader.TryReadJournal(out var length, out var journalType))
-            {// Not journal
-                return false;
-            }
-
-            var fork = reader.Fork();
-            try
-            {
-                if (journalType == JournalType.Record)
-                {// Record
-                    reader.Read_Locator();
-                    var plane = reader.ReadUInt32();
-                    if (plane == mapPlane)
-                    {// Matching plane
-                        if (reader.TryReadJournalRecord(out var journalRecord))
-                        {
-                            if (journalRecord == JournalRecord.Locator)
-                            {
-                                var pointId = reader.ReadUInt64();
-                                if (pointId == this.pointId)
-                                {// Matching point id
-                                    if (!this.ReadValueRecord(ref reader))
-                                    {// Failure
-                                        result = false;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
-            finally
-            {
-                reader = fork;
-                if (!reader.TryAdvance(length))
-                {
-                    reader.TryAdvance(reader.Remaining);
-                }
-            }
-        }
-
-        return result;
     }
 
     private async Task DeleteStorage(bool recordJournal, DateTime forceDeleteAfter)
