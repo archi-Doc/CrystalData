@@ -509,7 +509,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         {
             fileId = this.storageId0.FileId;
             result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-            if (result.IsSuccess)
+            if (result.IsSuccess &&
+                FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
             {
                 break;
             }
