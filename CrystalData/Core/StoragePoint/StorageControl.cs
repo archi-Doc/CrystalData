@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
 using Tinyhand.IO;
@@ -11,6 +12,7 @@ namespace CrystalData;
 public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 256;
+    private const int IntervalInMilliseconds = 100;
 
     /// <summary>
     /// Represents the disabled storage control.
@@ -28,11 +30,18 @@ public partial class StorageControl : IPersistable
     private StorageMap[] storageMaps;
     private bool isRip;
     private long memoryUsage;
-    private StorageObject? head; // head is the most recently used object. head.previous is the least recently used object.
+    private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
+    private StorageObject? saveQueueHead;
+
+    public Crystalizer? Crystalizer { get; private set; }
+
+    internal ILogger? Logger { get; set; }
 
     public bool IsRip => this.isRip;
 
-    public long MemoryUsageLimit { get; internal set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
+    public long MemoryUsageLimit { get; private set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
+
+    public TimeSpan SaveInterval { get; private set; } = CrystalizerOptions.DefaultSaveInterval;
 
     /// <summary>
     /// Gets an estimated memory usage.<br/>
@@ -87,6 +96,14 @@ public partial class StorageControl : IPersistable
         }
     }
 
+    internal void Initialize(Crystalizer crystalizer)
+    {
+        this.Crystalizer = crystalizer;
+        this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
+        this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
+        this.SaveInterval = crystalizer.Options.SaveInterval;
+    }
+
     internal void Rip() => this.isRip = true;
 
     internal void ResurrectForTesting() => this.isRip = false;
@@ -125,7 +142,7 @@ public partial class StorageControl : IPersistable
 
     internal async Task StoreObjects(CancellationToken cancellationToken)
     {
-        var list = this.CreateList();
+        var list = this.CreateOnMemoryList();
         if (list is null)
         {
             return;
@@ -141,7 +158,7 @@ public partial class StorageControl : IPersistable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var list = this.CreateList();
+            var list = this.CreateOnMemoryList();
             if (list is null)
             {
                 return;
@@ -152,7 +169,7 @@ public partial class StorageControl : IPersistable
                 await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
 
-            if (this.head is null)
+            if (this.onMemoryHead is null)
             {// No storage objects to release.
                 return;
             }
@@ -175,7 +192,7 @@ public partial class StorageControl : IPersistable
             StorageObject? node;
             using (this.lowestLockObject.EnterScope())
             {
-                node = this.head?.previous; // Get the least recently used node.
+                node = this.onMemoryHead?.onMemoryPrevious; // Get the least recently used node.
                 if (node is null)
                 {// No storage objects to release.
                     break;
@@ -303,7 +320,7 @@ public partial class StorageControl : IPersistable
                 writer.Write(JournalRecord.AddItem);
                 writer.Write(pointId);
                 writer.Write(typeIdentifier);
-                root.AddJournal(ref writer);
+                root.AddJournalAndDispose(ref writer);
             }
         }
     }
@@ -316,9 +333,9 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void AddStorage(StorageObject storageObject, ICrystal crystal, StorageId storageId)
+    internal void AddStorage(StorageObject storageObject, IStorage storage, StorageId storageId)
     {
-        var numberOfHistories = crystal.CrystalConfiguration.StorageConfiguration.NumberOfHistoryFiles;
+        var numberOfHistories = storage.NumberOfHistoryFiles;
         ulong fileIdToDelete = default;
 
         using (this.lowestLockObject.EnterScope())
@@ -345,11 +362,11 @@ public partial class StorageControl : IPersistable
 
         if (fileIdToDelete != 0)
         {// Delete the oldest file.
-            crystal.Storage.DeleteAndForget(ref fileIdToDelete);
+            storage.DeleteAndForget(ref fileIdToDelete);
         }
     }
 
-    internal void DeleteLatestStorageForDebug(StorageObject storageObject)
+    internal void DeleteLatestStorageForTest(StorageObject storageObject)
     {
         ulong fileId = 0;
         using (this.lowestLockObject.EnterScope())
@@ -360,9 +377,9 @@ public partial class StorageControl : IPersistable
             }
         }
 
-        if (fileId != 0 && storageObject.StructualRoot is ICrystal crystal)
+        if (fileId != 0)
         {
-            crystal.Storage.DeleteAsync(ref fileId).Wait();
+            storageObject.storageMap.Storage.DeleteAsync(ref fileId).Wait();
         }
     }
 
@@ -388,37 +405,125 @@ public partial class StorageControl : IPersistable
             // this.storageId3 = default;
         }
 
-        if (storageObject.StructualRoot is ICrystal crystal)
-        {// Delete storage
-            var storage = crystal.Storage;
+        // Delete storage
+        var storage = storageObject.storageMap.Storage;
 
-            if (id0 != 0)
+        if (id0 != 0)
+        {
+            storage.DeleteAndForget(ref id0);
+        }
+
+        if (id1 != 0)
+        {
+            storage.DeleteAndForget(ref id1);
+        }
+
+        if (id2 != 0)
+        {
+            storage.DeleteAndForget(ref id2);
+        }
+
+        /*if (id3 != 0)
+        {
+            storage.DeleteAndForget(ref id3);
+        }*/
+    }
+
+    internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
+    {
+        var threshold = crystalizer.SystemTimeInSeconds - crystalizer.DefaultSaveDelaySeconds;
+        var result = false;
+        while (true)
+        {
+            var count = 0;
+            using (this.lowestLockObject.EnterScope())
             {
-                storage.DeleteAndForget(ref id0);
+                while (this.saveQueueHead is not null && count < tempArray.Length)
+                {
+                    var node = this.saveQueueHead;
+                    if (node.saveQueueTime > threshold)
+                    {// Not yet time to save.
+                        break;
+                    }
+
+                    this.saveQueueHead = node.saveQueueNext;
+                    if (this.saveQueueHead == node)
+                    {// Only one node in the list.
+                        this.saveQueueHead = null;
+                    }
+                    else
+                    {
+                        node.saveQueueNext!.saveQueuePrevious = node.saveQueuePrevious;
+                        node.saveQueuePrevious!.saveQueueNext = node.saveQueueNext;
+                    }
+
+                    node.saveQueuePrevious = default;
+                    node.saveQueueNext = default;
+                    node.saveQueueTime = 0;
+
+                    tempArray[count++] = node;
+                }
             }
 
-            if (id1 != 0)
+            if (count == 0)
             {
-                storage.DeleteAndForget(ref id1);
+                break;
+            }
+            else
+            {
+                result = true;
             }
 
-            if (id2 != 0)
+            for (var i = 0; i < count; i++)
             {
-                storage.DeleteAndForget(ref id2);
+                await tempArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
             }
 
-            /*if (id3 != 0)
+            Array.Clear(tempArray, 0, count);
+            if (count < tempArray.Length)
             {
-                storage.DeleteAndForget(ref id3);
-            }*/
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    internal void AddToSaveQueue(StorageObject node)
+    {
+        if (this.Crystalizer is null)
+        {
+            return;
+        }
+
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (node.saveQueueTime != 0)
+            {
+                return;
+            }
+
+            node.saveQueueTime = this.Crystalizer.SystemTimeInSeconds;
+
+            if (this.saveQueueHead is null)
+            {// First node
+                this.saveQueueHead = node;
+                node.saveQueueNext = node;
+                node.saveQueuePrevious = node;
+                return;
+            }
+
+            node.saveQueueNext = this.saveQueueHead;
+            node.saveQueuePrevious = this.saveQueueHead.saveQueuePrevious;
+            this.saveQueueHead.saveQueuePrevious!.saveQueueNext = node;
+            this.saveQueueHead.saveQueuePrevious = node;
         }
     }
 
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
     {
-        // Least recently used list.
-        if (node.previous is not null &&
-            node.next is not null)
+        // OnMemory list (Least recently used list).
+        if (node.onMemoryPrevious is not null && node.onMemoryNext is not null)
         {
             if (node.storageMap.IsEnabled)
             {
@@ -427,22 +532,45 @@ public partial class StorageControl : IPersistable
 
             node.size = 0;
 
-            if (node.next == node)
+            if (node.onMemoryNext == node)
             {
-                this.head = null;
+                this.onMemoryHead = null;
             }
             else
             {
-                node.next.previous = node.previous;
-                node.previous.next = node.next;
-                if (this.head == node)
+                node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
+                node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
+                if (this.onMemoryHead == node)
                 {
-                    this.head = node.next;
+                    this.onMemoryHead = node.onMemoryNext;
                 }
             }
 
-            node.previous = default;
-            node.next = default;
+            node.onMemoryPrevious = default;
+            node.onMemoryNext = default;
+        }
+
+        // ToSave list.
+        if (node.saveQueuePrevious is not null && node.saveQueueNext is not null)
+        {
+            node.saveQueueTime = 0;
+
+            if (node.saveQueueNext == node)
+            {
+                this.saveQueueHead = null;
+            }
+            else
+            {
+                node.saveQueueNext.saveQueuePrevious = node.saveQueuePrevious;
+                node.saveQueuePrevious.saveQueueNext = node.saveQueueNext;
+                if (this.saveQueueHead == node)
+                {
+                    this.saveQueueHead = node.saveQueueNext;
+                }
+            }
+
+            node.saveQueuePrevious = default;
+            node.saveQueueNext = default;
         }
 
         if (removeFromStorageMap)
@@ -453,55 +581,55 @@ public partial class StorageControl : IPersistable
 
     private void MoveToRecentInternal(StorageObject node)
     {
-        if (node.next is null ||
-            node.previous is null)
+        if (node.onMemoryNext is null ||
+            node.onMemoryPrevious is null)
         {// Not added to the list.
-            if (this.head is null)
+            if (this.onMemoryHead is null)
             {// First node
-                this.head = node;
-                node.next = node;
-                node.previous = node;
+                this.onMemoryHead = node;
+                node.onMemoryNext = node;
+                node.onMemoryPrevious = node;
                 return;
             }
         }
         else
         {// Remove the node from the list.
-            if (node.next == node)
+            if (node.onMemoryNext == node)
             {// Only one node in the list.
                 return;
             }
 
-            node.next.previous = node.previous;
-            node.previous.next = node.next;
-            if (this.head == node)
+            node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
+            node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
+            if (this.onMemoryHead == node)
             {
-                this.head = node.next;
+                this.onMemoryHead = node.onMemoryNext;
             }
         }
 
-        node.next = this.head;
-        node.previous = this.head!.previous;
-        this.head.previous!.next = node;
-        this.head.previous = node;
-        this.head = node;
+        node.onMemoryNext = this.onMemoryHead;
+        node.onMemoryPrevious = this.onMemoryHead!.onMemoryPrevious;
+        this.onMemoryHead.onMemoryPrevious!.onMemoryNext = node;
+        this.onMemoryHead.onMemoryPrevious = node;
+        this.onMemoryHead = node;
     }
 
-    private List<StorageObject>? CreateList()
+    private List<StorageObject>? CreateOnMemoryList()
     {
         List<StorageObject> list = new();
         using (this.lowestLockObject.EnterScope())
         {
-            if (this.head is null)
+            if (this.onMemoryHead is null)
             {// No storage objects to release.
                 return null;
             }
 
-            StorageObject node = this.head;
+            StorageObject node = this.onMemoryHead;
             while (true)
             {
                 list.Add(node);
-                node = node.next!;
-                if (node == this.head)
+                node = node.onMemoryNext!;
+                if (node == this.onMemoryHead)
                 {// Reached back to the head.
                     break;
                 }

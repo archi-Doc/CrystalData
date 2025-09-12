@@ -19,7 +19,6 @@ public class ConfigurationExampleClass
         // Get or create an ICrystal interface of the data.
         var crystal = this.crystalizer.GetOrCreateCrystal<SecondData>(
             new CrystalConfiguration(
-                SavePolicy.Manual,
                 new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData.tinyhand")));
         var secondData = crystal.Data;
 
@@ -30,7 +29,6 @@ public class ConfigurationExampleClass
         // You can create multiple crystals from single data class.
         var crystal2 = this.crystalizer.CreateCrystal<SecondData>(
             new CrystalConfiguration(
-                SavePolicy.Manual,
                 new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData2.tinyhand")));
         var secondData2 = crystal2.Data;
 
@@ -58,7 +56,6 @@ public partial class Program
                 context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/ConfigurationTimingExample/FirstData.tinyhand"), // Specify the file name to save.
@@ -67,7 +64,7 @@ public partial class Program
 
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
         var example = unit.Context.ServiceProvider.GetRequiredService<ConfigurationExampleClass>();
         await example.Process();

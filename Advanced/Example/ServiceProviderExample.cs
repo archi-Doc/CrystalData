@@ -37,7 +37,6 @@ public partial class Program
                 context.AddCrystal<ServiceProviderData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/ServiceProviderExample/ServiceProviderExample.tinyhand"), // Specify the file name to save.
@@ -47,7 +46,7 @@ public partial class Program
         var unit = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         // var data = unit.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
         var data = unit.Context.ServiceProvider.GetRequiredService<ServiceProviderData>(); // Retrieve a data instance from the service provider.

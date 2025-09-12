@@ -21,18 +21,16 @@ public sealed partial record CrystalConfiguration
         this.StorageConfiguration = EmptyStorageConfiguration.Default;
     }
 
-    public CrystalConfiguration(SavePolicy savePolicy, FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
+    public CrystalConfiguration(FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
     {
-        this.SavePolicy = savePolicy;
         this.SaveInterval = DefaultSaveInterval;
         this.FileConfiguration = fileConfiguration;
         this.StorageConfiguration = storageConfiguration ?? EmptyStorageConfiguration.Default;
     }
 
-    public CrystalConfiguration(SaveFormat saveFormat, SavePolicy savePolicy, FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
+    public CrystalConfiguration(SaveFormat saveFormat, FileConfiguration fileConfiguration, StorageConfiguration? storageConfiguration = null)
     {
         this.SaveFormat = saveFormat;
-        this.SavePolicy = savePolicy;
         this.SaveInterval = DefaultSaveInterval;
         this.FileConfiguration = fileConfiguration;
         this.StorageConfiguration = storageConfiguration ?? EmptyStorageConfiguration.Default;
@@ -45,13 +43,13 @@ public sealed partial record CrystalConfiguration
     public SaveFormat SaveFormat { get; init; }
 
     /// <summary>
-    /// Gets the policy for saving data, with options such as manual saving, periodic saving, or not saving at all.
+    /// Gets a value indicating whether the data is volatile.<br/>
+    /// If <c>true</c>, the data is not persisted to storage and is only kept in memory.
     /// </summary>
-    public SavePolicy SavePolicy { get; init; }
+    public bool Volatile { get; init; }
 
     /// <summary>
-    /// Gets the interval for automatic data saving.<br/>
-    /// This is only effective when <see cref="SavePolicy"/> is set to <see cref="SavePolicy.Periodic"/>.
+    /// Gets the interval for automatic data saving.
     /// </summary>
     public TimeSpan SaveInterval { get; init; }
 

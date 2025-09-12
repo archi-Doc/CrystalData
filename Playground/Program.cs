@@ -9,6 +9,38 @@ using ValueLink;
 
 namespace Sandbox;
 
+public sealed partial class CrystalSupplement
+{
+    [TinyhandObject(LockObject = "lockObject")]
+    private sealed partial class Data
+    {
+        [TinyhandObject]
+        [ValueLinkObject]
+        private sealed partial class PlaneItem
+        {
+            public PlaneItem()
+            {
+            }
+
+            [Key(0)]
+            [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+            public uint Plane { get; private set; }
+        }
+
+        #region FieldAndProperty
+
+        private readonly Lock lockObject = new();
+
+        [Key(0)]
+        private readonly HashSet<ulong> previouslyStoredIdentifiers = new();
+
+        [Key(1)]
+        private readonly PlaneItem.GoshujinClass planeItems = new();
+
+        #endregion
+    }
+}
+
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public partial record SpSecondClass
@@ -34,7 +66,7 @@ public partial class FirstData
     }
 
     [Key(0)] // The key attribute specifies the index at serialization
-    public int Id { get; set; }
+    public partial int Id { get; set; }
 
     [Key(1)]
     [DefaultValue("Hoge")] // The default value for the name property.
@@ -169,9 +201,17 @@ internal class Program
                 // context.AddSingleton<FirstData>();
                 context.AddSingleton<SecondData>();
             })
-            .ConfigureCrystal(context =>
+            .ConfigureCrystal((unitContext, crystalContext) =>
             {
-                context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                // CrystalizerOptions
+                crystalContext.SetCrystalizerOptions(new CrystalizerOptions() with
+                {
+                    SaveDelay = TimeSpan.FromSeconds(5),
+                    GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
+                });
+
+                // Journal
+                crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage")/*,
@@ -182,22 +222,21 @@ internal class Program
                 };
 
                 // Register FirstData configuration.
-                context.AddCrystal<FirstData>(
+                crystalContext.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
                         RequiredForLoading = true,
-                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
+                        SaveInterval = TimeSpan.FromSeconds(5), // Save every 5 seconds.
                         NumberOfFileHistories = 2,
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         // StorageConfiguration = storageConfiguration,
                     });
 
-                context.AddCrystal<SecondData>(
+                crystalContext.AddCrystal<SecondData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 2, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
@@ -206,16 +245,12 @@ internal class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
-                {
-                    GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")),
-                });
             });
 
         var unit = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(true); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
@@ -224,20 +259,15 @@ internal class Program
         Console.WriteLine($"Save {data.ToString()}");
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        data = crystal.Data;
-        data.Id += 1;
-        Console.WriteLine($"Crystal {data.ToString()}");
-
-        await crystal.Store(StoreMode.ForceRelease);
-        Console.WriteLine($"Unload {crystal.Data.ToString()}");
-        crystal.Data.Id++;
-        Console.WriteLine($"Unload++ {crystal.Data.ToString()}");
+        crystal.AddToSaveQueue(2);
+        // await Task.Delay(10_000);
 
         data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"Data {data.ToString()}");
 
         crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
+        // await crystal2.PrepareAndLoad(false);
 
         var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var classStorage = data2.ClassStorage;
@@ -250,10 +280,22 @@ internal class Program
             }
         }
 
+        // await Task.Delay(3000);
+
+        /*var mem = GC.GetTotalMemory(false);
+        var bb = new StorageObject[10_000_000];
+        for (int i = 0; i < bb.Length; i++)
+        {
+            bb[i] = new StorageObject();
+        }
+
+        var mem2 = GC.GetTotalMemory(false);
+        Console.WriteLine($"Memory {mem2 / 1000000}, {(mem2 - mem) / 1_000_000}");*/
+
         data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
 
         await data2.ClassStorage.StoreData(StoreMode.TryRelease);
-        data2.ClassStorage.DeleteLatestStorageForDebug();
+        data2.ClassStorage.DeleteLatestStorageForTest();
         await crystalizer.StoreJournal();
 
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
@@ -320,7 +362,8 @@ internal class Program
         }
 
         crystalizer.Dump();
-        await crystalizer.StoreAndRelease();
+        // await crystalizer.StoreAndRelease();
+        await crystalizer.StoreAndRip();
         Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
     }
 }

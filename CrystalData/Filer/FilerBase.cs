@@ -4,7 +4,7 @@
 
 namespace CrystalData.Filer;
 
-public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
+public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
 {
     public const int DefaultConcurrentTasks = 4;
 
@@ -32,18 +32,18 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
 
     #region FieldAndProperty
 
-    bool IRawFiler.SupportPartialWrite => true;
+    bool IFiler.SupportPartialWrite => true;
 
     protected Crystalizer? Crystalizer { get; set; }
 
     #endregion
 
-    async Task<CrystalResult> IRawFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
+    async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
         throw new NotImplementedException();
     }
 
-    async Task IRawFiler.FlushAsync(bool terminate)
+    async Task IFiler.FlushAsync(bool terminate)
     {
         await this.WaitForCompletionAsync().ConfigureAwait(false);
         if (terminate)
@@ -52,9 +52,9 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         }
     }
 
-    CrystalResult IRawFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
     {
-        if (!((IRawFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
+        if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
         {// Not supported
             return CrystalResult.NoPartialWriteSupport;
         }
@@ -63,13 +63,13 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         return CrystalResult.Started;
     }
 
-    CrystalResult IRawFiler.DeleteAndForget(string path)
+    CrystalResult IFiler.DeleteAndForget(string path)
     {
         this.AddLast(new(FilerWork.WorkType.Delete, path));
         return CrystalResult.Started;
     }
 
-    async Task<CrystalMemoryOwnerResult> IRawFiler.ReadAsync(string path, long offset, int length, TimeSpan timeToWait)
+    async Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(string path, long offset, int length, TimeSpan timeToWait)
     {
         var work = new FilerWork(path, offset, length);
         var workInterface = this.AddLast(work);
@@ -77,9 +77,9 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         return new(work.Result, work.ReadData.ReadOnly);
     }
 
-    async Task<CrystalResult> IRawFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
+    async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
     {
-        if (!((IRawFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
+        if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
         {// Not supported
             return CrystalResult.NoPartialWriteSupport;
         }
@@ -90,7 +90,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         return work.Result;
     }
 
-    async Task<CrystalResult> IRawFiler.DeleteAsync(string path, TimeSpan timeToWait)
+    async Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeToWait)
     {
         var work = new FilerWork(FilerWork.WorkType.Delete, path);
         var workInterface = this.AddLast(work);
@@ -98,7 +98,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         return work.Result;
     }
 
-    async Task<CrystalResult> IRawFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
+    async Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
     {
         var workType = recursive ? FilerWork.WorkType.DeleteDirectory : FilerWork.WorkType.DeleteEmptyDirectory;
         var work = new FilerWork(workType, path);
@@ -107,7 +107,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IRawFiler
         return work.Result;
     }
 
-    async Task<List<PathInformation>> IRawFiler.ListAsync(string path, TimeSpan timeToWait)
+    async Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeToWait)
     {
         var work = new FilerWork(FilerWork.WorkType.List, path);
         var workInterface = this.AddLast(work);

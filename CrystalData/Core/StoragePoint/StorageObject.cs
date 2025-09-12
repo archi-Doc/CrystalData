@@ -11,7 +11,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDataUnlocker
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
 {
     public const int MaxHistories = 3;
 
@@ -36,21 +36,28 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal StorageId storageId2; // Lock:StorageControl
 
     internal StorageMap storageMap; // Lock:StorageControl
-    internal StorageObject? previous; // Lock:StorageControl
-    internal StorageObject? next; // Lock:StorageControl
+
+    internal StorageObject? onMemoryPrevious; // Lock:StorageControl
+    internal StorageObject? onMemoryNext; // Lock:StorageControl
+
+    internal int saveQueueTime; // Lock:StorageControl System time in seconds registered in the save queue
+    internal StorageObject? saveQueuePrevious; // Lock:StorageControl
+    internal StorageObject? saveQueueNext; // Lock:StorageControl
 
     private object? data; // Lock:this
     internal int size; // Lock:StorageControl
 
     public IStructualRoot? StructualRoot
     {
-        get => ((IStructualObject)this.storageMap).StructualRoot;
+        get => this;
+        // get => ((IStructualObject)this.storageMap).StructualRoot;
         set { }
     }
 
     public IStructualObject? StructualParent
     {
-        get => this.storageMap;
+        get => default;
+        // get => this.storageMap;
         set { }
     }
 
@@ -72,7 +79,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
     #endregion
 
-    public StorageObject()
+    internal StorageObject()
     {
         this.storageMap = StorageMap.Disabled;
     }
@@ -237,9 +244,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         this.Exit();
     }
 
-    internal void DeleteLatestStorageForDebug()
+    internal void DeleteLatestStorageForTest()
     {
-        this.storageControl.DeleteLatestStorageForDebug(this);
+        this.storageControl.DeleteLatestStorageForTest(this);
     }
 
     internal void Set<TData>(TData data)
@@ -256,12 +263,64 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
     }
 
+    #region IStructualRoot
+
+    bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
+    {
+        if (this.storageMap.Crystalizer?.Journal is { } journal &&
+            this.storageMap.CrystalObject is { } crystalObject)
+        {
+            journal.GetWriter(recordType, out writer);
+
+            writer.Write_Locator();
+            writer.Write(crystalObject.Plane);
+            writer.Write_Locator();
+            writer.Write(this.pointId);
+            return true;
+        }
+        else
+        {
+            writer = default;
+            return false;
+        }
+    }
+
+    ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
+    {
+        if (this.storageMap.Crystalizer?.Journal is { } journal)
+        {
+            return journal.Add(ref writer);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    void IStructualRoot.AddToSaveQueue(int delaySeconds)
+    {
+        // The delay time for Storage saving is configured collectively in StorageControl (Crystalizer.DefaultSaveDelaySeconds).
+        /*if (this.storageMap.Crystalizer is { } crystalizer)
+        {
+            if (delaySeconds == 0)
+            {
+                delaySeconds = crystalizer.DefaultSaveDelaySeconds;
+            }
+        }*/
+
+        if (this.saveQueueTime == 0)
+        {
+            this.storageControl.AddToSaveQueue(this);
+        }
+    }
+
+    #endregion
+
     #region IStructualObject
 
     internal async Task<bool> StoreData(StoreMode storeMode)
     {
         object? dataCopy;
-        ICrystal? crystal;
 
         if (storeMode == StoreMode.TryRelease)
         {
@@ -275,8 +334,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 this.storageControl.Release(this, false); // Release
                 dataCopy = this.data;
                 this.data = default;
-                crystal = this.StructualRoot as ICrystal;
-                if (dataCopy is null || crystal is null)
+                if (dataCopy is null)
                 {// No data
                     return true;
                 }
@@ -294,8 +352,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
                 this.storageControl.Release(this, false); // Release
                 dataCopy = this.data;
                 this.data = default;
-                crystal = this.StructualRoot as ICrystal;
-                if (dataCopy is null || crystal is null)
+                if (dataCopy is null)
                 {// No data
                     return true;
                 }
@@ -308,8 +365,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         else
         {// Store data
             dataCopy = this.data;
-            crystal = this.StructualRoot as ICrystal;
-            if (dataCopy is null || crystal is null)
+            if (dataCopy is null)
             {// No data
                 return true;
             }
@@ -358,19 +414,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         {// Different data
             // Put
             ulong fileId = 0;
-            crystal.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
-            var currentPosition = crystal.Journal is null ? Waypoint.ValidJournalPosition : crystal.Journal.GetCurrentPosition();
+            this.storageMap.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+            var currentPosition = this.storageMap.Journal is null ? Waypoint.ValidJournalPosition : this.storageMap.Journal.GetCurrentPosition();
             var storageId = new StorageId(currentPosition, fileId, hash);
 
             // Update storage id
-            this.storageMap.StorageControl.AddStorage(this, crystal, storageId);
+            this.storageMap.StorageControl.AddStorage(this, this.storageMap.Storage, storageId);
 
             // Journal
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
                 writer.Write(JournalRecord.AddItem);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
-                root.AddJournal(ref writer);
+                root.AddJournalAndDispose(ref writer);
             }
         }
 
@@ -378,55 +434,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         return result;
     }
-
-    /*internal async Task<bool> StoreData(StoreMode storeMode)
-    {
-        if (this.data is not { } data ||
-            this.StructualRoot is not ICrystal crystal)
-        {// No data
-            return true;
-        }
-
-        // this.SetPendingReleaseStateBit();
-        // if (storeMode == StoreMode.Release)
-        // {// Release
-        //    this.SetPendingReleaseStateBit();
-        // }
-
-        // bool result;
-        // if (this.TryEnter())
-        // {
-        //    try
-        //    {
-        //        result = await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
-        //        this.ReleaseIfPendingInternal();
-        //    }
-        //    finally
-        //    {
-        //        this.Exit();
-        //    }
-        // }
-
-        await this.StoreData(storeMode, data, crystal).ConfigureAwait(false);
-
-        if (storeMode == StoreMode.Release)
-        {// Release
-            this.SetPendingReleaseStateBit();
-            if (this.TryEnter())
-            {
-                try
-                {
-                    this.ReleaseIfPendingInternal();
-                }
-                finally
-                {
-                    this.Exit();
-                }
-            }
-        }
-
-        return true;
-    }*/
 
     void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -441,7 +448,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
     internal Task Delete(DateTime forceDeleteAfter)
         => this.DeleteStorage(true, forceDeleteAfter);
 
-    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -460,11 +467,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
         }
         else if (record == JournalRecord.AddItem)
         {
-            if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
-            {// No crystal
-                return true;
-            }
-
             //
             /*var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             if (storageId > this.storageId0)
@@ -477,36 +479,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
         if (this.data is IStructualObject structualObject)
         {
-            return structualObject.ReadRecord(ref reader);
+            return structualObject.ProcessJournalRecord(ref reader);
         }
         else
         {
             return false;
         }
-    }
-
-    private bool ReadValueRecord(ref TinyhandReader reader)
-    {
-        if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
-        {
-            if (this.data is IStructualObject structualObject)
-            {
-                return structualObject.ReadRecord(ref reader);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        if (record == JournalRecord.Value)
-        {
-            reader.Read_Value();
-            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
-            return this.data is not null;
-        }
-
-        return false;
     }
 
     void IStructualObject.WriteLocator(ref TinyhandWriter writer)
@@ -524,12 +502,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             return;
         }
 
-        if (((IStructualObject)this).StructualRoot is not ICrystal crystal)
-        {// No crystal
-            return;
-        }
-
-        var storage = crystal.Storage;
+        var storage = this.storageMap.Storage;
         ulong fileId = 0;
         ulong journalPosition = 0;
         CrystalMemoryOwnerResult result = new(CrystalResult.NotFound);
@@ -576,10 +549,36 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
             this.SetDataInternal(data, false, result.Data);
             if (journalPosition > 0)
             {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
-                var plane = this.StructualRoot is ICrystalInternal crystalInternal ? crystalInternal.Waypoint.Plane : 0;
-                if (plane != 0)
+                var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+                var reconstruct = false;
+                if (this.storageMap.Journal is { } journal)
                 {
-                    await this.ReconstructFromJournal(plane, journalPosition);
+                    reconstruct = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+                }
+
+                /*if (plane != 0)
+                {
+                    reconstruct = await this.ReconstructFromJournal(plane, journalPosition).ConfigureAwait(false);
+                }*/
+
+                var dataType = this.data?.GetType();
+                string storageInfo;
+                if (dataType == null)
+                {
+                    storageInfo = $"PointId = {this.pointId}";
+                }
+                else
+                {
+                    storageInfo = $"Type = {dataType.Name}, PointId = {this.pointId}";
+                }
+
+                if (reconstruct)
+                {// Successfully reconstructed
+                    this.storageControl.Logger?.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
+                }
+                else
+                {// Could not reconstruct
+                    this.storageControl.Logger?.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
                 }
             }
         }
@@ -640,93 +639,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IDa
 
             writer.Write(JournalRecord.Value);
             writer.WriteSpan(original.Span);
-            root.AddJournal(ref writer);
+            root.AddJournalAndDispose(ref writer);
         }
 
         if (rentMemory.IsRent)
         {
             rentMemory.Return();
-        }
-    }
-
-    private async Task ReconstructFromJournal(uint plane, ulong position)
-    {
-        if (this.StructualRoot is not ICrystal crystal ||
-            crystal.Journal is not { } journal)
-        {
-            return;
-        }
-
-        var upperLimit = crystal.Journal.GetCurrentPosition();
-
-        while (position != 0)
-        {
-            var endPosition = position;
-            var journalResult = await journal.ReadJournalAsync(position).ConfigureAwait(false);
-            if (journalResult.NextPosition == 0)
-            {
-                break;
-            }
-
-            try
-            {
-                this.ReconstructFromMemory(plane, position, journalResult.Data.Memory);
-            }
-            finally
-            {
-                journalResult.Data.Return();
-            }
-
-            if (journalResult.NextPosition >= upperLimit)
-            {
-                break;
-            }
-
-            position = journalResult.NextPosition;
-        }
-    }
-
-    private void ReconstructFromMemory(uint mapPlane, ulong position, ReadOnlyMemory<byte> memory)
-    {
-        var reader = new TinyhandReader(memory.Span);
-        while (reader.Consumed < memory.Length)
-        {
-            if (!reader.TryReadRecord(out var length, out var journalType))
-            {// Not record
-                return;
-            }
-
-            var fork = reader.Fork();
-            try
-            {
-                if (journalType == JournalType.Record)
-                {
-                    reader.Read_Locator();
-                    var plane = reader.ReadUInt32();
-                    if (plane == mapPlane)
-                    {
-                        if (reader.TryReadJournalRecord(out var journalRecord))
-                        {
-                            if (journalRecord == JournalRecord.Locator)
-                            {
-                                var pointId = reader.ReadUInt64();
-                                if (pointId == this.pointId)
-                                {
-                                    this.ReadValueRecord(ref reader);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                reader = fork;
-                if (!reader.TryAdvance(length))
-                {
-                    reader.TryAdvance(reader.Remaining);
-                }
-            }
         }
     }
 

@@ -45,7 +45,6 @@ public partial class Program
                 context.AddCrystal<JournalData.GoshujinClass>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual,
                         SaveFormat = SaveFormat.Utf8,
                         NumberOfFileHistories = 3, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
                         FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData.tinyhand"), // Specify the file name to save.
@@ -56,7 +55,7 @@ public partial class Program
 
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         var goshujin = unit.Context.ServiceProvider.GetRequiredService<JournalData.GoshujinClass>(); // Retrieve a data instance from the service provider.
 

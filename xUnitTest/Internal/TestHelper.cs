@@ -28,7 +28,7 @@ public static class TestHelper
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
             context.AddCrystal<TData>(
-                new(SavePolicy.Manual, new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
+                new(new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
                 {
                     SaveFormat = SaveFormat.Utf8,
                     NumberOfFileHistories = DefaultNumberOfFileHistories,
@@ -42,7 +42,7 @@ public static class TestHelper
         crystalizer.StorageControl.MemoryUsage.Is(0);
 
         var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoadAll(false);
+        var result = await crystalizer.PrepareAndLoad(false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
@@ -55,7 +55,7 @@ public static class TestHelper
         {
             context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
             context.AddCrystal<TData>(
-                new(SavePolicy.Manual, new GlobalFileConfiguration("Test.tinyhand"))
+                new(new GlobalFileConfiguration("Test.tinyhand"))
                 {
                     SaveFormat = SaveFormat.Utf8,
                     NumberOfFileHistories = DefaultNumberOfFileHistories,
@@ -76,7 +76,7 @@ public static class TestHelper
         crystalizer.StorageControl.MemoryUsage.Is(0);
 
         var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoadAll(false);
+        var result = await crystalizer.PrepareAndLoad(false);
         result.Is(CrystalResult.Success);
         return crystal;
     }

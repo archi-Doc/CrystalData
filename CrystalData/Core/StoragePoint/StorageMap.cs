@@ -3,6 +3,8 @@
 #pragma warning disable SA1202
 
 using CrystalData.Internal;
+using CrystalData.Journal;
+using CrystalData.Storage;
 using Tinyhand.IO;
 
 namespace CrystalData;
@@ -16,7 +18,15 @@ public sealed partial class StorageMap : IStructualObject
 
     #region FiendAndProperty
 
+    public Crystalizer? Crystalizer { get; private set; }
+
+    public IJournal? Journal { get; private set; }
+
+    public IStorage Storage { get; private set; }
+
     public StorageControl StorageControl { get; private set; }
+
+    internal CrystalObjectBase? CrystalObject { get; private set; }
 
     private bool enabledStorageMap;
 
@@ -32,6 +42,14 @@ public sealed partial class StorageMap : IStructualObject
     public long StorageUsage => this.storageUsage;
 
     #endregion
+
+    public StorageMap()
+    {
+        this.StorageControl = StorageControl.Disabled;
+        this.Journal = EmptyJournal.Default;
+        this.Storage = EmptyStorage.Default;
+        this.enabledStorageMap = false;
+    }
 
     /*
     #region IStructualRoot
@@ -65,7 +83,7 @@ public sealed partial class StorageMap : IStructualObject
         }
     }
 
-    bool IStructualRoot.TryAddToSaveQueue()
+    void IStructualRoot.AddToSaveQueue()
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.OnChanged)
         {
@@ -88,7 +106,7 @@ public sealed partial class StorageMap : IStructualObject
 
     int IStructualObject.StructualKey { get; set; }
 
-    bool IStructualObject.ReadRecord(ref TinyhandReader reader)
+    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -113,7 +131,7 @@ public sealed partial class StorageMap : IStructualObject
             var pointId = reader.ReadUInt64();
             if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
             {
-                return ((IStructualObject)storageObject).ReadRecord(ref reader);
+                return ((IStructualObject)storageObject).ProcessJournalRecord(ref reader);
             }
         }
 
@@ -126,22 +144,13 @@ public sealed partial class StorageMap : IStructualObject
 
     #endregion
 
-    /*public StorageMap(StorageControl storageControl)
+    internal void Enable(StorageControl storageControl, CrystalObjectBase crystalObject, IStorage storage)
     {
         this.StorageControl = storageControl;
-        this.enabledStorageMap = true;
-        storageControl.AddStorageMap(this);
-    }*/
-
-    public StorageMap()
-    {
-        this.StorageControl = StorageControl.Disabled;
-        this.enabledStorageMap = false;
-    }
-
-    internal void Enable(StorageControl storageControl)
-    {
-        this.StorageControl = storageControl;
+        this.Crystalizer = this.StorageControl.Crystalizer;
+        this.Journal = this.Crystalizer?.Journal;
+        this.Storage = storage;
+        this.CrystalObject = crystalObject;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
     }

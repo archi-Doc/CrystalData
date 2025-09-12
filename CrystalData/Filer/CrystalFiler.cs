@@ -17,7 +17,7 @@ public class CrystalFiler
         private CrystalFiler crystalFiler;
         private FileConfiguration fileConfiguration;
 
-        private IRawFiler? rawFiler;
+        private IFiler? rawFiler;
         private Lock lockObject = new();
         private string prefix = string.Empty; // "Directory/File."
         private string extension = string.Empty; // string.Empty or ".extension"
@@ -37,7 +37,7 @@ public class CrystalFiler
         {
             if (this.rawFiler == null)
             {
-                (this.rawFiler, this.fileConfiguration) = this.crystalFiler.Crystalizer.ResolveRawFiler(this.fileConfiguration);
+                (this.rawFiler, this.fileConfiguration) = this.crystalFiler.Crystalizer.ResolveFiler(this.fileConfiguration);
                 var result = await this.rawFiler.PrepareAndCheck(param, this.fileConfiguration).ConfigureAwait(false);
                 if (result.IsFailure())
                 {
@@ -188,7 +188,7 @@ public class CrystalFiler
                     result.Return();
                     if (r.Data is not null)
                     {// Success
-                        return (new(CrystalResult.Success, r.Data), new(Waypoint.InvalidJournalPosition, 0, hash), path);
+                        return (new(CrystalResult.Success, r.Data), new(Waypoint.InvalidJournalPosition, hash, 0), path);
                     }
 
                     _ = this.rawFiler.DeleteAsync(path);
@@ -225,7 +225,21 @@ public class CrystalFiler
             return (new(CrystalResult.NotFound), Waypoint.Invalid, string.Empty);
         }
 
-        public Task<CrystalResult> DeleteAllAsync()
+        public async Task<CrystalResult> Delete(Waypoint waypoint)
+        {
+            if (this.rawFiler == null)
+            {
+                return CrystalResult.NotPrepared;
+            }
+            else if (this.waypoints == null)
+            {
+                return CrystalResult.NotFound;
+            }
+
+            return await this.rawFiler.DeleteAsync(this.GetFilePath(waypoint)).ConfigureAwait(false);
+        }
+
+        public Task<CrystalResult> DeleteAll()
         {
             if (this.rawFiler == null)
             {
@@ -455,15 +469,27 @@ public class CrystalFiler
         }
     }
 
-    public async Task<CrystalResult> DeleteAllAsync()
+    public async Task<CrystalResult> Delete(Waypoint waypoint)
     {
         if (this.main is null)
         {
             return CrystalResult.NotPrepared;
         }
 
-        var result = await this.main.DeleteAllAsync().ConfigureAwait(false);
-        _ = this.backup?.DeleteAllAsync();
+        var result = await this.main.Delete(waypoint).ConfigureAwait(false);
+        _ = this.backup?.Delete(waypoint);
+        return result;
+    }
+
+    public async Task<CrystalResult> DeleteAll()
+    {
+        if (this.main is null)
+        {
+            return CrystalResult.NotPrepared;
+        }
+
+        var result = await this.main.DeleteAll().ConfigureAwait(false);
+        _ = this.backup?.DeleteAll();
         return result;
     }
 }

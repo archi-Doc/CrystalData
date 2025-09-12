@@ -27,7 +27,6 @@ public partial class Program
                 context.AddCrystal<SaveTimingData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Periodic, // Data will be saved at regular intervals.
                         SaveInterval = TimeSpan.FromMinutes(1), // The interval at which data is stored.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
@@ -37,7 +36,7 @@ public partial class Program
 
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
         var data = crystal.Data;
@@ -51,7 +50,7 @@ public partial class Program
 
         // On changed - alternative
         data.id += 2;
-        crystal.TryAddToSaveQueue();
+        crystal.AddToSaveQueue();
 
         // Manual...
         await crystal.Store();

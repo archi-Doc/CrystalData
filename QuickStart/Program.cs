@@ -34,7 +34,6 @@ internal class Program
                 context.AddCrystal<FirstData>(
                     new CrystalConfiguration()
                     {
-                        SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
@@ -43,15 +42,15 @@ internal class Program
 
         var unit = builder.Build(); // Build.
         var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id += 1;
-        data.Name = "Fuga";
+        data.Name += "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.Store(); // Save all data.
+        await crystalizer.StoreAndRip(); // Save data and perform the shutdown process.
     }
 }

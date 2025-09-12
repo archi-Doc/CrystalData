@@ -1,10 +1,11 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Collections.Concurrent;
+using System.Collections.Frozen;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using CrystalData.Check;
 using CrystalData.Filer;
 using CrystalData.Journal;
 using CrystalData.Storage;
@@ -17,94 +18,18 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-public class Crystalizer
+public partial class Crystalizer
 {
     public const string BinaryExtension = ".th";
     public const string Utf8Extension = ".tinyhand";
-    public const string CheckFile = "Crystal.check";
-    public const int TaskIntervalInMilliseconds = 1_000;
-    public const int PeriodicSaveInMilliseconds = 10_000;
-
-    private class CrystalizerTask : TaskCore
-    {
-        public CrystalizerTask(Crystalizer crystalizer)
-            : base(null, Process)
-        {
-            this.crystalizer = crystalizer;
-        }
-
-        private static async Task Process(object? parameter)
-        {
-            var core = (CrystalizerTask)parameter!;
-            int elapsedMilliseconds = 0;
-            while (await core.Delay(TaskIntervalInMilliseconds).ConfigureAwait(false))
-            {
-                await core.crystalizer.QueuedSave().ConfigureAwait(false);
-
-                elapsedMilliseconds += TaskIntervalInMilliseconds;
-                if (elapsedMilliseconds >= PeriodicSaveInMilliseconds)
-                {
-                    elapsedMilliseconds = 0;
-                    await core.crystalizer.PeriodicSave().ConfigureAwait(false);
-                }
-            }
-        }
-
-        private Crystalizer crystalizer;
-    }
-
-    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
-    {
-        this.configuration = configuration;
-
-        this.UnitLogger = unitLogger;
-        this.ServiceProvider = serviceProvider;
-        this.CrystalSupplement = new(this);
-        this.StorageControl = storageControl;
-        this.Query = query;
-        this.QueryContinue = new CrystalDataQueryNo();
-
-        // Options
-        this.StorageControl.MemoryUsageLimit = options.MemoryUsageLimit;
-        var dataDirectory = options.DataDirectory;
-        if (string.IsNullOrEmpty(dataDirectory))
-        {
-            dataDirectory = Directory.GetCurrentDirectory();
-        }
-
-        var defaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
-        var defaultSavePolicy = options.DefaultSavePolicy == SavePolicy.Default ? SavePolicy.Manual : options.DefaultSavePolicy;
-        var defaultSaveInterval = options.DefaultSaveInterval == TimeSpan.Zero ? CrystalConfiguration.DefaultSaveInterval : options.DefaultSaveInterval;
-        this.Options = options with
-        {
-            DataDirectory = dataDirectory,
-            DefaultSaveFormat = defaultSaveFormat,
-            DefaultSavePolicy = defaultSavePolicy,
-            DefaultSaveInterval = defaultSaveInterval,
-        };
-
-        //Supplement file
-
-        this.Logger = logger;
-        this.task = new(this);
-        this.CrystalCheck = new(this.UnitLogger.GetLogger<CrystalCheck>());
-        this.CrystalCheck.Load(Path.Combine(this.Options.DataDirectory, CheckFile));
-        this.StorageKey = storageKey;
-
-        foreach (var x in this.configuration.CrystalConfigurations)
-        {
-            // new CrystalImpl<TData>
-            var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, [this,], null)!;
-            crystal.Configure(x.Value);
-
-            this.typeToCrystal.TryAdd(x.Key, crystal);
-            this.crystals.TryAdd(crystal, 0);
-        }
-
-        this.CrystalSupplement.PrepareAndLoad();
-    }
 
     #region FieldAndProperty
+
+    public bool IsPrepared { get; private set; }
+
+    public int SystemTimeInSeconds { get; private set; } // System time in seconds
+
+    public int DefaultSaveDelaySeconds { get; set; }// Default save delay seconds
 
     public CrystalizerOptions Options { get; }
 
@@ -118,8 +43,6 @@ public class Crystalizer
 
     public IStorageKey StorageKey { get; }
 
-    // public StorageControl StorageControl { get; }
-
     internal ICrystalDataQuery Query { get; }
 
     internal ICrystalDataQuery QueryContinue { get; }
@@ -128,43 +51,107 @@ public class Crystalizer
 
     internal ILogger Logger { get; }
 
-    internal CrystalCheck CrystalCheck { get; }
-
     internal IServiceProvider ServiceProvider { get; }
 
-    private CrystalizerConfiguration configuration;
+    private readonly CrystalizerConfiguration configuration;
+    private readonly CrystalizerCore crystalizerCore;
 
-    private CrystalizerTask task;
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
-    private ConcurrentDictionary<ICrystalInternal, int> crystals = new(); // All crystals
-    private ConcurrentDictionary<uint, ICrystalInternal> planeToCrystal = new(); // Plane to crystal
-    private ConcurrentDictionary<ICrystal, int> saveQueue = new(); // Save queue
+    private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
 
     private Lock lockObject = new();
-    private IRawFiler? localFiler;
-    private Dictionary<string, IRawFiler> bucketToS3Filer = new();
+    private IFiler? localFiler;
+    private Dictionary<string, IFiler> bucketToS3Filer = new();
     private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new(StorageConfiguration.MainDirectoryComparer.Instance);
 
     #endregion
 
+    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
+    {
+        this.UpdateTime();
+        this.configuration = configuration;
+        this.UnitLogger = unitLogger;
+        this.ServiceProvider = serviceProvider;
+
+        // Options
+        var dataDirectory = options.DataDirectory;
+        if (string.IsNullOrEmpty(dataDirectory))
+        {
+            dataDirectory = Directory.GetCurrentDirectory();
+        }
+
+        var defaultSaveFormat = options.DefaultSaveFormat == SaveFormat.Default ? SaveFormat.Binary : options.DefaultSaveFormat;
+        this.DefaultSaveDelaySeconds = (int)options.SaveDelay.TotalSeconds;
+        this.Options = options with
+        {
+            DataDirectory = dataDirectory,
+            DefaultSaveFormat = defaultSaveFormat,
+        };
+
+        this.CrystalSupplement = new(this);
+        this.StorageControl = storageControl;
+        this.StorageControl.Initialize(this);
+        this.Query = query;
+        this.QueryContinue = new CrystalDataQueryNo();
+        this.Logger = logger;
+        this.crystalizerCore = new(this);
+        this.StorageKey = storageKey;
+
+        foreach (var x in this.configuration.CrystalConfigurations)
+        {
+            // new CrystalImpl<TData>
+            var crystal = (ICrystalInternal)Activator.CreateInstance(typeof(CrystalObject<>).MakeGenericType(x.Key), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, [this,], null)!;
+            var crystalObjectBase = (CrystalObjectBase)crystal;
+            crystalObjectBase.IsRegistered = true;
+            crystalObjectBase.Goshujin = this.crystals;
+            this.typeToCrystal.TryAdd(x.Key, crystal);
+
+            crystal.Configure(x.Value);
+        }
+    }
+
     #region Resolvers
 
-    /*public (IFiler Filer, PathConfiguration FixedConfiguration) ResolveFiler(PathConfiguration configuration)
+    /*public (ISingleFiler Filer, PathConfiguration FixedConfiguration) ResolveFiler(PathConfiguration configuration)
     {
         var resolved = this.ResolveRawFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }*/
 
-    public (IFiler Filer, FileConfiguration FixedConfiguration) ResolveFiler(FileConfiguration configuration)
+    public (ISingleFiler Filer, FileConfiguration FixedConfiguration) ResolveSingleFiler(FileConfiguration configuration)
     {
-        var resolved = this.ResolveRawFiler(configuration);
+        var resolved = this.ResolveFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
     }
 
-    public (IFiler Filer, DirectoryConfiguration FixedConfiguration) ResolveFiler(DirectoryConfiguration configuration)
+    public (ISingleFiler Filer, DirectoryConfiguration FixedConfiguration) ResolveSingleFiler(DirectoryConfiguration configuration)
     {
-        var resolved = this.ResolveRawFiler(configuration);
+        var resolved = this.ResolveFiler(configuration);
         return (new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path), resolved.FixedConfiguration);
+    }
+
+    public async Task<(ISingleFiler? Filer, FileConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckSingleFiler<TData>(FileConfiguration configuration)
+    {
+        var resolved = this.ResolveFiler(configuration);
+        var filer = (ISingleFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
+        if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
+        {
+            return default;
+        }
+
+        return (filer, resolved.FixedConfiguration);
+    }
+
+    public async Task<(ISingleFiler? Filer, DirectoryConfiguration? FixedConfiguration)> ResolveAndPrepareAndCheckSingleFiler<TData>(DirectoryConfiguration configuration)
+    {
+        var resolved = this.ResolveFiler(configuration);
+        var filer = (ISingleFiler)new RawFilerToFiler(this, resolved.RawFiler, resolved.FixedConfiguration.Path);
+        if (await filer.PrepareAndCheck(PrepareParam.NoQuery<TData>(this), resolved.FixedConfiguration).ConfigureAwait(false) != CrystalResult.Success)
+        {
+            return default;
+        }
+
+        return (filer, resolved.FixedConfiguration);
     }
 
     /*public (IRawFiler RawFiler, PathConfiguration FixedConfiguration) ResolveRawFiler(PathConfiguration configuration)
@@ -222,7 +209,7 @@ public class Crystalizer
         }
     }*/
 
-    public (IRawFiler RawFiler, FileConfiguration FixedConfiguration) ResolveRawFiler(FileConfiguration configuration)
+    public (IFiler RawFiler, FileConfiguration FixedConfiguration) ResolveFiler(FileConfiguration configuration)
     {
         using (this.lockObject.EnterScope())
         {
@@ -262,7 +249,7 @@ public class Crystalizer
         }
     }
 
-    public (IRawFiler RawFiler, DirectoryConfiguration FixedConfiguration) ResolveRawFiler(DirectoryConfiguration configuration)
+    public (IFiler RawFiler, DirectoryConfiguration FixedConfiguration) ResolveFiler(DirectoryConfiguration configuration)
     {
         using (this.lockObject.EnterScope())
         {
@@ -379,7 +366,7 @@ public class Crystalizer
             }
         }
 
-        var resolved = this.ResolveFiler(configuration);
+        var resolved = this.ResolveSingleFiler(configuration);
         var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<Crystalizer>(this), resolved.FixedConfiguration).ConfigureAwait(false);
         if (result.IsFailure())
         {
@@ -392,9 +379,18 @@ public class Crystalizer
         return result;
     }
 
+    public async Task LoadAllCrystals(bool useQuery = false)
+    {
+        var crystals = this.crystals.GetCrystals(true);
+        foreach (var x in crystals)
+        {
+            await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
+        }
+    }
+
     public async Task<CrystalResult> LoadConfigurations(FileConfiguration configuration)
     {
-        var resolved = this.ResolveFiler(configuration);
+        var resolved = this.ResolveSingleFiler(configuration);
         var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<Crystalizer>(this), resolved.FixedConfiguration).ConfigureAwait(false);
         if (result.IsFailure())
         {
@@ -444,20 +440,15 @@ public class Crystalizer
         }
     }
 
-    public async Task<CrystalResult> PrepareAndLoadAll(bool useQuery = true)
+    public async Task<CrystalResult> PrepareAndLoad(bool useQuery = true, bool loadCrystals = true)
     {
-        // Check file
-        if (!this.CrystalCheck.SuccessfullyLoaded)
+        if (this.IsPrepared)
         {
-            if (await this.Query.NoCheckFile().ConfigureAwait(false) == AbortOrContinue.Abort)
-            {
-                return CrystalResult.NotFound;
-            }
-            else
-            {
-                this.CrystalCheck.SuccessfullyLoaded = true;
-            }
+            return CrystalResult.Success;
         }
+
+        this.CrystalSupplement.PrepareAndLoad();
+        this.crystalizerCore.Start();
 
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);
@@ -466,41 +457,53 @@ public class Crystalizer
             return result;
         }
 
-        // Crystals
-        var crystals = this.crystals.Keys.ToArray();
-        // var list = new List<string>();
-        foreach (var x in crystals)
-        {
-            result = await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
-            if (result.IsFailure())
-            {
-                return result;
+        this.IsPrepared = true;
+        if (this.CrystalSupplement.IsRip)
+        {// Rip success
+            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
+
+            if (loadCrystals)
+            {// Load all crystals
+                await this.LoadAllCrystals(useQuery);
             }
-
-            // list.Add(x.Data.GetType().Name);
         }
+        else
+        {// Rip failure -> Read journal
+            this.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
 
-        // Dump Plane
-        // this.DumpPlane();
+            // Load all crystals
+            await this.LoadAllCrystals(useQuery);
 
-        // Read journal
-        await this.ReadJournal().ConfigureAwait(false);
-
-        // Save crystal check
-        this.CrystalCheck.Store();
-        this.CrystalCheck.ClearShortcutPosition();
-
-        // this.logger.TryGet()?.Log($"Prepared - {string.Join(", ", list)}");
+            // Read journal
+            await this.ReadJournal().ConfigureAwait(false);
+        }
 
         return CrystalResult.Success;
     }
 
+    /// <summary>
+    /// Stores all managed crystals and storage asynchronously.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous store operation.</returns>
     public Task Store(CancellationToken cancellationToken = default)
         => this.Store(false, StoreMode.StoreOnly, cancellationToken);
 
+    /// <summary>
+    /// Stores all managed crystals and storage asynchronously., then attempts to release resources.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous store and release operation.</returns>
     public Task StoreAndRelease(CancellationToken cancellationToken = default)
         => this.Store(false, StoreMode.TryRelease, cancellationToken);
 
+    /// <summary>
+    /// Stores all crystals and storage and journal.<br/>
+    /// Always call this function when the application shuts down.<br/>
+    /// The database cannot be used after this point.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous store and rip operation.</returns>
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         this.StorageControl.Rip();
@@ -516,16 +519,17 @@ public class Crystalizer
         this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
     }
 
-    public void AddToSaveQueue(ICrystal crystal)
+    /// <summary>
+    /// Deletes all crystals asynchronously.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous delete operation.
+    /// </returns>
+    public async Task DeleteAll()
     {
-        this.saveQueue.TryAdd(crystal, 0);
-    }
-
-    public async Task<CrystalResult[]> DeleteAll()
-    {
-        var tasks = this.crystals.Keys.Select(x => x.Delete()).ToArray();
+        var crystals = this.crystals.GetCrystals(false);
+        var tasks = crystals.Select(x => x.Delete()).ToArray();
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-        return results;
     }
 
     public void DeleteDirectory(DirectoryConfiguration directoryConfiguration)
@@ -547,13 +551,14 @@ public class Crystalizer
         }
     }
 
-    public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool managedByCrystalizer = true)
+    public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool isUnmanaged = false)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
         var crystal = new CrystalObject<TData>(this);
-        if (managedByCrystalizer)
+        using (this.crystals.LockObject.EnterScope())
         {
-            this.crystals.TryAdd(crystal, 0);
+            crystal.IsUnmanaged = isUnmanaged;
+            crystal.Goshujin = this.crystals;
         }
 
         if (configuration is not null)
@@ -574,7 +579,11 @@ public class Crystalizer
         }
 
         var crystalObject = new CrystalObject<TData>(this);
-        this.crystals.TryAdd(crystalObject, 0);
+        using (this.crystals.LockObject.EnterScope())
+        {
+            crystalObject.Goshujin = this.crystals;
+        }
+
         ((ICrystal)crystalObject).Configure(configuration);
         return crystalObject;
     }
@@ -602,7 +611,7 @@ public class Crystalizer
 
     public async Task<bool> TestJournalAll()
     {
-        var crystals = this.crystals.Keys.ToArray();
+        var crystals = this.crystals.GetCrystals(true);
         var result = true;
         foreach (var x in crystals)
         {
@@ -646,17 +655,21 @@ public class Crystalizer
 
     #region Waypoint/Plane
 
-    internal void UpdateWaypoint(ICrystalInternal crystal, ref Waypoint waypoint, ulong hash)
+    internal void UpdateWaypoint(CrystalObjectBase crystalObjectBase, ref Waypoint waypoint, ulong hash)
     {
         var plane = waypoint.Plane;
         if (plane == 0)
         {
-            while (true)
+            using (this.crystals.LockObject.EnterScope())
             {
-                plane = RandomVault.Default.NextUInt32();
-                if (plane != 0 && this.planeToCrystal.TryAdd(plane, crystal))
-                {// Success
-                    break;
+                while (true)
+                {
+                    plane = RandomVault.Default.NextUInt32();
+                    if (plane != 0 && !this.crystals.PlaneChain.ContainsKey(plane))
+                    {// Success
+                        crystalObjectBase.PlaneValue = plane;
+                        break;
+                    }
                 }
             }
         }
@@ -664,6 +677,15 @@ public class Crystalizer
         // Add journal
         ulong journalPosition;
         if (this.Journal != null)
+        {
+            journalPosition = this.Journal.GetCurrentPosition();
+        }
+        else
+        {
+            journalPosition = waypoint.JournalPosition;
+        }
+
+        /*if (this.Journal != null)
         {
             this.Journal.GetWriter(JournalType.Waypoint, out var writer);
             writer.Write(plane);
@@ -673,84 +695,9 @@ public class Crystalizer
         else
         {
             journalPosition = waypoint.JournalPosition + 1;
-        }
+        }*/
 
-        waypoint = new(journalPosition, plane, hash);
-    }
-
-    /*internal void UpdatePlane(ICrystalInternal crystal, ref Waypoint waypoint, ulong hash, ulong startingPosition)
-    {
-        if (waypoint.CurrentPlane != 0)
-        {// Remove the current plane
-            this.planeToCrystal.TryRemove(waypoint.CurrentPlane, out _);
-        }
-
-        // Next plane
-        var nextPlane = waypoint.NextPlane;
-        if (nextPlane == 0)
-        {
-            while (true)
-            {
-                nextPlane = RandomVault.Pseudo.NextUInt32();
-                if (nextPlane != 0 && this.planeToCrystal.TryAdd(nextPlane, crystal))
-                {// Success
-                    break;
-                }
-            }
-        }
-
-        // New plane
-        uint newPlane;
-        while (true)
-        {
-            newPlane = RandomVault.Pseudo.NextUInt32();
-            if (newPlane != 0 && this.planeToCrystal.TryAdd(newPlane, crystal))
-            {// Success
-                break;
-            }
-        }
-
-        // Current/Next -> Next/New
-
-        // Add journal
-        ulong journalPosition;
-        ulong depth = 0;
-        if (this.Journal != null)
-        {
-            this.Journal.GetWriter(JournalType.Waypoint, out var writer);
-            writer.Write(newPlane);
-            writer.Write(hash);
-            journalPosition = this.Journal.Add(writer);
-
-            depth = journalPosition - startingPosition;
-            if (depth < 0 || depth > Waypoint.MaxDepth || startingPosition == 0)
-            {
-                depth = 0;
-            }
-        }
-        else
-        {
-            journalPosition = waypoint.JournalPosition + 1;
-        }
-
-        waypoint = new(journalPosition, nextPlane, newPlane, hash, (uint)depth);
-    }*/
-
-    internal void RemovePlane(Waypoint waypoint)
-    {
-        if (waypoint.Plane != 0)
-        {
-            this.planeToCrystal.TryRemove(waypoint.Plane, out _);
-            // this.CrystalCheck.TryRemovePlane(waypoint.CurrentPlane);
-        }
-    }
-
-    internal void SetPlane(ICrystalInternal crystal, ref Waypoint waypoint)
-    {
-        if (waypoint.Plane != 0)
-        {
-            this.planeToCrystal[waypoint.Plane] = crystal;
-        }
+        waypoint = new(journalPosition, hash, plane);
     }
 
     /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -784,29 +731,26 @@ public class Crystalizer
 
     #region Misc
 
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void ThrowNotPrepared()
+        => throw new InvalidOperationException("Crystalizer is not prepared. Call Prepare() first.");
+
     internal static string GetRootedFile(Crystalizer? crystalizer, string file)
         => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.Options.DataDirectory, file);
 
+    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowTypeNotRegistered(Type type)
     {
         throw new InvalidOperationException($"The specified data type '{type.Name}' is not registered. Register the data type within ConfigureCrystal().");
     }
 
+    [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowConfigurationNotRegistered(Type type)
     {
         throw new InvalidOperationException($"The specified configuration type '{type.Name}' is not registered.");
-    }
-
-    internal bool DeleteInternal(ICrystalInternal crystal)
-    {
-        if (!this.typeToCrystal.TryGetValue(crystal.DataType, out _))
-        {// Created crystals
-            return this.crystals.TryRemove(crystal, out _);
-        }
-
-        return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -821,7 +765,7 @@ public class Crystalizer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal object GetObject(Type type)
+    internal object GetData(Type type)
     {
         if (!this.typeToCrystal.TryGetValue(type, out var crystal))
         {
@@ -831,36 +775,58 @@ public class Crystalizer
         return crystal!.Data;
     }
 
-    private Task PeriodicSave()
+    internal bool UpdateTime()
     {
-        var tasks = new List<Task>();
-        var crystals = this.crystals.Keys.ToArray();
-        var utc = DateTime.UtcNow;
-        foreach (var x in crystals)
-        {
-            if (x.TryPeriodicSave(utc) is { } task)
-            {
-                tasks.Add(task);
-            }
-        }
-
-        return Task.WhenAll(tasks);
+        var previous = this.SystemTimeInSeconds;
+        this.SystemTimeInSeconds = (int)(Stopwatch.GetTimestamp() / Stopwatch.Frequency);
+        return previous != this.SystemTimeInSeconds;
     }
 
-    private Task QueuedSave()
+    internal async Task<bool> ProcessSaveQueue(ICrystalInternal[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
     {
-        var tasks = new List<Task>();
-        var array = this.saveQueue.Keys.ToArray();
-        this.saveQueue.Clear();
-        foreach (var x in array)
+        var result = false;
+        while (true)
         {
-            if (x.State == CrystalState.Prepared)
+            var count = 0;
+            using (this.crystals.LockObject.EnterScope())
             {
-                tasks.Add(x.Store(StoreMode.StoreOnly));
+                while (this.crystals.TimeForDataSavingChain.First is { } first && count < tempArray.Length)
+                {
+                    if (first.TimeForDataSaving > this.SystemTimeInSeconds)
+                    {// Not yet time to save.
+                        break;
+                    }
+
+                    this.crystals.TimeForDataSavingChain.Remove(first);
+                    first.TimeForDataSaving = 0;
+
+                    var crystalInternal = (ICrystalInternal)first;
+                    tempArray[count++] = (ICrystalInternal)first;
+                }
+            }
+
+            if (count == 0)
+            {
+                break;
+            }
+            else
+            {
+                result = true;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                await tempArray[i].Store(StoreMode.StoreOnly).ConfigureAwait(false);
+            }
+
+            Array.Clear(tempArray, 0, count);
+            if (count < tempArray.Length)
+            {
+                break;
             }
         }
 
-        return Task.WhenAll(tasks);
+        return result;
     }
 
     #endregion
@@ -907,22 +873,14 @@ public class Crystalizer
         if (this.Journal is { } journal)
         {// Load journal
             ulong position = journal.GetCurrentPosition();
+            var dictionary = this.crystals.GetPlaneDictionary();
 
-            var array = this.crystals.Keys.ToArray();
-            for (var i = 0; i < array.Length; i++)
+            foreach (var x in dictionary.Values)
             {
-                var waypoint = array[i].Waypoint;
-                this.CrystalCheck.TryGetPlanePosition(waypoint, out var shortcutPosition);
-                /*f (!this.CrystalCheck.TryGetPlanePosition(waypoint, out var shortcutPosition))
-                {
-                    this.logger.TryGet(LogLevel.Error)?.Log($"No shortcut position: {array[i].Value.DataType.Name}");
-                }*/
-
-                var max = shortcutPosition.CircularCompareTo(waypoint.JournalPosition) > 0 ? shortcutPosition : waypoint.JournalPosition;
-                max = Math.Max(max, 1);
-                if (position.CircularCompareTo(max) > 0)
-                {
-                    position = max;
+                var p = x.LeadingJournalPosition;
+                if (position.CircularCompareTo(p) > 0)
+                {// position > array[i].LeadingJournalPosition
+                    position = p;
                 }
             }
 
@@ -941,7 +899,7 @@ public class Crystalizer
 
                 try
                 {
-                    this.ProcessJournal(position, journalResult.Data.Memory, ref restored, ref failure);
+                    this.ProcessJournal(dictionary, position, journalResult.Data.Memory, ref restored, ref failure);
                 }
                 finally
                 {
@@ -962,7 +920,7 @@ public class Crystalizer
                 var sb = new StringBuilder();
                 foreach (var x in restored)
                 {
-                    if (this.planeToCrystal.TryGetValue(x, out var crystal))
+                    if (dictionary.TryGetValue(x, out var crystal))
                     {
                         sb.Append($"{crystal.DataType.FullName}, ");
                     }
@@ -973,12 +931,12 @@ public class Crystalizer
         }
     }
 
-    private void ProcessJournal(ulong position, Memory<byte> data, ref HashSet<uint> restored, ref bool failure)
+    private void ProcessJournal(FrozenDictionary<uint, ICrystalInternal> dictionary, ulong position, Memory<byte> data, ref HashSet<uint> restored, ref bool failure)
     {
         var reader = new TinyhandReader(data.Span);
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadRecord(out var length, out var journalType))
+            if (!reader.TryReadJournal(out var length, out var journalType))
             {
                 this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.Corrupted);
                 return;
@@ -987,7 +945,7 @@ public class Crystalizer
             var fork = reader.Fork();
             try
             {
-                if (journalType == JournalType.Startingpoint)
+                /*if (journalType == JournalType.Startingpoint)
                 {
                 }
                 else if (journalType == JournalType.Waypoint)
@@ -995,18 +953,19 @@ public class Crystalizer
                     reader.ReadUInt32();
                     reader.ReadUInt64();
                 }
-                else if (journalType == JournalType.Record)
+                else */
+                if (journalType == JournalType.Record)
                 {
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();
-                    if (this.planeToCrystal.TryGetValue(plane, out var crystal))
+                    if (dictionary.TryGetValue(plane, out var crystal))
                     {
                         if (crystal.Data is IStructualObject journalObject)
                         {
                             var currentPosition = position + (ulong)reader.Consumed;
-                            if (currentPosition.CircularCompareTo(crystal.Waypoint.JournalPosition) > 0)
-                            {
-                                if (journalObject.ReadRecord(ref reader))
+                            if (currentPosition.CircularCompareTo(crystal.LeadingJournalPosition) >= 0)
+                            {// currentPosition >= crystal.LeadingJournalPosition
+                                if (journalObject.ProcessJournalRecord(ref reader))
                                 {// Success
                                     // this.logger.TryGet(LogLevel.Debug)?.Log($"Journal read, Plane: {plane}, Length: {length} => {crystal.GetType().FullName}");
                                     restored.Add(plane);
@@ -1041,7 +1000,8 @@ public class Crystalizer
     private async Task Store(bool terminate, StoreMode storeMode, CancellationToken cancellationToken)
     {
         var goshujin = new ReleaseTask.GoshujinClass();
-        foreach (var x in this.crystals.Keys)
+        var crystals = this.crystals.GetCrystals(false);
+        foreach (var x in crystals)
         {// Crystals
             goshujin.Add(new(x));
         }
@@ -1077,6 +1037,8 @@ public class Crystalizer
             await journal.Store().ConfigureAwait(false);
         }
 
+        await this.CrystalSupplement.Store(terminate);
+
         // Flush filers
         var tasks = new List<Task>();
         using (this.lockObject.EnterScope())
@@ -1102,16 +1064,13 @@ public class Crystalizer
         }
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
-
-        this.CrystalCheck.Store();
-        this.CrystalSupplement.Store();
     }
 
     #endregion
 
     private void DumpPlane()
     {
-        foreach (var x in this.planeToCrystal)
+        foreach (var x in this.crystals.GetPlaneKeyValue())
         {
             this.Logger.TryGet(LogLevel.Debug)?.Log($"Plane: {x.Key} = {x.Value.GetType().FullName}");
         }

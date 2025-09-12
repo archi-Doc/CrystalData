@@ -9,7 +9,7 @@ using CrystalData.Results;
 
 namespace CrystalData.Filer;
 
-public class S3Filer : FilerBase, IRawFiler
+public class S3Filer : FilerBase, IFiler
 {// Vault: S3Bucket/BucketName "AccessKeyId=SecretAccessKey"
     private const string WriteTestFile = "Write.test";
 
@@ -239,9 +239,9 @@ RepeatList:
         return;
     }
 
-    bool IRawFiler.SupportPartialWrite => false;
+    bool IFiler.SupportPartialWrite => false;
 
-    async Task<CrystalResult> IRawFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
+    async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
         var directoryPath = string.Empty;
         this.Crystalizer = param.Crystalizer;
@@ -302,7 +302,7 @@ NoAccess:
         return CrystalResult.NoAccess;
     }
 
-    async Task IRawFiler.FlushAsync(bool terminate)
+    async Task IFiler.FlushAsync(bool terminate)
     {
         await this.WaitForCompletionAsync().ConfigureAwait(false);
         if (terminate)

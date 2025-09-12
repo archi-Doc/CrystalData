@@ -2,13 +2,16 @@
 
 namespace CrystalData;
 
-public interface IFiler
+/// <summary>
+/// An interface for operating on a single, pre-specified file.
+/// </summary>
+public interface ISingleFiler
 {
     bool SupportPartialWrite { get; }
 
     void SetTimeout(TimeSpan timeout);
 
-    IFiler CloneWithExtension(string extension);
+    ISingleFiler CloneWithExtension(string extension);
 
     /// <summary>
     /// Prepare the filer and check if the path is valid.<br/>

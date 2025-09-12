@@ -8,6 +8,8 @@ public partial class EmptyStorage : IStorage
 {
     public static readonly EmptyStorage Default = new();
 
+    int IStorage.NumberOfHistoryFiles => 0;
+
     StorageMap IStorage.StorageMap => StorageMap.Disabled;
 
     long IStorage.StorageUsage => 0;

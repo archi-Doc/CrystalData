@@ -5,7 +5,7 @@ using CrystalData.Results;
 
 namespace CrystalData.Filer;
 
-public class LocalFiler : FilerBase, IRawFiler
+public class LocalFiler : FilerBase, IFiler
 {
     public LocalFiler()
         : base(Process)
@@ -249,14 +249,14 @@ TryWrite:
 
     #region FieldAndProperty
 
-    bool IRawFiler.SupportPartialWrite => true;
+    bool IFiler.SupportPartialWrite => true;
 
     private ILogger? logger;
     private ConcurrentDictionary<string, bool> checkedPath = new();
 
     #endregion
 
-    async Task<CrystalResult> IRawFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
+    async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
         this.Crystalizer = param.Crystalizer;
         if (this.Crystalizer.Options.EnableFilerLogger)
