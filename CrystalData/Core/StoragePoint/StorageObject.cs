@@ -50,14 +50,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     public IStructualRoot? StructualRoot
     {
         get => this;
-        // get => ((IStructualObject)this.storageMap).StructualRoot;
         set { }
     }
 
     public IStructualObject? StructualParent
     {
         get => default;
-        // get => this.storageMap;
         set { }
     }
 
@@ -111,6 +109,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     }
 
     internal async ValueTask<TData?> TryGet<TData>(TimeSpan timeout, CancellationToken cancellationToken)
+        where TData : class
     {
         if (this.data is { } data)
         {
@@ -144,7 +143,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     }
 
     internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
-        where TData : notnull
+        where TData : class
     {
         if (this.storageControl.IsRip)
         {
@@ -214,7 +213,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     }
 
     internal void Set<TData>(TData data)
-        where TData : notnull
+        where TData : class
     {
         using (this.EnterScope())
         {
@@ -459,6 +458,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     #endregion
 
     private async Task PrepareAndLoadInternal<TData>()
+        where TData : class
     {// Lock:this
         if (this.data is not null)
         {// Already loaded
@@ -539,10 +539,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     }
 
     internal void SetTypeIdentifier<TData>()
+        where TData : class
         => this.typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     [MemberNotNull(nameof(data))]
     internal void SetDataInternal<TData>(TData newData, bool recordJournal, BytePool.RentReadOnlyMemory original)
+        where TData : class
     {// Lock:this
         BytePool.RentMemory rentMemory = default;
         this.data = newData!;
