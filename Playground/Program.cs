@@ -73,10 +73,21 @@ public partial class FirstData
     public string Name { get; set; } = string.Empty;
 
     [Key(2)]
-    public StoragePoint<double> DoubleStorage { get; set; } = new();
+    public StoragePoint<DoubleClass> DoubleStorage { get; set; } = new();
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}, Double: {this.DoubleStorage.TryGet().Result}";
+}
+
+[TinyhandObject(Structual = true)]
+public partial class DoubleClass
+{
+    [Key(0)]
+    public double Double { get; set; }
+
+    public DoubleClass()
+    {
+    }
 }
 
 [TinyhandObject(Structual = true)]
@@ -294,7 +305,12 @@ internal class Program
         var mem2 = GC.GetTotalMemory(false);
         Console.WriteLine($"Memory {mem2 / 1000000}, {(mem2 - mem) / 1_000_000}");*/
 
-        data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
+        // data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
+        var doubleClass = await data.DoubleStorage.TryGet();
+        if (doubleClass is not null)
+        {
+            doubleClass.Double += 0.1;
+        }
 
         await data2.ClassStorage.StoreData(StoreMode.TryRelease);
         data2.ClassStorage.DeleteLatestStorageForTest();
