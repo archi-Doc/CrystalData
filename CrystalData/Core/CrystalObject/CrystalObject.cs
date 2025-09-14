@@ -722,11 +722,10 @@ Exit:
             return CrystalResult.Success;
         }
         else
-        {// Reconstruct
+        {// Not loaded
             this.data = singletonData;
             this.ResetWaypoint(true);
 
-            // this.LogWaypoint("Reconstruct");
             this.SetupData();
             this.State = CrystalState.Prepared;
             return CrystalResult.Success;
@@ -752,7 +751,7 @@ Exit:
                 return (data.Result.Result, default, default);
             }
 
-            return (CrystalResult.Success, default, default); // Reconstruct
+            return (CrystalResult.Success, default, default); // New
         }
 
         if (data.Waypoint.JournalPosition < storedJournalPosition)

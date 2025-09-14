@@ -110,42 +110,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    /*internal async ValueTask<TData> GetOrCreate<TData>()
-    {// Even if creation is attempted, the object may already have been deleted (ObjectProtectionState.Deleted), so this function was abandoned.
-        if (this.data is { } data)
-        {
-            this.storageControl.MoveToRecent(this);
-            return (TData)data;
-        }
-
-        await this.EnterAsync().ConfigureAwait(false);
-        try
-        {
-            if (this.data is null)
-            {// PrepareAndLoad
-                await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-            }
-
-            if (this.data is null)
-            {// Reconstruct
-                if (typeof(TData) == typeof(object))
-                {// If the type is object, use the TypeIdentifier instead.
-                    this.SetDataInternal(TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier), false, default);
-                }
-                else
-                {
-                    this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
-                }
-            }
-
-            return (TData)this.data;
-        }
-        finally
-        {
-            this.Exit();
-        }
-    }*/
-
     internal async ValueTask<TData?> TryGet<TData>(TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (this.data is { } data)
