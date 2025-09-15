@@ -17,7 +17,7 @@ internal static class StoreTaskExtension
             }
             else if (result.Unloaded == 0)
             {
-                await Task.Delay(WaitTimeInMilliseconds);
+                await Task.Delay(WaitTimeInMilliseconds).ConfigureAwait(false);
             }
         }
     }
