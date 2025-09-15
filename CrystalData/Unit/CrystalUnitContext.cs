@@ -43,7 +43,12 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
 
         context.SetOptions(this.crystalizerOptions);
 
-        var serviceTypeToLifetime = context.Services.ToDictionary(x => x.ServiceType, x => x.Lifetime);
+        // var serviceTypeToLifetime = context.Services.ToDictionary(x => x.ServiceType, x => x.Lifetime);
+        Dictionary<Type, ServiceLifetime> serviceTypeToLifetime = new();
+        foreach (var x in context.Services)
+        {// If duplicate keys exist, overwrite with the later key/value.
+            serviceTypeToLifetime[x.ServiceType] = x.Lifetime;
+        }
 
         foreach (var x in this.typeToCrystalConfiguration)
         {// This is slow, but it is Singleton anyway.
