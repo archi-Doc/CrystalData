@@ -48,7 +48,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
         foreach (var x in this.typeToCrystalConfiguration)
         {// This is slow, but it is Singleton anyway.
             // Singleton: ICrystal<T> => Crystalizer.GetCrystal<T>()
-            context.Services.Add(ServiceDescriptor.Singleton(typeof(ICrystal<>).MakeGenericType(x.Key), provider => provider.GetRequiredService<Crystalizer>().GetCrystal(x.Key)));
+            context.Services.TryAdd(ServiceDescriptor.Singleton(typeof(ICrystal<>).MakeGenericType(x.Key), provider => provider.GetRequiredService<Crystalizer>().GetCrystal(x.Key)));
 
             /*if (x.Key.GetCustomAttribute<TinyhandObjectAttribute>() is { } attribute &&
                 attribute.UseServiceProvider)
