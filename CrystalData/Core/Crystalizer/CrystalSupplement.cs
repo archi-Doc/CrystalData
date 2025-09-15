@@ -260,28 +260,28 @@ public sealed partial class CrystalSupplement
     public ulong SetLeadingJournalPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
         => this.data.SetLeadingPosition(ref waypoint, leadingJournalPosition);
 
-    internal void PrepareAndLoad()
+    internal async Task PrepareAndLoad()
     {
         if (this.mainFiler is null)
         {
             var fileConfiguration = this.crystalizer.Options.SupplementFile;
             fileConfiguration ??= new LocalFileConfiguration(DefaultSupplementFileName);
-            (this.mainFiler, this.mainConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(fileConfiguration).Result;
+            (this.mainFiler, this.mainConfiguration) = await this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(fileConfiguration).ConfigureAwait(false);
         }
 
         if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
         {
-            (this.backupFiler, this.backupConfiguration) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(this.crystalizer.Options.BackupSupplementFile).Result;
+            (this.backupFiler, this.backupConfiguration) = await this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(this.crystalizer.Options.BackupSupplementFile).ConfigureAwait(false);
         }
 
         if (this.ripFiler is null && this.mainConfiguration is not null)
         {
             var configuration = this.mainConfiguration.AppendPath(RipSuffix);
-            (this.ripFiler, _) = this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).Result;
+            (this.ripFiler, _) = await this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).ConfigureAwait(false);
 
             if (this.ripFiler is not null)
             {// Load rip file
-                var ripResult = this.ripFiler.ReadAsync(0, -1).Result;
+                var ripResult = await this.ripFiler.ReadAsync(0, -1).ConfigureAwait(false);
                 if (ripResult.IsSuccess)
                 {
                     if (Utf8Parser.TryParse(ripResult.Data.Span, out int ripCount, out _))
@@ -296,21 +296,21 @@ public sealed partial class CrystalSupplement
         }
 
         if (this.mainFiler is not null &&
-            LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
+            await LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
         {
             return;
         }
 
         if (this.backupFiler is not null &&
-            LoadSupplementFile(this.backupFiler, this.backupConfiguration?.Path ?? string.Empty))
+            await LoadSupplementFile(this.backupFiler, this.backupConfiguration?.Path ?? string.Empty))
         {
             return;
         }
 
-        bool LoadSupplementFile(ISingleFiler filer, string? path)
+        async Task<bool> LoadSupplementFile(ISingleFiler filer, string? path)
         {
             var pathAndRip = $"'{path}' ({this.ripCount})";
-            var fileResult = filer.ReadAsync(0, -1).Result;
+            var fileResult = await filer.ReadAsync(0, -1).ConfigureAwait(false);
             try
             {
                 var deserializeResult = SerializeHelper.TryDeserialize<Data>(fileResult.Data.Span, Format, false, default);
