@@ -36,18 +36,18 @@ public partial class Crystalizer
 
                 if (storageControl.StorageReleaseRequired)
                 {// Releases storage when the memory usage limit is reached.
-                    await storageControl.ReleaseStorage(core.CancellationToken);
+                    await storageControl.ReleaseStorage(core.CancellationToken).ConfigureAwait(false);
                     delayFlag = false;
                 }
 
                 if (timeUpdated)
                 {
-                    if (await storageControl.ProcessSaveQueue(core.tempArray, crystalizer, core.CancellationToken))
+                    if (await storageControl.ProcessSaveQueue(core.tempArray, crystalizer, core.CancellationToken).ConfigureAwait(false))
                     {// Processes the save queue.
                         delayFlag = false;
                     }
 
-                    if (await crystalizer.ProcessSaveQueue(core.tempArray2, crystalizer, core.CancellationToken))
+                    if (await crystalizer.ProcessSaveQueue(core.tempArray2, crystalizer, core.CancellationToken).ConfigureAwait(false))
                     {// Processes the save queue.
                         delayFlag = false;
                     }
@@ -55,7 +55,7 @@ public partial class Crystalizer
 
                 if (delayFlag)
                 {
-                    await core.Delay(IntervalInMilliseconds);
+                    await core.Delay(IntervalInMilliseconds).ConfigureAwait(false);
                 }
             }
         }

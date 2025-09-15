@@ -201,7 +201,7 @@ public partial class StorageControl : IPersistable
                 this.MoveToRecentInternal(node);
             }
 
-            await node.StoreData(StoreMode.TryRelease);
+            await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
         }
     }
 

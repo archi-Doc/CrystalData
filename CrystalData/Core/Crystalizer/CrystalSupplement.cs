@@ -296,13 +296,13 @@ public sealed partial class CrystalSupplement
         }
 
         if (this.mainFiler is not null &&
-            await LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty))
+            await LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty).ConfigureAwait(false))
         {
             return;
         }
 
         if (this.backupFiler is not null &&
-            await LoadSupplementFile(this.backupFiler, this.backupConfiguration?.Path ?? string.Empty))
+            await LoadSupplementFile(this.backupFiler, this.backupConfiguration?.Path ?? string.Empty).ConfigureAwait(false))
         {
             return;
         }

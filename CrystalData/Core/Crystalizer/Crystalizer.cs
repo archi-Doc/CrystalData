@@ -447,7 +447,7 @@ public partial class Crystalizer
             return CrystalResult.Success;
         }
 
-        await this.CrystalSupplement.PrepareAndLoad();
+        await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
         this.crystalizerCore.Start();
 
         // Journal
@@ -508,7 +508,7 @@ public partial class Crystalizer
     {
         this.StorageControl.Rip();
 
-        await this.Store(true, StoreMode.TryRelease, cancellationToken);
+        await this.Store(true, StoreMode.TryRelease, cancellationToken).ConfigureAwait(false);
 
         // Terminate journal
         if (this.Journal is { } journal)
@@ -1037,7 +1037,7 @@ public partial class Crystalizer
             await journal.Store().ConfigureAwait(false);
         }
 
-        await this.CrystalSupplement.Store(terminate);
+        await this.CrystalSupplement.Store(terminate).ConfigureAwait(false);
 
         // Flush filers
         var tasks = new List<Task>();
