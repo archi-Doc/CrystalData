@@ -447,7 +447,7 @@ public partial class Crystalizer
             return CrystalResult.Success;
         }
 
-        this.CrystalSupplement.PrepareAndLoad();
+        await this.CrystalSupplement.PrepareAndLoad();
         this.crystalizerCore.Start();
 
         // Journal
@@ -464,7 +464,7 @@ public partial class Crystalizer
 
             if (loadCrystals)
             {// Load all crystals
-                await this.LoadAllCrystals(useQuery);
+                await this.LoadAllCrystals(useQuery).ConfigureAwait(false);
             }
         }
         else
@@ -472,7 +472,7 @@ public partial class Crystalizer
             this.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
 
             // Load all crystals
-            await this.LoadAllCrystals(useQuery);
+            await this.LoadAllCrystals(useQuery).ConfigureAwait(false);
 
             // Read journal
             await this.ReadJournal().ConfigureAwait(false);
