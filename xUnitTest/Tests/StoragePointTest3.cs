@@ -86,12 +86,6 @@ public partial class SptPoint : StoragePoint<SptClass>
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
-
-    public Task DeleteDataAndRemove(DateTime forceDeleteAfter = default)
-    {
-        if (this.Goshujin is { } goshujin) return goshujin.Delete(this.Id, forceDeleteAfter);
-        else return this.DeleteData(forceDeleteAfter);
-    }
 }
 
 public class StoragePointTest3
@@ -127,13 +121,14 @@ public class StoragePointTest3
 
         c2 = await s2.TryGet();
         c2.IsNotNull();
-        var r = await c1.SptGoshujin.Delete(2);
+        var r = await c1.SptGoshujin.Delete(2); // Remove from goshujin.
         c2 = await s2.TryGet();
         c2.IsNull();
         c2 = await c1.Add(2, "Nu");
         s2 = c1.SptGoshujin.Find(2);
         s2.IsNotNull();
-        await s2.DeleteDataAndRemove();
+        await s2.StoreData(StoreMode.ForceRelease);
+        await s2.DeleteDataAndRemove(); // Remove from storage point.
         c2 = await s2.TryGet();
         c2.IsNull();
 
