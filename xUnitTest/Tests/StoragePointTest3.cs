@@ -19,7 +19,7 @@ public partial class SptClass
     }
 
     [Key(0)]
-    public int Id { get; set; }
+    public int Id { get; private set; }
 
     [Key(1)]
     public string Name = string.Empty;
@@ -30,10 +30,13 @@ public partial class SptClass
     [Key(3)]
     public StoragePoint<SptPoint.GoshujinClass> SptStorage { get; set; } = new();
 
-    public void SetIdAndName(int id, string name)
+    public void TryInitialize(int id, string name)
     {
-        this.Id = id;
-        this.Name = name;
+        if (this.Id == 0)
+        {
+            this.Id = id;
+            this.Name = name;
+        }
     }
 
     public void CheckIdAndName(int id, string name)
@@ -42,12 +45,13 @@ public partial class SptClass
         this.Name.Is(name);
     }
 
-    public async Task<SptClass> Add(int id)
+    public async Task<SptClass> Add(int id, string name)
     {
         using (var dataScope = await this.SptGoshujin.TryLock(id, AcquisitionMode.GetOrCreate))
         {
             if (dataScope.IsValid)
             {
+                dataScope.Data.TryInitialize(id, name);
                 return dataScope.Data;
             }
             else
@@ -58,12 +62,13 @@ public partial class SptClass
         }
     }
 
-    public async Task<SptClass> Add2(int id)
+    public async Task<SptClass> Add2(int id, string name)
     {
         using (var dataScope = await this.SptStorage.TryLock(id, AcquisitionMode.GetOrCreate))
         {
             if (dataScope.IsValid)
             {
+                dataScope.Data.TryInitialize(id, name);
                 return dataScope.Data;
             }
             else
@@ -108,12 +113,16 @@ public class StoragePointTest3
 
     private async Task Setup(SptClass c1)
     {
-        c1.SetIdAndName(1, "Root");
-        var c2 = await c1.Add(2);
-        c2.SetIdAndName(2, "Nu");
+        c1.TryInitialize(1, "Root");
+        var c2 = await c1.Add(2, "Nu");
+        var s2 = c1.SptGoshujin.Find(2);
 
-        var c20 = await c1.Add2(20);
-        c20.SetIdAndName(20, "Po");
+        var c20 = await c1.Add2(20, "Po");
+        c20.TryInitialize(20, "Po");
+
+        c2 = await s2.TryGet();
+        var r = await c1.SptGoshujin.Delete(2);
+        c2 = await s2.TryGet();
     }
 
     private async Task Check(SptClass c1)

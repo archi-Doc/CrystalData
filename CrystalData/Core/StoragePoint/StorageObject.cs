@@ -113,6 +113,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         if (this.data is { } data)
         {
+            if (this.protectionState == ObjectProtectionState.Deleted)
+            {// Deleted
+                return default;
+            }
+
             this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
@@ -145,6 +150,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
+        if (this.protectionState == ObjectProtectionState.Deleted)
+        {// Deleted
+            return new(DataScopeResult.Obsolete);
+        }
+
         if (this.storageControl.IsRip)
         {
             return new(DataScopeResult.Rip);
@@ -408,7 +418,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal Task Delete(DateTime forceDeleteAfter)
+    internal Task DeleteData(DateTime forceDeleteAfter)
         => this.DeleteStorage(true, forceDeleteAfter);
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)

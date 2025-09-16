@@ -196,8 +196,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>
     /// A <see cref="Task"/> representing the asynchronous delete operation.
     /// </returns>
-    public Task Delete(DateTime forceDeleteAfter = default)
-        => this.GetOrCreateStorageObject().Delete(forceDeleteAfter);
+    public Task DeleteData(DateTime forceDeleteAfter = default)
+        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter);
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
