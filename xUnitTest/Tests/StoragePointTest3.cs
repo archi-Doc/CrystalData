@@ -9,6 +9,7 @@ using Xunit;
 namespace xUnitTest.CrystalDataTest;
 
 #pragma warning disable SA1401 // Fields should be private
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 [TinyhandObject(Structual = true)]
 public partial class SptClass
@@ -94,8 +95,13 @@ public class StoragePointTest3
         await this.Setup(c1);
         await this.Check(c1);
 
+        var storage = c1.SptStorage;
+
         await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
+
+        var v = await storage.TryGet(1);
+        v = await storage.TryGet(20);
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
@@ -104,7 +110,10 @@ public class StoragePointTest3
     {
         c1.SetIdAndName(1, "Root");
         var c2 = await c1.Add(2);
-        c2.CheckIdAndName(2, string.Empty);
+        c2.SetIdAndName(2, "Nu");
+
+        var c20 = await c1.Add2(20);
+        c20.SetIdAndName(20, "Po");
     }
 
     private async Task Check(SptClass c1)
@@ -113,6 +122,6 @@ public class StoragePointTest3
         c1.SptGoshujin.Count.Is(1);
         var array = c1.SptGoshujin.GetArray();
         array.Length.Is(1);
-        (await array[0].TryGet()).CheckIdAndName(2, string.Empty);
+        (await array[0].TryGet()).CheckIdAndName(2, "Nu");
     }
 }
