@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Threading.Tasks;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -84,9 +83,16 @@ public partial class SptClass
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint : StoragePoint<SptClass>
 {
+    private const int DelayInMilliseconds = 10;
+
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
+
+    public Task Delete(DateTime forceDeleteAfter = default)
+    {
+        return this.Goshujin.Delete(this.Id, forceDeleteAfter);
+    }
 }
 
 public class StoragePointTest3
@@ -121,8 +127,18 @@ public class StoragePointTest3
         c20.TryInitialize(20, "Po");
 
         c2 = await s2.TryGet();
+        c2.IsNotNull();
         var r = await c1.SptGoshujin.Delete(2);
         c2 = await s2.TryGet();
+        c2.IsNull();
+        c2 = await c1.Add(2, "Nu");
+        s2 = c1.SptGoshujin.Find(2);
+        s2.IsNotNull();
+        await s2.Delete();
+        c2 = await s2.TryGet();
+        c2.IsNull();
+
+        c2 = await c1.Add(2, "Nu");
     }
 
     private async Task Check(SptClass c1)
