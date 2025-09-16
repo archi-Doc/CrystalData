@@ -83,15 +83,14 @@ public partial class SptClass
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint : StoragePoint<SptClass>
 {
-    private const int DelayInMilliseconds = 10;
-
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
 
-    public Task Delete(DateTime forceDeleteAfter = default)
+    public Task DeleteDataAndRemove(DateTime forceDeleteAfter = default)
     {
-        return this.Goshujin.Delete(this.Id, forceDeleteAfter);
+        if (this.Goshujin is { } goshujin) return goshujin.Delete(this.Id, forceDeleteAfter);
+        else return this.DeleteData(forceDeleteAfter);
     }
 }
 
@@ -134,7 +133,7 @@ public class StoragePointTest3
         c2 = await c1.Add(2, "Nu");
         s2 = c1.SptGoshujin.Find(2);
         s2.IsNotNull();
-        await s2.Delete();
+        await s2.DeleteDataAndRemove();
         c2 = await s2.TryGet();
         c2.IsNull();
 

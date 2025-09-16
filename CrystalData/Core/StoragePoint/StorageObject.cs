@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -612,22 +613,35 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     private async Task DeleteObject(bool recordJournal, DateTime forceDeleteAfter)
     {
-        this.storageControl.EraseStorage(this);
-
         await this.EnterAsync().ConfigureAwait(false);
         try
         {
-            if (this.data is IStructualObject structualObject)
+            var dataToDelete = this.data;
+            this.data = default;
+
+            if (dataToDelete is null &&
+                this.storageId0.IsValid)
+            {// Load the data and delete child objects.
+                var fileId = this.storageId0.FileId;
+                var result = await this.storageMap.Storage.GetAsync(ref fileId).ConfigureAwait(false);
+                if (result.IsSuccess &&
+                    FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
+                {
+                    dataToDelete = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                }
+            }
+
+            if (dataToDelete is IStructualObject structualObject)
             {
                 await structualObject.DeleteData(forceDeleteAfter).ConfigureAwait(false);
             }
-
-            this.data = default;
         }
         finally
         {
             this.Exit();
         }
+
+        this.storageControl.EraseStorage(this);
 
         if (recordJournal)
         {
