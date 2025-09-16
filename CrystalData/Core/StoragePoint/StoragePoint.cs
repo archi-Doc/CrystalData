@@ -303,6 +303,10 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             storageMap = crystal.Storage.StorageMap;
         }
+        else if (((IStructualObject)this).StructualRoot is StorageObject storageObject)
+        {
+            storageMap = storageObject.storageMap;
+        }
 
         var previousPointId = this.pointId;
         storageMap.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
