@@ -128,7 +128,7 @@ public class StoragePointTest3
         s2 = c1.SptGoshujin.Find(2);
         s2.IsNotNull();
         await s2.StoreData(StoreMode.ForceRelease);
-        await s2.DeleteDataAndRemove(); // Remove from storage point.
+        await s2.DeleteData(); // Remove from storage point.
         c2 = await s2.TryGet();
         c2.IsNull();
 
