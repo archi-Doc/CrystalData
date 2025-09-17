@@ -149,6 +149,28 @@ public partial class SptPoint : StoragePoint<SptClass>
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
+
+    public Dictionary<int, SptPoint> ToDictionary()
+    {
+        var dic = new Dictionary<int, SptPoint>();
+        this.AddToDictionary(dic);
+        return dic;
+    }
+
+    private void AddToDictionary(Dictionary<int, SptPoint> dic)
+    {
+        dic[this.Id] = this;
+        var g = this.TryGet().Result.SptStorage.TryGet().Result;
+        if (g is null)
+        {
+            return;
+        }
+
+        foreach (var x in g.IdChain)
+        {
+            x.AddToDictionary(dic);
+        }
+    }
 }
 
 public class StoragePointTest3
@@ -156,19 +178,21 @@ public class StoragePointTest3
     [Fact]
     public async Task Test1()
     {
-        var crystal = await TestHelper.CreateAndStartCrystal<SptClass>(true);
-        var c1 = crystal.Data;
+        var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
+        // var c1 = crystal.Data;
+        var s1 = crystal.Data;
+        var c1 = (await s1.TryLock()).Data!;
+        s1.Unlock();
 
         await this.Setup(c1);
-        await this.Validate(c1);
+        await this.Validate1(c1);
 
         var storage = c1.SptStorage;
 
         await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
 
-        c1 = crystal.Data;
-        await this.Validate(c1);
+        await this.Validate1(c1);
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
@@ -216,10 +240,35 @@ public class StoragePointTest3
         c2 = await c1.Add(2, "Nu", "Po");*/
     }
 
-    private async Task Validate(SptClass c1)
+    private async Task Validate1(SptClass c1)
     {
         c1.Validate(1, "Root", "R", []);
         var dic = c1.ToDictionary();
+        dic[2].Validate(2, "Nu", "Po", [3, 4]);
+        dic[3].Validate(3, "Ku", "Po", [5, 6, 7]);
+        dic[4].Validate(4, "Do", "Ra", [8, 9]);
+
+        dic[21].Validate(21, "Nu", "Poo", [10]);
+        dic[22].Validate(22, "Nu", "Pooo", [20]);
+
+        dic[31].Validate(31, "Ku", "Pa", [30]);
+        dic[32].Validate(32, "Ku", "Paa", [31]);
+        dic[33].Validate(33, "Ku", "Paaa", [32]);
+
+        dic[300].Validate(300, "Nu", "Pa", [300]);
+
+        dic[41].Validate(41, "Do", "Rara", [1, 2, 3]);
+        dic[42].Validate(42, "Do", "Rarara", [4, 5, 6]);
+        dic[43].Validate(43, "Do", "Rararara", [7, 8, 9]);
+
+        dic[51].Validate(51, "O", "Ra", [1, 2]);
+        dic[52].Validate(52, "O", "Rara", [3, 4]);
+    }
+
+    private async Task Validate1(SptPoint s1)
+    {
+        s1.Validate(1, "Root", "R", []);
+        var dic = s1.ToDictionary();
         dic[2].Validate(2, "Nu", "Po", [3, 4]);
         dic[3].Validate(3, "Ku", "Po", [5, 6, 7]);
         dic[4].Validate(4, "Do", "Ra", [8, 9]);

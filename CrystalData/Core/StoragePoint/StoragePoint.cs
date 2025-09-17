@@ -127,6 +127,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
         => this.GetOrCreateStorageObject().TryLock<TData>(AcquisitionMode.GetOrCreate, timeout, cancellationToken);
 
+    public TData SetUnreleasable()
+        => this.GetOrCreateStorageObject().SetUnreleasable<TData>();
+
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
