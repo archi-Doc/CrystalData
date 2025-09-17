@@ -445,6 +445,11 @@ Exit:
                     break;
                 }
 
+                if (currentObject is StorageMap storageMap)
+                {// For StorageMap, initialization is performed (to obtain storage.NumberOfHistoryFiles).
+                    storageMap.Enable(this.Crystalizer.StorageControl, default!, this.Storage);
+                }
+
                 if (currentObject is IStructualObject structualObject)
                 {
                     structualObject.SetupStructure(this);

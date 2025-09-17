@@ -40,27 +40,17 @@ public partial record AdvancedExample
     [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
     public partial class Point : StoragePoint<AdvancedExample>
     {
-        public Point(int id, string name)
+        public void TryInitialize(int id)
         {
-            this.Id = id;
-            this.Name = name;
+            if (this.Id == 0)
+            {
+                this.Id = id;
+            }
         }
-
-        /*[Key(1, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-        [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-        private int id;
-
-        [Key(2, AddProperty = "Name")]
-        [Link(Type = ChainType.Ordered)]
-        private string name = string.Empty;*/
 
         [Key(1)]
         [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
         public int Id { get; private set; }
-
-        [Key(2)]
-        [Link(Type = ChainType.Ordered)]
-        public string Name { get; private set; } = string.Empty;
     }
 
     public AdvancedExample()
@@ -72,12 +62,10 @@ public partial record AdvancedExample
         Point.GoshujinClass g = default!;
         var obj = g.Find(1, AcquisitionMode.GetOrCreate);
         // obj.Name = "Name1";
-        using (g.LockObject.EnterScope())
+        using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOrCreate))
         {
-            if (g.IdChain.FindFirst(1) is null)
+            if (dataScope.IsValid)
             {
-                var newPoint = new Point(1, "Name1");
-                newPoint.Goshujin = g;
             }
         }
 

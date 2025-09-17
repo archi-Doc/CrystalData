@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -113,6 +114,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         if (this.data is { } data)
         {
+            if (this.protectionState == ObjectProtectionState.Deleted)
+            {// Deleted
+                return default;
+            }
+
             this.storageControl.MoveToRecent(this);
             return (TData)data;
         }
@@ -145,6 +151,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
+        if (this.protectionState == ObjectProtectionState.Deleted)
+        {// Deleted
+            return new(DataScopeResult.Obsolete);
+        }
+
         if (this.storageControl.IsRip)
         {
             return new(DataScopeResult.Rip);
@@ -408,8 +419,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal Task Delete(DateTime forceDeleteAfter)
-        => this.DeleteStorage(true, forceDeleteAfter);
+    internal Task DeleteData(DateTime forceDeleteAfter)
+        => this.DeleteObject(true, forceDeleteAfter);
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
@@ -432,7 +443,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
         else if (record == JournalRecord.Delete)
         {// Delete storage
-            this.DeleteStorage(false, default).Wait();
+            this.DeleteObject(false, default).Wait();
             return true;
         }
         else if (record == JournalRecord.AddItem)
@@ -600,24 +611,37 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    private async Task DeleteStorage(bool recordJournal, DateTime forceDeleteAfter)
+    private async Task DeleteObject(bool recordJournal, DateTime forceDeleteAfter)
     {
-        this.storageControl.EraseStorage(this);
-
         await this.EnterAsync().ConfigureAwait(false);
         try
         {
-            if (this.data is IStructualObject structualObject)
-            {
-                await structualObject.Delete(forceDeleteAfter).ConfigureAwait(false);
+            var dataToDelete = this.data;
+            this.data = default;
+
+            if (dataToDelete is null &&
+                this.storageId0.IsValid)
+            {// Load the data and delete child objects.
+                var fileId = this.storageId0.FileId;
+                var result = await this.storageMap.Storage.GetAsync(ref fileId).ConfigureAwait(false);
+                if (result.IsSuccess &&
+                    FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
+                {
+                    dataToDelete = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                }
             }
 
-            this.data = default;
+            if (dataToDelete is IStructualObject structualObject)
+            {
+                await structualObject.DeleteData(forceDeleteAfter).ConfigureAwait(false);
+            }
         }
         finally
         {
             this.Exit();
         }
+
+        this.storageControl.EraseStorage(this);
 
         if (recordJournal)
         {

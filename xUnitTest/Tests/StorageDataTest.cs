@@ -99,7 +99,7 @@ public class StorageDataTest
 
         await r.Children.StoreData(StoreMode.ForceRelease);
 
-        await r.Children.Delete();
+        await r.Children.DeleteData();
 
         // Save & Test journal
         await crystal.Store(StoreMode.ForceRelease);
