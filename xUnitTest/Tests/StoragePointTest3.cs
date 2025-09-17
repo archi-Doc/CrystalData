@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Linq;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -27,7 +28,7 @@ public partial class SptClass
     public StoragePoint<string> TextStorage = new();
 
     [Key(3)]
-    public SptPoint.GoshujinClass SptGoshujin = new();
+    public SptInt.GoshujinClass SptInt = new();
 
     [Key(4)]
     public StoragePoint<SptPoint.GoshujinClass> SptStorage { get; set; } = new();
@@ -42,31 +43,15 @@ public partial class SptClass
         }
     }
 
-    public void CheckIdAndName(int id, string name, string text)
+    public void CheckIdAndName(int id, string name, string text, IEnumerable<int> sptInt)
     {
         this.Id.Is(id);
         this.Name.Is(name);
         this.TextStorage.TryGet().Result.Is(text);
+        this.SptInt.Equals(sptInt).IsTrue();
     }
 
     public async Task<SptClass> Add(int id, string name, string text)
-    {
-        using (var dataScope = await this.SptGoshujin.TryLock(id, AcquisitionMode.GetOrCreate))
-        {
-            if (dataScope.IsValid)
-            {
-                dataScope.Data.TryInitialize(id, name, text);
-                return dataScope.Data;
-            }
-            else
-            {
-                throw new Exception();
-                // return default;
-            }
-        }
-    }
-
-    public async Task<SptClass> Add2(int id, string name, string text)
     {
         using (var dataScope = await this.SptStorage.TryLock(id, AcquisitionMode.GetOrCreate))
         {
@@ -81,6 +66,28 @@ public partial class SptClass
                 // return default;
             }
         }
+    }
+}
+
+[TinyhandObject(Structual = true)]
+[ValueLinkObject(Isolation = IsolationLevel.None)]
+public partial class SptInt
+{
+    [TinyhandObject(External = true)]
+    public partial class GoshujinClass
+    {
+        public bool Equals(IEnumerable<int> span)
+        {
+            return this.ValueChain.Select(x => x.Value).SequenceEqual(span);
+        }
+    }
+
+    [Key(0)]
+    [Link(Primary = true, Unique = true, Type = ChainType.Ordered)]
+    public int Value { get; set; }
+
+    public SptInt()
+    {
     }
 }
 
@@ -119,17 +126,17 @@ public class StoragePointTest3
     {
         c1.TryInitialize(1, "Root", "R");
         var c2 = await c1.Add(2, "Nu", "Po");
-        var s2 = c1.SptGoshujin.Find(2);
+        var s2 = await c1.SptStorage.Find(2);
 
-        var c20 = await c1.Add2(20, "Nu", "Poo");
+        var c20 = await c1.Add(20, "Nu", "Poo");
 
         c2 = await s2.TryGet();
         c2.IsNotNull();
-        var r = await c1.SptGoshujin.Delete(2); // Perform deletion from the goshujin side.
+        var r = await c1.SptStorage.Delete(2); // Perform deletion from the goshujin side.
         c2 = await s2.TryGet();
         c2.IsNull();
         c2 = await c1.Add(2, "Nu", "Po");
-        s2 = c1.SptGoshujin.Find(2);
+        s2 = await c1.SptStorage.Find(2);
         s2.IsNotNull();
         await s2.StoreData(StoreMode.ForceRelease);
         await s2.DeleteData(); // Perform deletion from the object side.
@@ -141,10 +148,10 @@ public class StoragePointTest3
 
     private async Task Check(SptClass c1)
     {
-        c1.CheckIdAndName(1, "Root", "R");
-        c1.SptGoshujin.Count.Is(1);
-        var array = c1.SptGoshujin.GetArray();
-        array.Length.Is(1);
-        (await array[0].TryGet()).CheckIdAndName(2, "Nu", "Po");
+        c1.CheckIdAndName(1, "Root", "R", []);
+        var array = (await c1.SptStorage.TryGet()).GetArray();
+        array.Length.Is(2);
+        (await array[0].TryGet()).CheckIdAndName(2, "Nu", "Po", []);
+        (await array[1].TryGet()).CheckIdAndName(20, "Nu", "Poo", []);
     }
 }
