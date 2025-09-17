@@ -26,7 +26,7 @@ public partial class Program
         };
 
         // var unit = await FirstExample();
-        var unit = await SecondExample();
+        // var unit = await SecondExample();
         // var unit = await SaveTimingExample();
         // var unit = await ConfigurationExample();
         // var unit = await JournalExample();
@@ -35,6 +35,7 @@ public partial class Program
         // var unit = await ServiceProviderExample();
         // var unit = await IntegratedExample();
         // var unit = await DefaultExample();
+        var unit = await StoragePointExample();
 
         ThreadCore.Root.Terminate();
         if (unit is not null)
