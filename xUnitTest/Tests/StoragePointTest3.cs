@@ -10,6 +10,15 @@ namespace xUnitTest.CrystalDataTest;
 
 #pragma warning disable SA1401 // Fields should be private
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
+public static class StoragePointTestHelper
+{
+    public static void CheckIdAndName(this SptPoint? sptPoint, int id, string name, string text, IEnumerable<int> sptInt)
+    {
+        var sptClass = sptPoint.TryGet().Result;
+        sptClass.IsNotNull();
+        sptClass.CheckIdAndName(id, name, text, sptInt);
+    }
+}
 
 [TinyhandObject(Structual = true)]
 public partial class SptClass
@@ -66,6 +75,11 @@ public partial class SptClass
                 // return default;
             }
         }
+    }
+
+    public SptPoint[] GetSptArray()
+    {
+        return this.SptStorage.TryGet().Result.GetArray();
     }
 }
 
@@ -149,9 +163,9 @@ public class StoragePointTest3
     private async Task Check(SptClass c1)
     {
         c1.CheckIdAndName(1, "Root", "R", []);
-        var array = (await c1.SptStorage.TryGet()).GetArray();
+        var array = c1.GetSptArray();
         array.Length.Is(2);
-        (await array[0].TryGet()).CheckIdAndName(2, "Nu", "Po", []);
-        (await array[1].TryGet()).CheckIdAndName(20, "Nu", "Poo", []);
+        array[0].CheckIdAndName(2, "Nu", "Po", []);
+        array[1].CheckIdAndName(20, "Nu", "Poo", []);
     }
 }

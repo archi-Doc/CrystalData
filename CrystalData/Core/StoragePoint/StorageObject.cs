@@ -2,7 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
