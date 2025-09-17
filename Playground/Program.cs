@@ -69,8 +69,7 @@ public partial class FirstData
     public partial int Id { get; set; }
 
     [Key(1)]
-    [DefaultValue("Hoge")] // The default value for the name property.
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = "Hoge";
 
     [Key(2)]
     public StoragePoint<DoubleClass> DoubleStorage { get; set; } = new();
@@ -88,6 +87,9 @@ public partial class DoubleClass
     public DoubleClass()
     {
     }
+
+    public override string ToString()
+        => $"Double {this.Double}";
 }
 
 [TinyhandObject(Structual = true)]
@@ -269,6 +271,14 @@ internal class Program
 
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
+        using (var sdataScope = await data.DoubleStorage.TryLock())
+        {
+            if (sdataScope.IsValid)
+            {
+                sdataScope.Data.Double += 0.1;
+            }
+        }
+
         Console.WriteLine($"Save {data.ToString()}");
 
         var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
