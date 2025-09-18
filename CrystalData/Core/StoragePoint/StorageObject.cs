@@ -1,8 +1,8 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using Tinyhand.IO;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -13,11 +13,12 @@ namespace CrystalData.Internal;
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
-{
-    public const int MaxHistories = 3;
+{// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
+    public const int MaxHistories = 3; // 199
 
     #region FieldAndProperty
 
+    internal byte objectState;//
     internal ObjectProtectionState protectionState;
 
     [Key(0)]
@@ -88,6 +89,25 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         this.pointId = pointId;
         this.typeIdentifier = typeIdentifier;
         this.storageMap = storageMap;
+    }
+
+    internal async ValueTask<TData> PinData<TData>()
+        where TData : class
+    {
+        using (this.EnterScope())
+        {
+            if (this.data is null)
+            {// PrepareAndLoad
+                await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
+            }
+
+            if (this.data is null)
+            {
+                this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+            }
+        }
+
+        return (TData)this.data;
     }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)

@@ -56,11 +56,11 @@ public class StoragePointExample
     public async Task Process()
     {
         var c1 = this.crystal.Data;
-        c1.TryInitialize(1, "One");
+        c1.TryInitialize(1, "One"); // Initialize 1 "One"
         Console.WriteLine(c1.ToString());
 
         using (var dataScope = await c1.SptStorage.TryLock(2, AcquisitionMode.GetOrCreate))
-        {
+        {// Create 2 "Two"
             if (dataScope.IsValid)
             {
                 var c2 = dataScope.Data;
@@ -73,6 +73,17 @@ public class StoragePointExample
 
     private readonly Crystalizer crystalizer;
     private readonly ICrystal<SptClass> crystal;
+}
+
+public class SptRoot
+{
+    public SptClass.GoshujinClass Data1 { get; set; } = new();
+
+    public StoragePoint<SptClass.GoshujinClass> Data2 { get; set; } = new();
+
+    public SptPoint.GoshujinClass Data3 { get; set; } = new();
+
+    public StoragePoint<SptPoint.GoshujinClass> Data4 { get; set; } = new();
 }
 
 public partial class Program
@@ -113,15 +124,4 @@ public partial class Program
 
         return unit;
     }
-}
-
-public class SptRoot
-{
-    public SptClass.GoshujinClass Data1 { get; set; } = new();
-
-    public StoragePoint<SptClass.GoshujinClass> Data2 { get; set; } = new();
-
-    public SptPoint.GoshujinClass Data3 { get; set; } = new();
-
-    public StoragePoint<SptPoint.GoshujinClass> Data4 { get; set; } = new();
 }
