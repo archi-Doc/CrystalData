@@ -11,46 +11,6 @@ using ValueLink;
 
 namespace Sandbox;
 
-[TinyhandObject(ExplicitKeyOnly = true)]
-// [ValueLinkObject]
-public partial class OneSo : SemaphoreLock
-{// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
-    /*internal ObjectProtectionState protectionState;
-
-    [Key(0)]
-    [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
-    private ulong pointId; // Lock:StorageControl
-
-    [Key(1)]
-    private uint typeIdentifier; // Lock:StorageControl
-
-    [Key(2)]
-    internal StorageId storageId0; // Lock:StorageControl
-
-    [Key(3)]
-    internal StorageId storageId1; // Lock:StorageControl
-
-    [Key(4)]
-    internal StorageId storageId2; // Lock:StorageControl
-
-    internal StorageMap storageMap; // Lock:StorageControl
-
-    internal OneSo? onMemoryPrevious; // Lock:StorageControl
-    internal OneSo? onMemoryNext; // Lock:StorageControl
-
-    internal int saveQueueTime; // Lock:StorageControl System time in seconds registered in the save queue
-    internal OneSo? saveQueuePrevious; // Lock:StorageControl
-    internal OneSo? saveQueueNext; // Lock:StorageControl
-
-    private object? data; // Lock:this
-    internal int size; // Lock:StorageControl*/
-}
-
-public class SemaphoreLock2 : SemaphoreLock
-{
-    public int X;
-}
-
 public sealed partial class CrystalSupplement
 {
     [TinyhandObject(LockObject = "lockObject")]
@@ -328,13 +288,11 @@ internal class Program
         var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
-        Console.WriteLine($"Estimated size: SemaphoreLock2 {EstimateSize.Class<SemaphoreLock2>()} bytes");
         Console.WriteLine($"Estimated size: SemaphoreSlim {EstimateSize.Constructor(() => new SemaphoreSlim(0))} bytes");
         Console.WriteLine($"Estimated size: FirstData {EstimateSize.Class<FirstData>()} bytes");
         Console.WriteLine($"Estimated size: SizeTestClass {EstimateSize.Class<SizeTestClass>()} bytes");
         Console.WriteLine($"Estimated size: StoragePoint<DoubleClass> {EstimateSize.Class<StoragePoint<DoubleClass>>()} bytes");
         Console.WriteLine($"Estimated size: StorageObject {EstimateSize.Constructor(() => CrystalData.Internal.StorageObject.UnsafeConstructor())} bytes");
-        Console.WriteLine($"Estimated size: OneSo {EstimateSize.Class<OneSo>()} bytes");
         Console.WriteLine($"Estimated size: StorageId {EstimateSize.Struct<StorageId>()} bytes");
         // Console.WriteLine($"Estimated size: StorageObjec2 {EstimateSize.Class<StorageObjec2>()} bytes");
         // Console.WriteLine($"Estimated size: StoragePoint<> {EstimateSize.Struct<StoragePoint>()} bytes");
