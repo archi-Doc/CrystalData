@@ -19,7 +19,7 @@ namespace CrystalData;
 [TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
 public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IDataLocker<TData>
     where TData : class
-{
+{// object:16, ulong:8, StorageObject:8, Structual: 20
     #region FiendAndProperty
 
     [Key(0)]
@@ -127,8 +127,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
         => this.GetOrCreateStorageObject().TryLock<TData>(AcquisitionMode.GetOrCreate, timeout, cancellationToken);
 
-    public TData SetUnreleasable()
-        => this.GetOrCreateStorageObject().SetUnreleasable<TData>();
+    public ValueTask<TData> PinData()
+        => this.GetOrCreateStorageObject().PinData<TData>();
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
