@@ -18,7 +18,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     #region FieldAndProperty
 
-    // internal byte objectState;
+    internal byte objectState;//
     internal ObjectProtectionState protectionState;
 
     [Key(0)]
