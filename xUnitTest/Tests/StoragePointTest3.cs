@@ -193,6 +193,7 @@ public class StoragePointTest3
         await crystal.Crystalizer.StoreJournal();
 
         await this.Validate1(c1);
+        await this.Modify2(c1);
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
@@ -218,32 +219,17 @@ public class StoragePointTest3
 
         var c51 = c42.Add(51, "O", "Ra", [1, 2]); // 51 O Ra [1,2]
         var c52 = c42.Add(52, "O", "Rara", [3, 4]); // 52 O Rara [3, 4]
+    }
 
-        /*var c2 = await c1.Add(2, "Nu", "Po");
-        var s2 = await c1.SptStorage.Find(2);
-
-        var c20 = await c1.Add(20, "Nu", "Poo");
-
-        c2 = await s2.TryGet();
-        c2.IsNotNull();
-        var r = await c1.SptStorage.Delete(2); // Perform deletion from the goshujin side.
-        c2 = await s2.TryGet();
-        c2.IsNull();
-        c2 = await c1.Add(2, "Nu", "Po");
-        s2 = await c1.SptStorage.Find(2);
-        s2.IsNotNull();
-        await s2.StoreData(StoreMode.ForceRelease);
-        await s2.DeleteData(); // Perform deletion from the object side.
-        c2 = await s2.TryGet();
-        c2.IsNull();
-
-        c2 = await c1.Add(2, "Nu", "Po");*/
+    private async Task Modify2(SptClass c1)
+    {
+        var dic = c1.ToDictionary();
     }
 
     private async Task Validate1(SptClass c1)
     {
-        c1.Validate(1, "Root", "R", []);
         var dic = c1.ToDictionary();
+        dic[1].Validate(1, "Root", "R", []);
         dic[2].Validate(2, "Nu", "Po", [3, 4]);
         dic[3].Validate(3, "Ku", "Po", [5, 6, 7]);
         dic[4].Validate(4, "Do", "Ra", [8, 9]);
