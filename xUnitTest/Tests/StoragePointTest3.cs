@@ -36,7 +36,7 @@ public partial class SptClass
     public int Id { get; private set; }
 
     [Key(1)]
-    public string Name = string.Empty;
+    public partial string Name { get; private set; } = string.Empty;
 
     [Key(2)]
     public StoragePoint<string> TextStorage = new();
