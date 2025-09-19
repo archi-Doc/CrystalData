@@ -98,6 +98,18 @@ public partial class SptClass
         return dic;
     }
 
+    public Dictionary<int, SptPoint> ToPoints()
+    {
+        var dic = new Dictionary<int, SptPoint>();
+        this.AddToDictionary(dic);
+        return dic;
+    }
+
+    public override string ToString()
+    {
+        return $"{this.Id}: {this.Name} ({this.TextStorage.TryGet().Result}) [{string.Join(",", this.SptInt.NumberChain.Select(x => x.Number))}]";
+    }
+
     private void AddToDictionary(Dictionary<int, SptClass> dic)
     {
         dic[this.Id] = this;
@@ -111,6 +123,21 @@ public partial class SptClass
         {
             var sptClass = x.TryGet().Result;
             sptClass.AddToDictionary(dic);
+        }
+    }
+
+    private void AddToDictionary(Dictionary<int, SptPoint> dic)
+    {
+        var g = this.SptStorage.TryGet().Result;
+        if (g is null)
+        {
+            return;
+        }
+
+        foreach (var x in g.IdChain)
+        {
+            dic[x.Id] = x;
+            x.TryGet().Result.AddToDictionary(dic);
         }
     }
 }
@@ -199,6 +226,18 @@ public partial class SptPoint : StoragePoint<SptClass>
         return dic;
     }
 
+    public override string ToString()
+    {
+        if (this.TryGet().Result is { } obj)
+        {
+            return obj.ToString() ?? string.Empty;
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
     private void AddToDictionary(Dictionary<int, SptPoint> dic)
     {
         dic[this.Id] = this;
@@ -220,20 +259,20 @@ public class StoragePointTest3
     [Fact]
     public async Task Test1()
     {
-        var crystal = await TestHelper.CreateAndStartCrystal<SptPoint>(true);
+        var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
         // var c1 = crystal.Data;
-        var s1 = crystal.Data;
+        var c1 = await crystal.Data.PinData();
         // var c1 = (await s1.TryLock()).Data!;
         // s1.Unlock();
 
-        await this.Setup(s1);
-        await this.Validate1(s1);
+        await this.Setup(c1);
+        await this.Validate1(c1);
 
         await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
 
-        await this.Validate1(s1);
-        // await this.Modify2(s1);
+        await this.Validate1(c1);
+        await this.Modify2(c1);
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
@@ -286,7 +325,7 @@ public class StoragePointTest3
 
     private async Task Modify2(SptClass c1)
     {
-        var dic = c1.ToDictionary();
+        var points = c1.ToPoints();
     }
 
     private async Task Validate1(SptClass c1)
