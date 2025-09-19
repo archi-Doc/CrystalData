@@ -58,7 +58,6 @@ var builder = new CrystalControl.Builder()
         context.AddCrystal<FirstData>(
             new CrystalConfiguration()
             {
-                SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                 SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                 NumberOfFileHistories = 0, // No history file.
                 FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
@@ -67,16 +66,16 @@ var builder = new CrystalControl.Builder()
 
 var unit = builder.Build(); // Build.
 var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>(); // Retrieve a data instance from the service provider.
+var data = unit.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 
 Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
-data.Id = 1;
-data.Name = "Fuga";
+data.Id += 1;
+data.Name += "Fuga";
 Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-await crystalizer.SaveAll(); // Save all data.
+await crystalizer.StoreAndRip(); // Save data and perform the shutdown process.
 ```
 
 
@@ -88,9 +87,9 @@ CrystalData is designed to cover a really wide range of storage needs.
 ```csharp
 // From a quite simple class for data storage...
 [TinyhandObject]
-public partial record SimpleExample
+public partial record SimpleClass
 {
-    public SimpleExample()
+    public SimpleClass()
     {
     }
 
@@ -100,19 +99,17 @@ public partial record SimpleExample
 
 // To a complex class designed for handling large-scale data in terms of both quantity and capacity.
 [TinyhandObject(Structual = true)]
-[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public partial record AdvancedExample
+public partial record AdvancedClass
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
-    public static void Register(ICrystalUnitContext context)
+    public static void Register(ICrystalConfigurationContext context)
     {
-        context.AddCrystal<AdvancedExample>(
+        context.AddCrystal<AdvancedClass>(
             new()
             {
                 SaveFormat = SaveFormat.Binary,
-                SavePolicy = SavePolicy.Periodic,
                 SaveInterval = TimeSpan.FromMinutes(10),
-                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain.tinyhand"),
-                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup.tinyhand"),
+                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain"),
+                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup"),
                 StorageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage"),
                     new GlobalDirectoryConfiguration("BackupStorage")),
@@ -122,26 +119,41 @@ public partial record AdvancedExample
         context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));
     }
 
-    public AdvancedExample()
+    [TinyhandObject(Structual = true)]
+    [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
+    public partial class Point : StoragePoint<AdvancedClass>
+    {
+        public void TryInitialize(int id)
+        {
+            if (this.Id == 0)
+            {
+                this.Id = id;
+            }
+        }
+
+        [Key(1)]
+        [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+        public int Id { get; private set; }
+    }
+
+    public AdvancedClass()
     {
     }
 
-    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-    private int id;
+    [Key(0)]
+    public int Id { get; private set; }
 
-    [Key(1, AddProperty = "Name")]
-    [Link(Type = ChainType.Ordered)]
-    private string name = string.Empty;
+    [Key(1)]
+    public partial string Name { get; set; } = "Test";
 
-    [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedExample> child = new();
+    [Key(2)]
+    public StoragePoint<AdvancedClass> ChildStorage { get; private set; } = new();
 
-    [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedExample.GoshujinClass> children = new();
+    [Key(3)]
+    public StoragePoint<Point.GoshujinClass> ChildrenStorage { get; private set; } = new();
 
-    [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<byte[]> byteArray = new();
+    [Key(4)]
+    public partial StoragePoint<byte[]> ByteArrayStorage { get; private set; } = new();
 }
 ```
 
