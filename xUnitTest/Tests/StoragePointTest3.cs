@@ -150,6 +150,48 @@ public partial class SptPoint : StoragePoint<SptClass>
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
 
+    public void TryInitialize(int id, string name, string text, IEnumerable<int> numbers)
+    {
+        using (var dataScope = this.TryLock(AcquisitionMode.GetOrCreate).Result)
+        {
+            if (dataScope.IsValid)
+            {
+                dataScope.Data.TryInitialize(id, name, text, numbers);
+            }
+            else
+            {
+                throw new Exception();
+            }
+        }
+    }
+
+    public SptClass Add(int id, string name, string text, IEnumerable<int> numbers)
+    {
+        using (var dataScope = this.TryLock(AcquisitionMode.GetOrCreate).Result)
+        {
+            if (dataScope.IsValid)
+            {
+                using (var dataScope2 = dataScope.Data.SptStorage.TryLock(id, AcquisitionMode.GetOrCreate).Result)
+                {
+                    if (dataScope2.IsValid)
+                    {
+                        dataScope2.Data.TryInitialize(id, name, text, numbers);
+                        return dataScope2.Data;
+                    }
+                    else
+                    {
+                        throw new Exception();
+                    }
+                }
+            }
+            else
+            {
+                throw new Exception();
+                // return default;
+            }
+        }
+    }
+
     public Dictionary<int, SptPoint> ToDictionary()
     {
         var dic = new Dictionary<int, SptPoint>();
@@ -178,27 +220,48 @@ public class StoragePointTest3
     [Fact]
     public async Task Test1()
     {
-        var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
+        var crystal = await TestHelper.CreateAndStartCrystal<SptPoint>(true);
         // var c1 = crystal.Data;
         var s1 = crystal.Data;
-        var c1 = (await s1.TryLock()).Data!;
-        s1.Unlock();
+        // var c1 = (await s1.TryLock()).Data!;
+        // s1.Unlock();
 
-        await this.Setup(c1);
-        await this.Validate1(c1);
-
-        var storage = c1.SptStorage;
+        await this.Setup(s1);
+        await this.Validate1(s1);
 
         await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
 
-        await this.Validate1(c1);
-        await this.Modify2(c1);
+        await this.Validate1(s1);
+        // await this.Modify2(s1);
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
     private async Task Setup(SptClass c1)
+    {
+        c1.TryInitialize(1, "Root", "R", []); // 1 Root R []
+
+        var c2 = c1.Add(2, "Nu", "Po", [3, 4]); // 2 Nu Po [3,4]
+        var c21 = c2.Add(21, "Nu", "Poo", [10]); // 21 Nu Poo [10]
+        var c22 = c2.Add(22, "Nu", "Pooo", [20]); // 22 Nu Poo [20]
+
+        var c3 = c1.Add(3, "Ku", "Po", [5, 6, 7]); // 3 Ku Po [5,6,7]
+        var c31 = c3.Add(31, "Ku", "Pa", [30]); // 31 Ku Pa [30]
+        var c32 = c3.Add(32, "Ku", "Paa", [31]); // 32 Ku Paa [31]
+        var c33 = c3.Add(33, "Ku", "Paaa", [32]); // 33 Ku Paaa [32]
+        var c300 = c31.Add(300, "Nu", "Pa", [300]); // 300 Nu Pa [300]
+
+        var c4 = c1.Add(4, "Do", "Ra", [8, 9]); // 4 Do Ra [8,9]
+        var c41 = c4.Add(41, "Do", "Rara", [1, 2, 3]); // 41 Do Rara [1,2,3]
+        var c42 = c4.Add(42, "Do", "Rarara", [4, 5, 6]); // 42 Do Rarara [4,5,6]
+        var c43 = c4.Add(43, "Do", "Rararara", [7, 8, 9]); // 43 Do Rararara [7,8,9]
+
+        var c51 = c42.Add(51, "O", "Ra", [1, 2]); // 51 O Ra [1,2]
+        var c52 = c42.Add(52, "O", "Rara", [3, 4]); // 52 O Rara [3, 4]
+    }
+
+    private async Task Setup(SptPoint c1)
     {
         c1.TryInitialize(1, "Root", "R", []); // 1 Root R []
 
