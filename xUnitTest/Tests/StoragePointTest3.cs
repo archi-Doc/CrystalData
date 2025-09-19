@@ -194,27 +194,17 @@ public partial class SptPoint : StoragePoint<SptClass>
 
     public SptClass Add(int id, string name, string text, IEnumerable<int> numbers)
     {
-        using (var dataScope = this.TryLock(AcquisitionMode.GetOrCreate).Result)
+        var data = this.TryGet().Result;
+        using (var dataScope = data.SptStorage.TryLock(id, AcquisitionMode.GetOrCreate).Result)
         {
             if (dataScope.IsValid)
             {
-                using (var dataScope2 = dataScope.Data.SptStorage.TryLock(id, AcquisitionMode.GetOrCreate).Result)
-                {
-                    if (dataScope2.IsValid)
-                    {
-                        dataScope2.Data.TryInitialize(id, name, text, numbers);
-                        return dataScope2.Data;
-                    }
-                    else
-                    {
-                        throw new Exception();
-                    }
-                }
+                dataScope.Data.TryInitialize(id, name, text, numbers);
+                return dataScope.Data;
             }
             else
             {
                 throw new Exception();
-                // return default;
             }
         }
     }
@@ -274,14 +264,12 @@ public class StoragePointTest3
 
         await this.Setup(c1);
         await this.Validate1(c1);
-
-        (await crystal.Crystalizer.TestJournalAll()).IsTrue();
+        await this.Modify1(c1);
+        await this.Validate2(c1);
 
         await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
 
-        await this.Validate1(c1);
-        await this.Modify2(c1);
         await this.Validate2(c1);
 
         await crystal.Store(StoreMode.ForceRelease);
@@ -337,33 +325,6 @@ public class StoragePointTest3
         var c52 = c42.Add(52, "O", "Rara", [3, 4]); // 52 O Rara [3, 4]
     }
 
-    private async Task Modify2(SptClass c1)
-    {
-        var points = c1.ToPoints();
-        using (var dataScope = await points[2].TryLock())
-        {
-            if (dataScope.IsValid)
-            {
-                dataScope.Data.Name = "Nuuu";
-
-                (await dataScope.Data.SptStorage.Delete(21)).Is(DataScopeResult.Success);
-            }
-        }
-
-        using (var dataScope = await points[22].TryLock())
-        {
-            dataScope.IsValid.IsTrue();
-            dataScope.Data.SptInt.Add(new(211));//
-        }
-
-        await points[22].DeleteData();
-        points[21].ValidateDeleted();
-        points[22].ValidateDeleted();
-        var sp = points[2].TryGet().Result.SptStorage.TryGet().Result;
-        sp.IdChain.ContainsKey(21).IsFalse();
-        sp.IdChain.ContainsKey(22).IsFalse();
-    }
-
     private async Task Validate1(SptClass c1)
     {
         var dic = c1.ToDictionary();
@@ -389,6 +350,38 @@ public class StoragePointTest3
         dic[52].Validate(52, "O", "Rara", [3, 4]);
     }
 
+    private async Task Modify1(SptClass c1)
+    {
+        var points = c1.ToPoints();
+        using (var dataScope = await points[2].TryLock())
+        {
+            if (dataScope.IsValid)
+            {
+                dataScope.Data.Name = "Nuuu";
+                using (var dataScope2 = await dataScope.Data.SptStorage.TryLock(23, AcquisitionMode.GetOrCreate))
+                {
+                    dataScope2.IsValid.IsTrue();
+                    dataScope2.Data.TryInitialize(23, "Nu", "Poooo", [30]);
+                }
+
+                (await dataScope.Data.SptStorage.Delete(21)).Is(DataScopeResult.Success);
+            }
+        }
+
+        /*using (var dataScope = await points[22].TryLock())
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Data.SptInt.Add(new(211));
+        }*/
+
+        await points[22].DeleteData();
+        points[21].ValidateDeleted();
+        points[22].ValidateDeleted();
+        var sp = points[2].TryGet().Result.SptStorage.TryGet().Result;
+        sp.IdChain.ContainsKey(21).IsFalse();
+        sp.IdChain.ContainsKey(22).IsFalse();
+    }
+
     private async Task Validate2(SptClass c1)
     {
         var dic = c1.ToDictionary();
@@ -399,6 +392,7 @@ public class StoragePointTest3
 
         dic.ContainsKey(21).IsFalse();
         dic.ContainsKey(22).IsFalse();
+        dic[23].Validate(23, "Nu", "Poooo", [30]);
 
         dic[31].Validate(31, "Ku", "Pa", [30]);
         dic[32].Validate(32, "Ku", "Paa", [31]);
