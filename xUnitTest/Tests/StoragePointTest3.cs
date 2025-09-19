@@ -350,6 +350,12 @@ public class StoragePointTest3
             }
         }
 
+        using (var dataScope = await points[22].TryLock())
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Data.SptInt.Add(new(211));//
+        }
+
         await points[22].DeleteData();
         points[21].ValidateDeleted();
         points[22].ValidateDeleted();
