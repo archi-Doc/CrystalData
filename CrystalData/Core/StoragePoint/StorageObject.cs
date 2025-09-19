@@ -85,6 +85,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
 
+    public bool IsDeleted => this.protectionState == ObjectProtectionState.Deleted;
+
     #endregion
 
     internal StorageObject()
