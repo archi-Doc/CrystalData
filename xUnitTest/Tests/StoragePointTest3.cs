@@ -275,12 +275,18 @@ public class StoragePointTest3
         await this.Setup(c1);
         await this.Validate1(c1);
 
+        (await crystal.Crystalizer.TestJournalAll()).IsTrue();
+
         await crystal.Store(StoreMode.ForceRelease);
         await crystal.Crystalizer.StoreJournal();
 
         await this.Validate1(c1);
         await this.Modify2(c1);
         await this.Validate2(c1);
+
+        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.Crystalizer.StoreJournal();
+        (await crystal.Crystalizer.TestJournalAll()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
