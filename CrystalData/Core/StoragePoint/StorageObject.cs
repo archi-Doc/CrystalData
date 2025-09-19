@@ -498,6 +498,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             return true;
         }
+        else if (record == JournalRecord.DeleteItem)
+        {
+        }
 
         return false;
     }
@@ -611,6 +614,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             }
 
             result.Return();
+        }
+
+        if (this.data is null)
+        {
+            this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
         }
 
         if (this.data is IStructualObject structualObject)

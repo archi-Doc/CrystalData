@@ -33,7 +33,7 @@ public partial class SptClass
     }
 
     [Key(0)]
-    public int Id { get; private set; }
+    public partial int Id { get; private set; }
 
     [Key(1)]
     public partial string Name { get; set; } = string.Empty;
@@ -261,6 +261,23 @@ public partial class SptPoint : StoragePoint<SptClass>
 public class StoragePointTest3
 {
     [Fact]
+    public async Task Test0()
+    {
+        var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
+        var c1 = await crystal.Data.PinData();
+
+        c1.TryInitialize(1, "Root", "R", []); // 1 Root R []
+
+        await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
+
+        await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
+        await crystal.Crystalizer.StoreJournal();
+        (await crystal.Crystalizer.TestJournalAll()).IsTrue();
+
+        await TestHelper.StoreAndReleaseAndDelete(crystal);
+    }
+
+    // [Fact]
     public async Task Test1()
     {
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
