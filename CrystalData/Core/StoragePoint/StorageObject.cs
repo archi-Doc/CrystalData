@@ -16,9 +16,15 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
     public const int MaxHistories = 3; // 199
 
+    [Flags]
+    private enum StorageObjectState : byte
+    {
+        Pinned = 1,
+    }
+
     #region FieldAndProperty
 
-    internal byte objectState;//
+    private StorageObjectState storageObjectState;
     internal ObjectProtectionState protectionState;
 
     [Key(0)]
@@ -77,6 +83,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public bool IsEnabled => this.storageMap.IsEnabled;
 
+    public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
+
     #endregion
 
     internal StorageObject()
@@ -105,6 +113,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
             }
+
+            this.storageObjectState |= StorageObjectState.Pinned;
         }
 
         return (TData)this.data;
@@ -327,7 +337,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 this.storageControl.Release(this, false); // Release
                 dataCopy = this.data;
-                this.data = default;
+                if (!this.IsPinned)
+                {
+                    this.data = default;
+                }
+
                 if (dataCopy is null)
                 {// No data
                     return true;
@@ -345,7 +359,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 this.storageControl.Release(this, false); // Release
                 dataCopy = this.data;
-                this.data = default;
+                if (!this.IsPinned)
+                {
+                    this.data = default;
+                }
+
                 if (dataCopy is null)
                 {// No data
                     return true;
@@ -577,6 +595,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     internal void SetDataInternal<TData>(TData newData, bool recordJournal, BytePool.RentReadOnlyMemory original)
         where TData : class
     {// Lock:this
+        if (this.IsPinned)
+        {// Pinned (data is guaranteed to be non-null)
+#pragma warning disable CS8774 // Member must have a non-null value when exiting.
+            return;
+#pragma warning restore CS8774 // Member must have a non-null value when exiting.
+        }
+
         BytePool.RentMemory rentMemory = default;
         this.data = newData!;
         if (this.data is IStructualObject structualObject)
