@@ -24,13 +24,13 @@
 
 ## Quick start
 
-Install CrystalData using Package Manager Console.
+Install **CrystalData** using Package Manager Console.
 
 ```
 Install-Package CrystalData
 ```
 
-This is a small example code to use CrystalData.
+This is a small example code to use **CrystalData**.
 
 ```csharp
 // First, create a class to represent the data content.
