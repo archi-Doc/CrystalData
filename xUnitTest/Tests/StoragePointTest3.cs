@@ -69,6 +69,13 @@ public partial class SptClass
         this.SptInt.Equals(sptInt).IsTrue();
     }
 
+    public void ValidateChildren(IEnumerable<int> numbers)
+    {
+        var data = this.SptStorage.TryGet().Result;
+        data.IsNotNull();
+        data.IdChain.Select(x => x.Id).SequenceEqual(numbers.OrderBy(x => x)).IsTrue();
+    }
+
     public SptClass Add(int id, string name, string text, IEnumerable<int> numbers)
     {
         using (var dataScope = this.SptStorage.TryLock(id, AcquisitionMode.GetOrCreate).Result)
@@ -267,12 +274,13 @@ public class StoragePointTest3
         await this.Modify1(c1);
         await this.Validate2(c1);
 
-        await crystal.Store(StoreMode.ForceRelease);
-        await crystal.Crystalizer.StoreJournal();
+        await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
 
         await this.Validate2(c1);
+        await this.Modify2(c1);
+        await this.Validate3(c1);
 
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
         await crystal.Crystalizer.StoreJournal();
         (await crystal.Crystalizer.TestJournalAll()).IsTrue();
 
@@ -329,9 +337,16 @@ public class StoragePointTest3
     {
         var dic = c1.ToDictionary();
         dic[1].Validate(1, "Root", "R", []);
+        dic[1].ValidateChildren([2, 3, 4]);
+
         dic[2].Validate(2, "Nu", "Po", [3, 4]);
+        dic[2].ValidateChildren([21, 22]);
+
         dic[3].Validate(3, "Ku", "Po", [5, 6, 7]);
+        dic[3].ValidateChildren([31, 32, 33]);
+
         dic[4].Validate(4, "Do", "Ra", [8, 9]);
+        dic[4].ValidateChildren([41, 42, 43]);
 
         dic[21].Validate(21, "Nu", "Poo", [10]);
         dic[22].Validate(22, "Nu", "Pooo", [20]);
@@ -344,6 +359,7 @@ public class StoragePointTest3
 
         dic[41].Validate(41, "Do", "Rara", [1, 2, 3]);
         dic[42].Validate(42, "Do", "Rarara", [4, 5, 6]);
+        dic[42].ValidateChildren([51, 52]);
         dic[43].Validate(43, "Do", "Rararara", [7, 8, 9]);
 
         dic[51].Validate(51, "O", "Ra", [1, 2]);
@@ -359,20 +375,19 @@ public class StoragePointTest3
             {
                 dataScope.Data.Name = "Nuuu";
                 using (var dataScope2 = await dataScope.Data.SptStorage.TryLock(23, AcquisitionMode.GetOrCreate))
-                {
+                {// Add 23 Nu Poooo [30]
                     dataScope2.IsValid.IsTrue();
                     dataScope2.Data.TryInitialize(23, "Nu", "Poooo", [30]);
+                    using (var dataScope3 = await dataScope2.Data.SptStorage.TryLock(30, AcquisitionMode.GetOrCreate))
+                    {// Add 30 Nu Pu []
+                        dataScope3.IsValid.IsTrue();
+                        dataScope3.Data.TryInitialize(30, "Nu", "Pu", []);
+                    }
                 }
 
                 (await dataScope.Data.SptStorage.Delete(21)).Is(DataScopeResult.Success);
             }
         }
-
-        /*using (var dataScope = await points[22].TryLock())
-        {
-            dataScope.IsValid.IsTrue();
-            dataScope.Data.SptInt.Add(new(211));
-        }*/
 
         await points[22].DeleteData();
         points[21].ValidateDeleted();
@@ -380,32 +395,100 @@ public class StoragePointTest3
         var sp = points[2].TryGet().Result.SptStorage.TryGet().Result;
         sp.IdChain.ContainsKey(21).IsFalse();
         sp.IdChain.ContainsKey(22).IsFalse();
+
+        await points[31].DeleteData();
+        points[3].TryGet().Result.ValidateChildren([32, 33]);
+        points[300].ValidateDeleted();
+        using (var dataScope = await points[32].TryLock())
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Data.SptInt.Add(new(41));
+        }
     }
 
     private async Task Validate2(SptClass c1)
     {
         var dic = c1.ToDictionary();
         dic[1].Validate(1, "Root", "R", []);
+        dic[1].ValidateChildren([2, 3, 4]);
+
         dic[2].Validate(2, "Nuuu", "Po", [3, 4]);
+        dic[2].ValidateChildren([23]);
+
         dic[3].Validate(3, "Ku", "Po", [5, 6, 7]);
+        dic[3].ValidateChildren([32, 33]);
+
         dic[4].Validate(4, "Do", "Ra", [8, 9]);
+        dic[4].ValidateChildren([41, 42, 43]);
 
         dic.ContainsKey(21).IsFalse();
         dic.ContainsKey(22).IsFalse();
         dic[23].Validate(23, "Nu", "Poooo", [30]);
+        dic[30].Validate(30, "Nu", "Pu", []);
 
-        dic[31].Validate(31, "Ku", "Pa", [30]);
-        dic[32].Validate(32, "Ku", "Paa", [31]);
+        dic.ContainsKey(31).IsFalse();
+        dic[32].Validate(32, "Ku", "Paa", [31, 41]);
         dic[33].Validate(33, "Ku", "Paaa", [32]);
 
-        dic[300].Validate(300, "Nu", "Pa", [300]);
+        dic.ContainsKey(300).IsFalse();
 
         dic[41].Validate(41, "Do", "Rara", [1, 2, 3]);
         dic[42].Validate(42, "Do", "Rarara", [4, 5, 6]);
+        dic[42].ValidateChildren([51, 52]);
         dic[43].Validate(43, "Do", "Rararara", [7, 8, 9]);
 
         dic[51].Validate(51, "O", "Ra", [1, 2]);
         dic[52].Validate(52, "O", "Rara", [3, 4]);
+    }
+
+    private async Task Modify2(SptClass c1)
+    {
+        var points = c1.ToPoints();
+
+        await points[42].DeleteData();
+        points[42].ValidateDeleted();
+        points[51].ValidateDeleted();
+        points[52].ValidateDeleted();
+
+        using (var dataScope = await points[32].TryLock())
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Data.SptInt.Add(new(51));
+        }
+    }
+
+    private async Task Validate3(SptClass c1)
+    {
+        var dic = c1.ToDictionary();
+        dic[1].Validate(1, "Root", "R", []);
+        dic[1].ValidateChildren([2, 3, 4]);
+
+        dic[2].Validate(2, "Nuuu", "Po", [3, 4]);
+        dic[2].ValidateChildren([23]);
+
+        dic[3].Validate(3, "Ku", "Po", [5, 6, 7]);
+        dic[3].ValidateChildren([32, 33]);
+
+        dic[4].Validate(4, "Do", "Ra", [8, 9]);
+        dic[4].ValidateChildren([41, 43]);
+
+        dic.ContainsKey(21).IsFalse();
+        dic.ContainsKey(22).IsFalse();
+        dic[23].Validate(23, "Nu", "Poooo", [30]);
+        dic[30].Validate(30, "Nu", "Pu", []);
+
+        dic.ContainsKey(31).IsFalse();
+        dic[32].Validate(32, "Ku", "Paa", [31, 41, 51]);
+        dic[33].Validate(33, "Ku", "Paaa", [32]);
+
+        dic.ContainsKey(300).IsFalse();
+
+        dic[41].Validate(41, "Do", "Rara", [1, 2, 3]);
+        dic.ContainsKey(42).IsFalse();
+        dic[43].Validate(43, "Do", "Rararara", [7, 8, 9]);
+
+        dic.ContainsKey(51).IsFalse();
+        dic.ContainsKey(52).IsFalse();
     }
 
     private async Task Validate1(SptPoint s1)

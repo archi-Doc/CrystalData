@@ -3,6 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Tinyhand.IO;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -466,6 +467,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
         {// Key or Locator
+            this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {
                 return structualObject.ProcessJournalRecord(ref reader);
@@ -586,6 +588,34 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         finally
         {
             result.Return();
+        }
+    }
+
+    private void PrepareForJournal()
+    {// Lock:?
+        if (this.data is not null)
+        {// Already loaded
+            return;
+        }
+
+        var storage = this.storageMap.Storage;
+        ulong fileId = 0;
+        if (this.storageId0.IsValid)
+        {
+            fileId = this.storageId0.FileId;
+            var result = storage.GetAsync(ref fileId).Result;//
+            if (result.IsSuccess &&
+                FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
+            {
+                this.data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+            }
+
+            result.Return();
+        }
+
+        if (this.data is IStructualObject structualObject)
+        {
+            structualObject.SetupStructure(this);
         }
     }
 
