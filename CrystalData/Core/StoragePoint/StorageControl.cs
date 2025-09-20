@@ -88,6 +88,8 @@ public partial class StorageControl : IPersistable
         this.storageMaps = [];
     }
 
+    public void Rip() => this.isRip = true;
+
     public void AddStorageMap(StorageMap storageMap)
     {
         using (this.lowestLockObject.EnterScope())
@@ -106,8 +108,6 @@ public partial class StorageControl : IPersistable
         this.SaveInterval = crystalizer.Options.SaveInterval;
     }
 
-    internal void Rip() => this.isRip = true;
-
     internal void ResurrectForTesting() => this.isRip = false;
 
     internal void SetStorageSize(StorageObject node, int newSize)
@@ -116,7 +116,8 @@ public partial class StorageControl : IPersistable
 
         using (this.lowestLockObject.EnterScope())
         {
-            if (node.storageMap.IsEnabled)
+            if (node.storageMap.IsEnabled &&
+                !node.IsPinned)
             {
                 this.memoryUsage += newSize - node.size;
             }

@@ -265,12 +265,14 @@ public class StoragePointTest3
     {
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
         var c1 = await crystal.Data.PinData();
+        // var c1 = new SptClass();
+        // crystal.Data.Set(c1);
 
         c1.TryInitialize(1, "Root", "R", []); // 1 Root R []
 
         await crystal.Crystalizer.StoreAndRelease();
 
-        c1 = crystal.Data.TryGet().Result;
+        c1 = await crystal.Data.TryGet();
         c1.Name = "Nuu";
 
         await crystal.Crystalizer.StoreAndRelease();
@@ -300,7 +302,6 @@ public class StoragePointTest3
         await this.Validate3(c1);
 
         await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
-        await crystal.Crystalizer.StoreJournal();
         (await crystal.Crystalizer.TestJournalAll()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);

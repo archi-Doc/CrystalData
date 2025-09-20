@@ -84,6 +84,7 @@ public static class TestHelper
     public static async Task StoreAndReleaseAndDelete(ICrystal crystal)
     {
         var crystalizer = crystal.Crystalizer;
+        crystalizer.StorageControl.Rip();
         await crystalizer.StoreAndRelease();
         if (crystalizer.StorageControl.MemoryUsage > 0)
         {

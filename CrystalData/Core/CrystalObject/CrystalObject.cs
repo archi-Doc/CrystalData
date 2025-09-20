@@ -420,6 +420,10 @@ Exit:
                 return testResult;
             }
 
+            if (typeof(TData) == typeof(StorageMap))
+            {//
+            }
+
             var logger = this.Crystalizer.UnitLogger.GetLogger<TData>();
             TData? previousObject = default;
             for (var i = 0; i < waypoints.Length; i++)

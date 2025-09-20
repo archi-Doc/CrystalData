@@ -611,7 +611,7 @@ public partial class Crystalizer
 
     public async Task<bool> TestJournalAll()
     {
-        var crystals = this.crystals.GetCrystals(true);
+        var crystals = this.crystals.GetCrystals(false);
         var result = true;
         foreach (var x in crystals)
         {
