@@ -155,6 +155,19 @@ public sealed partial class StorageMap : IStructualObject
         storageControl.AddStorageMap(this);
     }
 
+    internal async Task<bool> TestJournal(SimpleJournal journal)
+    {
+        foreach (var x in this.StorageObjects)
+        {
+            if (!await x.TestJournal(journal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private void UpdateStorageUsageInternal(long size)
         => this.storageUsage += size;
 

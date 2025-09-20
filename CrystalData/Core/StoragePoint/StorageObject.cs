@@ -2,7 +2,9 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using CrystalData.Journal;
 using Tinyhand.IO;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -14,7 +16,7 @@ namespace CrystalData.Internal;
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
-    public const int MaxHistories = 3; // 199
+    public const int MaxHistories = 3;
 
     #region FieldAndProperty
 
@@ -265,6 +267,46 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             this.SetDataInternal(data, true, default);
         }
+    }
+
+    internal async Task<bool> TestJournal(SimpleJournal journal)
+    {
+        var storage = this.storageMap.Storage;
+        object? data = default;
+        for (var i = MaxHistories - 1; i >= 0; i--)
+        {
+            var storageId = i switch
+            {
+                0 => this.storageId0,
+                1 => this.storageId1,
+                2 => this.storageId2,
+                _ => throw new InvalidOperationException(),
+            };
+
+            if (!storageId.IsValid)
+            {
+                continue;
+            }
+
+            var fileId = storageId.FileId;
+            var result = storage.GetAsync(ref fileId).Result;
+            if (result.IsFailure ||
+                FarmHash.Hash64(result.Data.Span) != storageId.Hash)
+            {
+                return false;
+            }
+
+            data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+            if (data is null)
+            {
+                return false;
+            }
+
+            var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+            // var restoreResult = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     #region IStructualRoot

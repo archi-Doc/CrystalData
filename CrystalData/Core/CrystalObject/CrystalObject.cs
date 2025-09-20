@@ -406,6 +406,7 @@ Exit:
         }
 
         var testResult = true;
+        TData? previousObject = default;
         using (this.semaphore.EnterScope())
         {
             if (this.crystalFiler is null ||
@@ -420,12 +421,7 @@ Exit:
                 return testResult;
             }
 
-            if (typeof(TData) == typeof(StorageMap))
-            {//
-            }
-
             var logger = this.Crystalizer.UnitLogger.GetLogger<TData>();
-            TData? previousObject = default;
             for (var i = 0; i < waypoints.Length; i++)
             {// waypoint[i] -> waypoint[i + 1]
                 var base32 = waypoints[i].ToBase32();
@@ -471,13 +467,6 @@ Exit:
                         compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
                     }
 
-                    if (compare &&
-                        currentObject is StorageMap currentMap &&
-                        previousObject is StorageMap previousMap)
-                    {// Compare StorageMap (StorageObject.data)
-                        //compare = this.Crystalizer.StorageControl.CompareMap(currentMap, previousMap);
-                    }
-
                     if (compare)
                     {// Success
                         logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.TestJournal.Success, base32);
@@ -513,6 +502,12 @@ Exit:
                 this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane);
 
                 previousObject = currentObject;
+            }
+
+            if (typeof(TData) == typeof(StorageMap) &&
+                previousObject is StorageMap map)
+            {// Test storage objects
+                testResult = await map.TestJournal(journal);
             }
         }
 
