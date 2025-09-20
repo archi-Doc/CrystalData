@@ -467,6 +467,13 @@ Exit:
                         compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
                     }
 
+                    if (compare &&
+                        currentObject is StorageMap currentMap &&
+                        previousObject is StorageMap previousMap)
+                    {// Compare StorageMap (StorageObject.data)
+                        //compare = this.Crystalizer.StorageControl.CompareMap(currentMap, previousMap);
+                    }
+
                     if (compare)
                     {// Success
                         logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.TestJournal.Success, base32);

@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
@@ -32,6 +33,7 @@ public partial class StorageControl : IPersistable
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
     private StorageObject? saveQueueHead;
+    private StorageObject? pinnedHead;
 
     public Crystalizer? Crystalizer { get; private set; }
 
@@ -152,13 +154,35 @@ public partial class StorageControl : IPersistable
         {
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
+
+        list = this.CreatePinnedList();
+        if (list is null)
+        {
+            return;
+        }
+
+        foreach (var x in list)
+        {
+            await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+        }
     }
 
     internal async Task ReleaseObjects(CancellationToken cancellationToken)
     {
+        var list = this.CreatePinnedList();
+        if (list is null)
+        {
+            return;
+        }
+
+        foreach (var x in list)
+        {
+            await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+        }
+
         while (!cancellationToken.IsCancellationRequested)
         {
-            var list = this.CreateOnMemoryList();
+            list = this.CreateOnMemoryList();
             if (list is null)
             {
                 return;
@@ -198,7 +222,7 @@ public partial class StorageControl : IPersistable
                     break;
                 }
 
-                this.MoveToRecentInternal(node);
+                this.UpdateLinkInternal(node);
             }
 
             await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
@@ -226,7 +250,7 @@ public partial class StorageControl : IPersistable
                     node.size = newSize;
                 }
 
-                this.MoveToRecentInternal(node);
+                this.UpdateLinkInternal(node);
             }
         }
         else
@@ -241,13 +265,19 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void MoveToRecent(StorageObject node)
+    internal void UpdateLink(StorageObject node)
     {
-        if (node.storageMap.IsEnabled)
-        {// If the storage map is enabled, move to recent.
-            using (this.lowestLockObject.EnterScope())
-            {
-                this.MoveToRecentInternal(node);
+        if (node.IsPinned)
+        {// Pinned data does not update links.
+        }
+        else
+        {
+            if (node.storageMap.IsEnabled)
+            {// If the storage map is enabled, move to recent.
+                using (this.lowestLockObject.EnterScope())
+                {
+                    this.UpdateLinkInternal(node);
+                }
             }
         }
     }
@@ -520,6 +550,35 @@ public partial class StorageControl : IPersistable
         }
     }
 
+    /*internal bool CompareMap(StorageMap map1, StorageMap map2)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            var objects1 = map1.StorageObjects;
+            var objects2 = map2.StorageObjects;
+
+            if (objects1.Count != objects2.Count)
+            {
+                return false;
+            }
+
+            foreach (var x in objects1.PointIdChain)
+            {
+                if (!objects2.PointIdChain.TryGetValue(x.PointId, out var y))
+                {
+                    return false;
+                }
+
+                if (!x.Compare(y))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }*/
+
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
     {
         // OnMemory list (Least recently used list).
@@ -579,7 +638,7 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    private void MoveToRecentInternal(StorageObject node)
+    private void UpdateLinkInternal(StorageObject node)
     {
         if (node.onMemoryNext is null ||
             node.onMemoryPrevious is null)
@@ -637,5 +696,36 @@ public partial class StorageControl : IPersistable
         }
 
         return list;
+    }
+
+    private List<StorageObject>? CreatePinnedList()
+    {//
+        List<StorageObject> list = new();
+        using (this.lowestLockObject.EnterScope())
+        {
+            var node = this.pinnedHead;
+            while (node is not null)
+            {
+                list.Add(node);
+                node = node.onMemoryNext;
+            }
+        }
+
+        return list;
+    }
+
+    internal void PinObject(StorageObject node)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (!node.IsPinned)
+            {
+                node.storageObjectState |= StorageObjectState.Pinned;
+
+                this.ReleaseInternal(node, false);
+                node.onMemoryNext = this.pinnedHead;
+                this.pinnedHead = node;
+            }
+        }
     }
 }

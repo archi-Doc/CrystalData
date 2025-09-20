@@ -33,7 +33,7 @@ public partial class SptClass
     }
 
     [Key(0)]
-    public partial int Id { get; private set; }
+    public  int Id { get; private set; }
 
     [Key(1)]
     public partial string Name { get; set; } = string.Empty;
@@ -268,10 +268,12 @@ public class StoragePointTest3
 
         c1.TryInitialize(1, "Root", "R", []); // 1 Root R []
 
-        await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
+        await crystal.Crystalizer.StoreAndRelease();
 
-        await crystal.Crystalizer.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.Crystalizer.StoreJournal();
-        await crystal.Crystalizer.StoreJournal();
+        c1 = crystal.Data.TryGet().Result;
+        c1.Name = "Nuu";
+
+        await crystal.Crystalizer.StoreAndRelease();
         (await crystal.Crystalizer.TestJournalAll()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);

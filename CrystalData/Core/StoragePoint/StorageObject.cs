@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Tinyhand.IO;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -17,15 +16,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
     public const int MaxHistories = 3; // 199
 
-    [Flags]
-    private enum StorageObjectState : byte
-    {
-        Pinned = 1,
-    }
-
     #region FieldAndProperty
 
-    private StorageObjectState storageObjectState;
+    internal StorageObjectState storageObjectState; // Lock:StorageControl
     internal ObjectProtectionState protectionState;
 
     [Key(0)]
@@ -116,9 +109,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
             }
-
-            this.storageObjectState |= StorageObjectState.Pinned;
         }
+
+        this.storageControl.PinObject(this);
 
         return (TData)this.data;
     }
@@ -152,7 +145,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 return default;
             }
 
-            this.storageControl.MoveToRecent(this);
+            this.storageControl.UpdateLink(this);
             return (TData)data;
         }
 
@@ -190,7 +183,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
 
         if (this.storageControl.IsRip)
-        {
+        {// Rip
             return new(DataScopeResult.Rip);
         }
 
@@ -216,9 +209,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         {// PrepareAndLoad
             await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
         }
+        else
+        {// Already loaded
+            this.storageControl.UpdateLink(this);
+        }
 
         if (this.data is not null)
-        {// Already exists
+        {// Data loaded
             if (acquisitionMode == AcquisitionMode.Create)
             {
                 this.Exit();
@@ -733,4 +730,33 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             ((IStructualObject)this).AddJournalRecord(JournalRecord.Delete);
         }
     }
+
+    /*internal bool Compare(StorageObject other)
+    {
+        if (this.pointId != other.pointId ||
+            this.typeIdentifier != other.typeIdentifier)
+        {
+            return false;
+        }
+
+        if (this.storageId0.Equals(ref other.storageId0))
+        {
+            return true;
+        }
+
+        this.PrepareForJournal();
+        other.PrepareForJournal();
+        if (this.data is null || other.data is null)
+        {
+            return false;
+        }
+
+        var (_, r1) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, this.data);
+        var (_, r2) = TinyhandTypeIdentifier.TrySerializeRentMemory(other.TypeIdentifier, other.data);
+        var result = r1.Span.SequenceEqual(r2.Span);
+        r1.Return();
+        r2.Return();
+
+        return result;
+    }*/
 }
