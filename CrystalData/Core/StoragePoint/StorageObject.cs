@@ -303,7 +303,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             }
 
             var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-            // var restoreResult = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+            //var restoreResult = await journal.RestoreData(storageId.JournalPosition, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
+            // if (!restoreResult)
+            {
+                //return false;
+            }
         }
 
         return true;

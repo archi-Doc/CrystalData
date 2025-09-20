@@ -11,7 +11,10 @@ internal interface IReconstructor
 
 public static class JournalExtensions
 {
-    public static async Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, TData data, uint plane, ulong pointId = 0)
+    public static Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, TData data, uint plane, ulong pointId = 0)
+        => RestoreData(journal, startPosition, data, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), plane, pointId);
+
+    public static async Task<bool> RestoreData(this IJournal journal, ulong startPosition, object? data, uint typeIdentifier, uint plane, ulong pointId = 0)
     {
         var result = true;
         var upperLimit = journal.GetCurrentPosition();
@@ -26,7 +29,7 @@ public static class JournalExtensions
 
             try
             {
-                if (!RestoreFromMemory(startPosition, journalResult.Data.Memory, ref data, plane, pointId))
+                if (!RestoreFromMemory(startPosition, journalResult.Data.Memory, ref data, typeIdentifier, plane, pointId))
                 {
                     result = false;
                 }
@@ -47,7 +50,7 @@ public static class JournalExtensions
         return result;
     }
 
-    private static bool RestoreFromMemory<TData>(ulong position, ReadOnlyMemory<byte> memory, ref TData data, uint targetPlane, ulong targetPointId)
+    private static bool RestoreFromMemory(ulong position, ReadOnlyMemory<byte> memory, ref object? data, uint typeIdentifier, uint targetPlane, ulong targetPointId)
     {
         var result = true;
         var reader = new TinyhandReader(memory.Span);
@@ -72,7 +75,7 @@ public static class JournalExtensions
 
                     if (targetPointId == 0)
                     {// No point id specified, read all
-                        if (!ReadValueRecord(ref reader, ref data))
+                        if (!ReadValueRecord(ref reader, ref data, typeIdentifier))
                         {// Failure
                             result = false;
                         }
@@ -83,7 +86,7 @@ public static class JournalExtensions
                         var pointId = reader.ReadUInt64();
                         if (pointId == targetPointId)
                         {// Matching point id
-                            if (!ReadValueRecord(ref reader, ref data))
+                            if (!ReadValueRecord(ref reader, ref data, typeIdentifier))
                             {// Failure
                                 result = false;
                             }
@@ -114,7 +117,7 @@ public static class JournalExtensions
     /// Processing AddItem updates the StorageId and causes issues during restore,
     /// so only Key, Locator, and Value JournalRecords are processed.
     /// </summary>
-    private static bool ReadValueRecord<TData>(ref TinyhandReader reader, ref TData data)
+    private static bool ReadValueRecord(ref TinyhandReader reader, ref object? data, uint typeIdentifier)
     {
         if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
         {// Key or Locator
@@ -131,15 +134,19 @@ public static class JournalExtensions
         if (record == JournalRecord.Value)
         {
             reader.Read_Value();
-            if (TinyhandSerializer.Deserialize<TData>(ref reader) is { } newData)
-            {
-                data = newData;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+
+            data = TinyhandTypeIdentifier.TryDeserializeReader(typeIdentifier, ref reader);
+            return data is not null;
+
+            /* if (TinyhandSerializer.Deserialize<TData>(ref reader) is { } newData)
+             {
+                 data = newData;
+                 return true;
+             }
+             else
+             {
+                 return false;
+             }*/
         }
 
         return true;
