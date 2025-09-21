@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
 
 namespace CrystalData;
@@ -11,11 +12,12 @@ internal interface IReconstructor
 
 public static class JournalExtensions
 {
-    public static Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, ulong upperLimit, TData data, uint plane, ulong pointId = 0)
+    public static Task<object?> RestoreData<TData>(this IJournal journal, ulong startPosition, ulong upperLimit, TData data, uint plane, ulong pointId = 0)
         => RestoreData(journal, startPosition, upperLimit, data, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), plane, pointId);
 
-    public static async Task<bool> RestoreData(this IJournal journal, ulong startPosition, ulong upperLimit, object? data, uint typeIdentifier, uint plane, ulong pointId = 0)
+    public static async Task<object?> RestoreData(this IJournal journal, ulong startPosition, ulong upperLimit, object? originalData, uint typeIdentifier, uint plane, ulong pointId = 0)
     {
+        var data = originalData;
         var result = true;
         if (upperLimit <= 0)
         {
@@ -35,6 +37,7 @@ public static class JournalExtensions
                 if (!RestoreFromMemory(startPosition, journalResult.Data.Memory, ref data, typeIdentifier, plane, pointId))
                 {
                     result = false;
+                    break;
                 }
             }
             finally
@@ -50,7 +53,14 @@ public static class JournalExtensions
             startPosition = journalResult.NextPosition;
         }
 
-        return result;
+        if (result)
+        {
+            return data;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     private static bool RestoreFromMemory(ulong position, ReadOnlyMemory<byte> memory, ref object? data, uint typeIdentifier, uint targetPlane, ulong targetPointId)

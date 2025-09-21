@@ -766,12 +766,16 @@ Exit:
             return (CrystalResult.Success, default, default); // New
         }
 
+        var deserializedData = data.Result.Object;
         if (data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
             var restoreResult = false;
             if (this.Crystalizer.Journal is { } journal)
             {// Read journal (LeadingJournalPosition -> StoredJournalPosition)
-                restoreResult = await journal.RestoreData(data.Waypoint.JournalPosition, 0ul, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false);
+                if (await journal.RestoreData(data.Waypoint.JournalPosition, 0ul, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
+                {
+                    deserializedData = restoredData;
+                }
             }
 
             if (restoreResult)
@@ -786,13 +790,13 @@ Exit:
 
         if (configuration.HasFileHistories)
         {
-            return (CrystalResult.Success, data.Result.Object, data.Waypoint);
+            return (CrystalResult.Success, deserializedData, data.Waypoint);
         }
         else
         {// Calculate a hash to prevent saving the same data.
             // var waypoint = data.Waypoint.WithHash(FarmHash.Hash64(data.Result.Data.Memory.Span));//
             var waypoint = data.Waypoint.WithHash(data.Waypoint.Hash);
-            return (CrystalResult.Success, data.Result.Object, waypoint);
+            return (CrystalResult.Success, deserializedData, waypoint);
         }
     }
 

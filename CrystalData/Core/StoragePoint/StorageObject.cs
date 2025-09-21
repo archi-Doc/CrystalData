@@ -324,8 +324,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 };
 
                 var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                var restoreResult = await journal.RestoreData(storageId.JournalPosition, upplerLimit, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
-                if (!restoreResult)
+                data = await journal.RestoreData(storageId.JournalPosition, upplerLimit, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
+                if (data is null)
                 {
                     return false;
                 }
@@ -633,22 +633,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 return;
             }
 
-            this.SetDataInternal(data, false, result.Data);
             if (journalPosition > 0)
             {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
-                var restoreResult = false;
-                if (data is not null &&
-                    this.storageMap.Journal is { } journal)
+                TData? restoredData = default;
+                if (this.storageMap.Journal is { } journal)
                 {
                     var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                    restoreResult = await journal.RestoreData<TData>(journalPosition, 0ul, data, plane, this.PointId).ConfigureAwait(false);
+                    restoredData = await journal.RestoreData<TData>(journalPosition, 0ul, data, plane, this.PointId).ConfigureAwait(false) as TData;
                 }
 
-                var dataType = this.data.GetType();
+                var dataType = data.GetType();
                 var storageInfo = $"Type = {dataType.Name}, PointId = {this.pointId}";
 
-                if (restoreResult)
+                if (restoredData is not null)
                 {// Successfully restored
+                    data = restoredData;
                     this.storageControl.Logger?.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
                 }
                 else
@@ -656,6 +655,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                     this.storageControl.Logger?.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
                 }
             }
+
+            this.SetDataInternal(data, false, result.Data);
         }
         finally
         {
