@@ -771,7 +771,7 @@ Exit:
             var restoreResult = false;
             if (this.Crystalizer.Journal is { } journal)
             {// Read journal (LeadingJournalPosition -> StoredJournalPosition)
-                restoreResult = await journal.RestoreData(data.Waypoint.JournalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false);
+                restoreResult = await journal.RestoreData(data.Waypoint.JournalPosition, 0ul, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false);
             }
 
             if (restoreResult)

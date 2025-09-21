@@ -11,13 +11,16 @@ internal interface IReconstructor
 
 public static class JournalExtensions
 {
-    public static Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, TData data, uint plane, ulong pointId = 0)
-        => RestoreData(journal, startPosition, data, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), plane, pointId);
+    public static Task<bool> RestoreData<TData>(this IJournal journal, ulong startPosition, ulong upperLimit, TData data, uint plane, ulong pointId = 0)
+        => RestoreData(journal, startPosition, upperLimit, data, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), plane, pointId);
 
-    public static async Task<bool> RestoreData(this IJournal journal, ulong startPosition, object? data, uint typeIdentifier, uint plane, ulong pointId = 0)
+    public static async Task<bool> RestoreData(this IJournal journal, ulong startPosition, ulong upperLimit, object? data, uint typeIdentifier, uint plane, ulong pointId = 0)
     {
         var result = true;
-        var upperLimit = journal.GetCurrentPosition();
+        if (upperLimit <= 0)
+        {
+            upperLimit = journal.GetCurrentPosition();
+        }
 
         while (startPosition != 0)
         {
@@ -133,8 +136,6 @@ public static class JournalExtensions
 
         if (record == JournalRecord.Value)
         {
-            reader.Read_Value();
-
             data = TinyhandTypeIdentifier.TryDeserializeReader(typeIdentifier, ref reader);
             return data is not null;
 

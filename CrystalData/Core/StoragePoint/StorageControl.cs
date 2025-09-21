@@ -239,6 +239,8 @@ public partial class StorageControl : IPersistable
     /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
+        Debug.Assert(node.IsPinned == false);
+
         newSize = Math.Max(newSize, MinimumDataSize);
 
         if (node.storageMap.IsEnabled)
@@ -268,17 +270,11 @@ public partial class StorageControl : IPersistable
 
     internal void UpdateLink(StorageObject node)
     {
-        if (node.IsPinned)
-        {// Pinned data does not update links.
-        }
-        else
-        {
-            if (node.storageMap.IsEnabled)
-            {// If the storage map is enabled, move to recent.
-                using (this.lowestLockObject.EnterScope())
-                {
-                    this.UpdateLinkInternal(node);
-                }
+        if (node.storageMap.IsEnabled)
+        {// If the storage map is enabled, move to recent.
+            using (this.lowestLockObject.EnterScope())
+            {
+                this.UpdateLinkInternal(node);
             }
         }
     }
@@ -584,7 +580,7 @@ public partial class StorageControl : IPersistable
     {
         // OnMemory list (Least recently used list).
         if (node.onMemoryPrevious is not null && node.onMemoryNext is not null)
-        {
+        {// Pinned objects also use OnMemoryList, but onMemoryPrevious will always be null.
             if (node.storageMap.IsEnabled)
             {
                 this.memoryUsage -= node.Size;
@@ -641,6 +637,11 @@ public partial class StorageControl : IPersistable
 
     private void UpdateLinkInternal(StorageObject node)
     {
+        if (node.IsPinned)
+        {// Pinned data does not update links.
+            return;
+        }
+
         if (node.onMemoryNext is null ||
             node.onMemoryPrevious is null)
         {// Not added to the list.

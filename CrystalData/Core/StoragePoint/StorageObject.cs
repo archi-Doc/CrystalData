@@ -289,24 +289,50 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             }
 
             var fileId = storageId.FileId;
-            var result = storage.GetAsync(ref fileId).Result;
-            if (result.IsFailure ||
+            var result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
+            try
+            {
+                if (result.IsFailure ||
                 FarmHash.Hash64(result.Data.Span) != storageId.Hash)
-            {
-                return false;
-            }
+                {
+                    return false;
+                }
 
-            data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
-            if (data is null)
-            {
-                return false;
-            }
+                if (data is not null)
+                {// Compare with previous data
+                    var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data);
+                    var isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
+                    rentMemory.Return();
+                    if (!isEqual)
+                    {
+                        return false;
+                    }
+                }
 
-            var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-            var restoreResult = await journal.RestoreData(storageId.JournalPosition, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
-            if (!restoreResult)
+                data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                if (data is null)
+                {
+                    return false;
+                }
+
+                var upplerLimit = i switch
+                {
+                    0 => 0ul,
+                    1 => this.storageId0.JournalPosition,
+                    2 => this.storageId1.JournalPosition,
+                    _ => throw new InvalidOperationException(),
+                };
+
+                var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+                var restoreResult = await journal.RestoreData(storageId.JournalPosition, upplerLimit, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
+                if (!restoreResult)
+                {
+                    return false;
+                }
+            }
+            finally
             {
-                return false;
+                result.Return();
             }
         }
 
@@ -615,7 +641,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                     this.storageMap.Journal is { } journal)
                 {
                     var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                    restoreResult = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+                    restoreResult = await journal.RestoreData<TData>(journalPosition, 0ul, data, plane, this.PointId).ConfigureAwait(false);
                 }
 
                 var dataType = this.data.GetType();
@@ -649,7 +675,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         if (this.storageId0.IsValid)
         {
             fileId = this.storageId0.FileId;
-            var result = storage.GetAsync(ref fileId).Result;//
+            var result = storage.GetAsync(ref fileId).ConfigureAwait(false).GetAwaiter().GetResult();
             if (result.IsSuccess &&
                 FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
             {
