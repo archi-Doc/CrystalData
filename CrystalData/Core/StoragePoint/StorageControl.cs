@@ -701,7 +701,7 @@ public partial class StorageControl : IPersistable
     }
 
     private List<StorageObject>? CreatePinnedList()
-    {//
+    {
         List<StorageObject> list = new();
         using (this.lowestLockObject.EnterScope())
         {

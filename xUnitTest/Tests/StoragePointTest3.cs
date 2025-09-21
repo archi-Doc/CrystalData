@@ -33,7 +33,7 @@ public partial class SptClass
     }
 
     [Key(0)]
-    public  int Id { get; private set; }
+    public int Id { get; private set; }
 
     [Key(1)]
     public partial string Name { get; set; } = string.Empty;
