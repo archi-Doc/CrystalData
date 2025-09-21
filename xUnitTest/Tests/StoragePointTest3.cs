@@ -281,7 +281,7 @@ public class StoragePointTest3
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
-    // [Fact]
+    [Fact]
     public async Task Test1()
     {
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptClass>>(true);
