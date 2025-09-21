@@ -26,7 +26,7 @@ public sealed partial class StorageMap : IStructualObject
 
     public StorageControl StorageControl { get; private set; }
 
-    internal CrystalObjectBase? CrystalObject { get; private set; }
+    internal CrystalObjectBase? CrystalObject { get; set; }
 
     private bool enabledStorageMap;
 

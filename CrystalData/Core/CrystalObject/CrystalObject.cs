@@ -507,6 +507,7 @@ Exit:
             if (typeof(TData) == typeof(StorageMap) &&
                 previousObject is StorageMap map)
             {// Test storage objects
+                map.CrystalObject = this;
                 testResult = await map.TestJournal(journal);
             }
         }
