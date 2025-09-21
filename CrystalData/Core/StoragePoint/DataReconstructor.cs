@@ -134,6 +134,11 @@ public static class JournalExtensions
     {
         if (reader.TryReadJournalRecord_PeekIDelegated(out var record))
         {// Key or Locator
+            if (record == JournalRecord.AddItem)
+            {
+                return true;
+            }
+
             if (data is IStructualObject structualObject)
             {
                 return structualObject.ProcessJournalRecord(ref reader);
