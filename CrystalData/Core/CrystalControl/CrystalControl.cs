@@ -682,7 +682,7 @@ public partial class CrystalControl
         }
         else
         {
-            journalPosition = waypoint.JournalPosition;
+            journalPosition = waypoint.JournalPosition + 1; // The journal position is incremented to differentiate new data from old.
         }
 
         /*if (this.Journal != null)
