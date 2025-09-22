@@ -280,6 +280,9 @@ internal class Program
             {
             });
 
+        Waypoint.TryParse("00000000000F3V8KQ9XGBKBC0HWC2CJC0000000", out var wp);
+        Waypoint.TryParse("00000000000F30W1ZEZXFX4QMCWC2CJC0000000", out var wp1);
+
         var product = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
