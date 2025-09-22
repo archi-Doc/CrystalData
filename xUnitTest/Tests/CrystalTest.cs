@@ -44,7 +44,7 @@ public class CrystalTest
         var crystal = await TestHelper.CreateAndStartCrystal<CreditData.GoshujinClass>(true);
 
         var g = crystal.Data;
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
 
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
@@ -63,7 +63,7 @@ public class CrystalTest
             }
         }
 
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
 
@@ -83,7 +83,7 @@ public class CrystalTest
         var crystal = await TestHelper.CreateAndStartCrystal2<CreditData.GoshujinClass>();
 
         var g = crystal.Data;
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
 
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
@@ -102,7 +102,7 @@ public class CrystalTest
             }
         }
 
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.PrepareAndLoad(false);
         g = crystal.Data;
 

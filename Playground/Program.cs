@@ -280,19 +280,13 @@ internal class Program
             {
             });
 
-        Waypoint.TryParse("0000000000073V8KQ9XGBKBC0MYJZ3FX0000000", out var wp);
-        Waypoint.TryParse("0000000000073VH2U04R9XSMHZYJZ3FX0000000", out var wp1);
+        Waypoint.TryParse("0000000000005SGVMCUTZ68JYJZ9U57F0000000", out var wp);
+        Waypoint.TryParse("0000000000007PBGGE9WTK99N1Z9U57F0000000", out var wp1);
 
         var product = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
-
-        var cc = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        cc.Data.Name = "1";
-        await cc.Store(StoreMode.StoreOnly);
-        cc.Data.Name = "2";
-        await cc.Store(StoreMode.StoreOnly);
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 

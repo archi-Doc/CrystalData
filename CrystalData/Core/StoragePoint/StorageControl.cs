@@ -129,7 +129,7 @@ public partial class StorageControl : IPersistable
     Task<bool> IPersistable.TestJournal()
         => Task.FromResult(true);
 
-    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    async Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
     {
         if (storeMode == StoreMode.StoreOnly)
         {

@@ -158,7 +158,7 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
         => this.StoreJournalAsync(true, storeMode, cancellationToken);
 
     Type IPersistable.DataType => typeof(SimpleJournal);

@@ -43,7 +43,7 @@ public partial class Program
 
         // Save instantly
         data.id += 1;
-        await crystal.Store();
+        await crystal.StoreData();
 
         // On changed
         data.Id += 2; // Add to the save queue when the value is changed
@@ -53,7 +53,7 @@ public partial class Program
         crystal.AddToSaveQueue();
 
         // Manual...
-        await crystal.Store();
+        await crystal.StoreData();
 
         return product;
     }

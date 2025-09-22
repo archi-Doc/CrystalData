@@ -82,7 +82,7 @@ public class JournalTest
         {
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
 
         // g2: empty
@@ -97,7 +97,7 @@ public class JournalTest
             g2.Add(new(0, "Zero", 0));
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
 
         // g3: Zero
@@ -115,7 +115,7 @@ public class JournalTest
             d.Age.Is(0d);
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
         var result = await c.CrystalControl.TestJournalAll();
         result.IsTrue();
@@ -138,7 +138,7 @@ public class JournalTest
             d.Id = 100;
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
         result = await c.CrystalControl.TestJournalAll();
         result.IsTrue();
@@ -157,7 +157,7 @@ public class JournalTest
             d.Name = "100";
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
         result = await c.CrystalControl.TestJournalAll();
         result.IsTrue();
@@ -174,7 +174,7 @@ public class JournalTest
         {
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
 
         // g2: empty
@@ -185,7 +185,7 @@ public class JournalTest
         g2.Count.Is(0);
         g2.Add(new(0, "Zero", 0));
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
 
         // g3: Zero
@@ -201,7 +201,7 @@ public class JournalTest
             d.Age.Is(0d);
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
         var result = await c.CrystalControl.TestJournalAll();
         result.IsTrue();
@@ -229,7 +229,7 @@ public class JournalTest
             }
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
         result = await c.CrystalControl.TestJournalAll();
         result.IsTrue();
@@ -252,7 +252,7 @@ public class JournalTest
             }
         }
 
-        await c.Store(StoreMode.ForceRelease);
+        await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
         result = await c.CrystalControl.TestJournalAll();
         result.IsTrue();

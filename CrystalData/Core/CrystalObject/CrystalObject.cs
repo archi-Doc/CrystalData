@@ -108,7 +108,10 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     int IStructualObject.StructualKey { get; set; } = -1;
 
-
+    async Task<bool> IStructualObject.StoreData(StoreMode storeMode)
+    {
+        return await ((IPersistable)this).StoreData(storeMode, default) == CrystalResult.Success;
+    }
 
     #endregion
 
@@ -239,7 +242,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     #region IPersistable
 
-    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    async Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
     {
         // this.TryGetLogger(LogLevel.Debug)?.Log("Store called");
         using (this.Goshujin!.LockObject.EnterScope())

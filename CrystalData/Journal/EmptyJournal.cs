@@ -25,7 +25,7 @@ public class EmptyJournal : IJournal
         writer = default(TinyhandWriter);
     }
 
-    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
         => Task.FromResult(CrystalResult.Success);
 
     Type IPersistable.DataType => typeof(EmptyJournal);

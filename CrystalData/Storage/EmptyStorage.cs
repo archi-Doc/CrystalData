@@ -22,7 +22,7 @@ public partial class EmptyStorage : IStorage
 
     Type IPersistable.DataType => throw new NotImplementedException();
 
-    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
         => Task.FromResult(CrystalResult.Success);
 
     Task<bool> IPersistable.TestJournal()
