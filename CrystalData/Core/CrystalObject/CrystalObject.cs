@@ -108,6 +108,8 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     int IStructualObject.StructualKey { get; set; } = -1;
 
+
+
     #endregion
 
     public CrystalObject(CrystalControl crystalControl)
