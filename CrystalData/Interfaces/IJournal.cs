@@ -14,6 +14,8 @@ public interface IJournal : IPersistable
 
     ulong Add(ref TinyhandWriter writer);
 
+    ulong AddWaypoint();
+
     ulong GetStartingPosition();
 
     ulong GetCurrentPosition();

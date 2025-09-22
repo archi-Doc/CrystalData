@@ -158,6 +158,27 @@ public partial class SimpleJournal : IJournal
         }
     }
 
+    ulong IJournal.AddWaypoint()
+    {
+        Span<byte> span = stackalloc byte[4];
+        span[3] = (byte)JournalType.Waypoint;
+        span[2] = 0;
+        span[1] = 0;
+        span[0] = 0;
+
+        using (this.lockRecordBuffer.EnterScope())
+        {
+            if (this.recordBufferRemaining < span.Length)
+            {
+                this.FlushRecordBufferInternal();
+            }
+
+            span.CopyTo(this.recordBuffer.AsSpan(this.recordBufferLength));
+            this.recordBufferLength += span.Length;
+            return this.recordBufferPosition + (ulong)this.recordBufferLength;
+        }
+    }
+
     Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
         => this.StoreJournalAsync(true, storeMode, cancellationToken);
 

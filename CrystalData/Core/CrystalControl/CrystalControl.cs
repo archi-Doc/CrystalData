@@ -678,24 +678,17 @@ public partial class CrystalControl
         ulong journalPosition;
         if (this.Journal != null)
         {
-            journalPosition = this.Journal.GetCurrentPosition();
+            journalPosition = this.Journal.AddWaypoint(); // this.Journal.GetCurrentPosition();
+
+            /*this.Journal.GetWriter(JournalType.Waypoint, out var writer);
+            writer.Write(plane);
+            writer.Write(hash);
+            journalPosition = this.Journal.Add(ref writer);*/
         }
         else
         {
             journalPosition = waypoint.JournalPosition + 1; // The journal position is incremented to differentiate new data from old.
         }
-
-        /*if (this.Journal != null)
-        {
-            this.Journal.GetWriter(JournalType.Waypoint, out var writer);
-            writer.Write(plane);
-            writer.Write(hash);
-            journalPosition = this.Journal.Add(ref writer);
-        }
-        else
-        {
-            journalPosition = waypoint.JournalPosition + 1;
-        }*/
 
         waypoint = new(journalPosition, hash, plane);
     }

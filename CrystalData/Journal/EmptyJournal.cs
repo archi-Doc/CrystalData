@@ -20,6 +20,11 @@ public class EmptyJournal : IJournal
         return 0;
     }
 
+    ulong IJournal.AddWaypoint()
+    {
+        return 0;
+    }
+
     void IJournal.GetWriter(JournalType recordType, out TinyhandWriter writer)
     {
         writer = default(TinyhandWriter);
