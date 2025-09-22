@@ -535,7 +535,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (reader.TryReadJournalRecord_PeekIDelegated(out var record))
-        {//AddItem
+        {
+            if (record == JournalRecord.AddItem)
+            {//
+
+            }
             this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {

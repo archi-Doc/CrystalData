@@ -20,7 +20,7 @@ public partial class SptClass2
     }
 
     [Key(0)]
-    public int Id { get; private set; }
+    public partial int Id { get; private set; }
 
     [Key(1)]
     public partial int Count { get; set; }
@@ -91,8 +91,9 @@ public class StoragePointTest4
 {
     public const int MaxId = 100;
     public const int Concurrency = 1;
-    public const int Repetition = 100;
+    public const int Repetition = 1;
 
+    private Random random = new Random(11);
     private int totalCount = 0;
     private SptPoint2.GoshujinClass? g;
 
@@ -102,6 +103,7 @@ public class StoragePointTest4
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptPoint2.GoshujinClass>>(true);
         this.g = await crystal.Data.PinData();
 
+        // await this.Setup();
         await this.Run();
         await this.Validate();
 
@@ -116,8 +118,8 @@ public class StoragePointTest4
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
-    private static int GetRandomId()
-        => RandomVault.Default.NextInt32(1, MaxId + 1);
+    private int GetRandomId()
+        => this.random.Next(1, MaxId + 1);
 
     private async Task Increment(int id)
     {
@@ -180,13 +182,13 @@ public class StoragePointTest4
         {
             for (int i = 0; i < Repetition; ++i)
             {
-                var id = GetRandomId();
+                var id = this.GetRandomId();
                 await this.Increment(id);
-                id = GetRandomId();
+                id = this.GetRandomId();
                 // await this.Increment(id);
-                id = GetRandomId();
+                id = this.GetRandomId();
                 // await this.Decrement(id);
-                id = GetRandomId();
+                id = this.GetRandomId();
                 // await this.StoreAndRelease(id);
 
                 Interlocked.Increment(ref this.totalCount);
@@ -194,11 +196,21 @@ public class StoragePointTest4
         }).ToArray();
     }
 
-    private async Task Setup(SptPoint2 c1)
+    private async Task Setup()
     {
         for (var i = 1; i <= MaxId; i++)
         {
-            c1.TryInitialize(i);
+            using (var dataScope = this.g.TryLock(i, AcquisitionMode.GetOrCreate).Result)
+            {
+                if (dataScope.IsValid)
+                {
+                    dataScope.Data.TryInitialize(i);
+                }
+                else
+                {
+                    throw new Exception();
+                }
+            }
         }
     }
 

@@ -612,6 +612,9 @@ Exit:
                         else
                         {// Failure
                             success = false;
+
+                            reader = fork;//
+                            journalObject.ProcessJournalRecord(ref reader);
                         }
                     }
                 }
