@@ -104,7 +104,7 @@ public class CrystalUnit
 
     #region Product
 
-    public class Product : BuiltUnit
+    public class Product : UnitProduct
     {// Unit class for customizing behaviors.
         public Product(UnitContext context)
             : base(context)

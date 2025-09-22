@@ -20,7 +20,7 @@ public partial class FirstData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> FirstExample()
+    public static async Task<UnitProduct> FirstExample()
     {
         // Create a builder to organize dependencies and register data configurations.
         var builder = new CrystalUnit.Builder()

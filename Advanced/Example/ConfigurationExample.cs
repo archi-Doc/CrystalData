@@ -43,7 +43,7 @@ public class ConfigurationExampleClass
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> ConfigurationExample()
+    public static async Task<UnitProduct> ConfigurationExample()
     {
         var builder = new CrystalUnit.Builder()
             .Configure(context =>

@@ -35,7 +35,7 @@ public partial class JournalData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit?> JournalExample()
+    public static async Task<UnitProduct?> JournalExample()
     {
         // Create a builder to organize dependencies and register data configurations.
         var builder = new CrystalUnit.Builder()

@@ -20,7 +20,7 @@ public partial class BackupData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> BackupExample()
+    public static async Task<UnitProduct> BackupExample()
     {
         // Create a builder to organize dependencies and register data configurations.
         var builder = new CrystalUnit.Builder()

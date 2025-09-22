@@ -17,7 +17,7 @@ public partial class SaveTimingData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> SaveTimingExample()
+    public static async Task<UnitProduct> SaveTimingExample()
     {
         // Create a builder to organize dependencies and register data configurations.
         var builder = new CrystalUnit.Builder()

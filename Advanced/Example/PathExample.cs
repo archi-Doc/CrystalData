@@ -7,7 +7,7 @@ public partial class Program
     private const string BucketName = "test_bucket";
     private const string KeyPair = "AccessKeyId=SecretAccessKey";
 
-    public static async Task<BuiltUnit> PathExample()
+    public static async Task<UnitProduct> PathExample()
     {
         // Create a builder to organize dependencies and register data configurations.
         var builder = new CrystalUnit.Builder()

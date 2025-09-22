@@ -22,7 +22,7 @@ public partial class ServiceProviderData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> ServiceProviderExample()
+    public static async Task<UnitProduct> ServiceProviderExample()
     {
         // Create a builder to organize dependencies and register data configurations.
         var builder = new CrystalUnit.Builder()

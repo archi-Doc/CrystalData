@@ -88,7 +88,7 @@ public class SptRoot
 
 public partial class Program
 {
-    public static async Task<BuiltUnit?> StoragePointExample()
+    public static async Task<UnitProduct?> StoragePointExample()
     {
         var builder = new CrystalUnit.Builder()
             .Configure(context =>

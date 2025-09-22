@@ -53,7 +53,7 @@ public class SecondExample
 
 public partial class Program
 {
-    public static async Task<BuiltUnit?> SecondExample()
+    public static async Task<UnitProduct?> SecondExample()
     {
         var myBuilder = new UnitBuilder();
 
