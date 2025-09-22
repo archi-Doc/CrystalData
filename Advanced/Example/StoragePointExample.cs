@@ -90,7 +90,7 @@ public partial class Program
 {
     public static async Task<BuiltUnit?> StoragePointExample()
     {
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .Configure(context =>
             {
                 context.AddSingleton<StoragePointExample>();

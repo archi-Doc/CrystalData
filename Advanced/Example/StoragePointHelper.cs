@@ -17,7 +17,7 @@ public static partial class StoragePointHelper2
             NumberOfHistoryFiles = DefaultNumberOfFileHistories,
         };
 
-        var builder = new CrystalControl.Builder();
+        var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));

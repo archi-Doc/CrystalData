@@ -23,7 +23,7 @@ public static class TestHelper
             }
             : EmptyStorageConfiguration.Default;
 
-        var builder = new CrystalControl.Builder();
+        var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
@@ -50,7 +50,7 @@ public static class TestHelper
     public static async Task<ICrystal<TData>> CreateAndStartCrystal2<TData>()
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
-        var builder = new CrystalControl.Builder();
+        var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));

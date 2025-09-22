@@ -226,7 +226,7 @@ internal class Program
     public static async Task Main(string[] args)
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .Configure(context =>
             {
                 // context.AddSingleton<FirstData>();

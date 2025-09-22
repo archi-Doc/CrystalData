@@ -57,7 +57,7 @@ public partial class Program
     {
         var myBuilder = new UnitBuilder();
 
-        var crystalDataBuilder = new CrystalControl.Builder()
+        var crystalDataBuilder = new CrystalUnit.Builder()
             .Configure(context =>
             {
                 context.TryAddSingleton<SecondExample>(); // Register SecondExample class.

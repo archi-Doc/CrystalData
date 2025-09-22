@@ -14,9 +14,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CrystalData;
 
-public class CrystalControl
+public class CrystalUnit
 {
-    public class Builder : UnitBuilder<Unit>
+    public class Builder : UnitBuilder<Product>
     {// Builder class for customizing dependencies.
         public Builder()
             : base()
@@ -29,7 +29,7 @@ public class CrystalControl
             this.Configure(context =>
             {
                 // Main services
-                context.AddSingleton<CrystalControl>();
+                context.AddSingleton<CrystalUnit>();
                 context.AddSingleton<CrystalizerConfiguration>();
                 context.AddSingleton<CrystalizerOptions>();
                 context.AddSingleton<Crystalizer>();
@@ -98,15 +98,15 @@ public class CrystalControl
         private List<Action<IUnitConfigurationContext, ICrystalConfigurationContext>> crystalActions2 = new();
     }
 
-    public class Unit : BuiltUnit
+    public class Product : BuiltUnit
     {// Unit class for customizing behaviors.
-        public Unit(UnitContext context)
+        public Product(UnitContext context)
             : base(context)
         {
         }
     }
 
-    public CrystalControl(UnitContext unitContext)
+    public CrystalUnit(UnitContext unitContext)
     {
         this.unitContext = unitContext;
     }

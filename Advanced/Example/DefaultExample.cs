@@ -23,7 +23,7 @@ public partial class Program
     public static async Task<BuiltUnit> DefaultExample()
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
                 // Register data configuration.
