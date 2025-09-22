@@ -516,7 +516,7 @@ public partial class CrystalControl
             await journal.Terminate().ConfigureAwait(false);
         }
 
-        this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage})");
+        this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage}");
     }
 
     /// <summary>
