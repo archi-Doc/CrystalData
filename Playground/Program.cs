@@ -234,8 +234,8 @@ internal class Program
             })
             .ConfigureCrystal((unitContext, crystalContext) =>
             {
-                // CrystalizerOptions
-                crystalContext.SetCrystalizerOptions(new CrystalOptions() with
+                // CrystalOptions
+                crystalContext.SetCrystalOptions(new CrystalOptions() with
                 {
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
@@ -280,12 +280,12 @@ internal class Program
             {
             });
 
-        var unit = builder.Build(); // Build.
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var product = builder.Build(); // Build.
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
+        var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
         Console.WriteLine($"Estimated size: SemaphoreSlim {EstimateSize.Constructor(() => new SemaphoreSlim(0))} bytes");
@@ -310,18 +310,18 @@ internal class Program
 
         Console.WriteLine($"Save {data.ToString()}");
 
-        var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        var crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         crystal.AddToSaveQueue(2);
         // await Task.Delay(10_000);
 
-        data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
+        data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"Data {data.ToString()}");
 
-        crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
+        crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        var crystal2 = product.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
         // await crystal2.PrepareAndLoad(false);
 
-        var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
+        var data2 = product.Context.ServiceProvider.GetRequiredService<SecondData>();
         var classStorage = data2.ClassStorage;
         using (var d = await classStorage.TryLock(AcquisitionMode.GetOrCreate))
         {

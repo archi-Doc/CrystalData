@@ -36,9 +36,9 @@ public static class TestHelper
                 });
         });
 
-        var unit = builder.Build();
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var product = builder.Build();
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
         crystalControl.StorageControl.MemoryUsage.Is(0);
 
         var crystal = crystalControl.GetCrystal<TData>();
@@ -71,8 +71,8 @@ public static class TestHelper
             });
         });
 
-        var unit = builder.Build();
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var product = builder.Build();
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
         crystalControl.StorageControl.MemoryUsage.Is(0);
 
         var crystal = crystalControl.GetCrystal<TData>();

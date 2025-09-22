@@ -16,6 +16,8 @@ namespace CrystalData;
 
 public class CrystalUnit
 {
+    #region Builder
+
     public class Builder : UnitBuilder<Product>
     {// Builder class for customizing dependencies.
         public Builder()
@@ -98,6 +100,10 @@ public class CrystalUnit
         private List<Action<IUnitConfigurationContext, ICrystalConfigurationContext>> crystalActions2 = new();
     }
 
+    #endregion
+
+    #region Product
+
     public class Product : BuiltUnit
     {// Unit class for customizing behaviors.
         public Product(UnitContext context)
@@ -105,6 +111,8 @@ public class CrystalUnit
         {
         }
     }
+
+    #endregion
 
     public CrystalUnit(UnitContext unitContext)
     {

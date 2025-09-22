@@ -8,9 +8,9 @@ namespace CrystalData;
 
 internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomContext
 {
-    void ICrystalConfigurationContext.SetCrystalizerOptions(CrystalOptions options)
+    void ICrystalConfigurationContext.SetCrystalOptions(CrystalOptions options)
     {
-        this.crystalizerOptions = options;
+        this.crystalOptions = options;
     }
 
     void ICrystalConfigurationContext.AddCrystal<TData>(CrystalConfiguration configuration)
@@ -36,12 +36,12 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
 
     void IUnitCustomContext.ProcessContext(IUnitConfigurationContext context)
     {
-        if (this.crystalizerOptions is null)
+        if (this.crystalOptions is null)
         {
-            this.crystalizerOptions = new CrystalOptions() with { DataDirectory = context.DataDirectory, };
+            this.crystalOptions = new CrystalOptions() with { DataDirectory = context.DataDirectory, };
         }
 
-        context.SetOptions(this.crystalizerOptions);
+        context.SetOptions(this.crystalOptions);
 
         // var serviceTypeToLifetime = context.Services.ToDictionary(x => x.ServiceType, x => x.Lifetime);
         Dictionary<Type, ServiceLifetime> serviceTypeToLifetime = new();
@@ -94,21 +94,21 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
             }
         }
 
-        var crystalizerConfiguration = context.GetOptions<CrystalControlConfiguration>();
-        crystalizerConfiguration = crystalizerConfiguration with
+        var crystalControlConfiguration = context.GetOptions<CrystalControlConfiguration>();
+        crystalControlConfiguration = crystalControlConfiguration with
         {
             JournalConfiguration = this.journalConfiguration,
         };
 
         foreach (var x in this.typeToCrystalConfiguration)
         {
-            crystalizerConfiguration.CrystalConfigurations[x.Key] = x.Value;
+            crystalControlConfiguration.CrystalConfigurations[x.Key] = x.Value;
         }
 
-        context.SetOptions(crystalizerConfiguration);
+        context.SetOptions(crystalControlConfiguration);
     }
 
-    private CrystalOptions? crystalizerOptions;
+    private CrystalOptions? crystalOptions;
     private Dictionary<Type, CrystalConfiguration> typeToCrystalConfiguration = new();
     private JournalConfiguration journalConfiguration = EmptyJournalConfiguration.Default;
 }

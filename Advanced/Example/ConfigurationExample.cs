@@ -62,13 +62,13 @@ public partial class Program
                     });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
-        var example = unit.Context.ServiceProvider.GetRequiredService<ConfigurationExampleClass>();
+        var example = product.Context.ServiceProvider.GetRequiredService<ConfigurationExampleClass>();
         await example.Process();
 
-        return unit;
+        return product;
     }
 }

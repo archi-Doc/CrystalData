@@ -54,7 +54,7 @@ public partial class CrystalControl
     internal IServiceProvider ServiceProvider { get; }
 
     private readonly CrystalControlConfiguration configuration;
-    private readonly CrystalControlCore crystalizerCore;
+    private readonly CrystalControlCore crystalControlCore;
 
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
@@ -94,7 +94,7 @@ public partial class CrystalControl
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
         this.Logger = logger;
-        this.crystalizerCore = new(this);
+        this.crystalControlCore = new(this);
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -448,7 +448,7 @@ public partial class CrystalControl
         }
 
         await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
-        this.crystalizerCore.Start();
+        this.crystalControlCore.Start();
 
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);

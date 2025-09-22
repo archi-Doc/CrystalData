@@ -34,11 +34,11 @@ public partial class Program
                     });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
+        var crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
         var data = crystal.Data;
 
         // Save instantly
@@ -55,6 +55,6 @@ public partial class Program
         // Manual...
         await crystal.Store();
 
-        return unit;
+        return product;
     }
 }

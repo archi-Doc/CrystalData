@@ -30,9 +30,9 @@ public static partial class StoragePointHelper2
                 });
         });
 
-        var unit = builder.Build();
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var product = builder.Build();
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
 
         var crystal = crystalControl.GetCrystal<TData>();
         var result = await crystalControl.PrepareAndLoad(false);

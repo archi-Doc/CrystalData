@@ -23,8 +23,8 @@ public partial class Program
                 });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
 
         // Get the crystal from crystalControl.
         var crystal = crystalControl.GetOrCreateCrystal<FirstData>(
@@ -38,7 +38,7 @@ public partial class Program
                 // The absolute path will be used as is.
                 // FileConfiguration = new LocalFileConfiguration("C:\\Local/PathExample/FirstData.tinyhand"),
 
-                // When specifying GlobalFileConfiguration, the path will be combined with GlobalMain of CrystalizerOptions to create an absolute path.
+                // When specifying GlobalFileConfiguration, the path will be combined with GlobalMain of CrystalOptions to create an absolute path.
                 // FileConfiguration = new GlobalFileConfiguration("Global/FirstData.tinyhand"),
 
                 // You can also save data on AWS S3. Please enter authentication information using IStorageKey.
@@ -47,7 +47,7 @@ public partial class Program
 
         if (AccessKeyPair.TryParse(KeyPair, out var accessKeyPair))
         {// AccessKeyId=SecretAccessKey
-            unit.Context.ServiceProvider.GetRequiredService<IStorageKey>().AddKey(BucketName, accessKeyPair);
+            product.Context.ServiceProvider.GetRequiredService<IStorageKey>().AddKey(BucketName, accessKeyPair);
         }
 
         // await crystalControl.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
@@ -55,7 +55,7 @@ public partial class Program
         var data = crystal.Data;
 
         // Unit root directory
-        var unitOptions = unit.Context.ServiceProvider.GetRequiredService<UnitOptions>();
+        var unitOptions = product.Context.ServiceProvider.GetRequiredService<UnitOptions>();
         Console.WriteLine($"UnitOptions root directory: {unitOptions.DataDirectory}");
 
         // CrystalControl root directory
@@ -68,6 +68,6 @@ public partial class Program
 
         await crystalControl.Store(); // Save all data.
 
-        return unit;
+        return product;
     }
 }

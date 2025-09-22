@@ -110,18 +110,18 @@ public partial class Program
                     });
             });
 
-        var unit = builder.Build();
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var product = builder.Build();
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
         var result = await crystalControl.PrepareAndLoad(true); // Use the default query.
         if (result.IsFailure())
         {// Abort
             return default;
         }
 
-        var example = unit.Context.ServiceProvider.GetRequiredService<StoragePointExample>();
+        var example = product.Context.ServiceProvider.GetRequiredService<StoragePointExample>();
         await example.Process();
 
-        return unit;
+        return product;
     }
 }

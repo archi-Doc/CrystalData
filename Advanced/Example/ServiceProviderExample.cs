@@ -43,13 +43,13 @@ public partial class Program
                     });
             });
 
-        var unit = builder.Build(); // Build.
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var product = builder.Build(); // Build.
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        // var data = unit.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
-        var data = unit.Context.ServiceProvider.GetRequiredService<ServiceProviderData>(); // Retrieve a data instance from the service provider.
+        // var data = product.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
+        var data = product.Context.ServiceProvider.GetRequiredService<ServiceProviderData>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine($"Load {data.ToString()}");
         data.FirstData.Id++;
@@ -58,6 +58,6 @@ public partial class Program
 
         await crystalControl.Store(); // Save all data.
 
-        return unit;
+        return product;
     }
 }

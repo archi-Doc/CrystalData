@@ -51,7 +51,7 @@ public partial class FirstData
 
 ```csharp
 // Create a builder to organize dependencies and register data configurations.
-var builder = new CrystalControl.Builder()
+var builder = new CrystalUnit.Builder()
     .ConfigureCrystal(context =>
     {
         // Register FirstData configuration.

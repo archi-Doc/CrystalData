@@ -103,17 +103,17 @@ public partial class Program
 
         myBuilder.AddBuilder(crystalDataBuilder);
 
-        var unit = myBuilder.Build(); // Build.
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var product = myBuilder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
         var result = await crystalControl.PrepareAndLoad(true); // Use the default query.
         if (result.IsFailure())
         {// Abort
             return default;
         }
 
-        var example = unit.Context.ServiceProvider.GetRequiredService<SecondExample>();
+        var example = product.Context.ServiceProvider.GetRequiredService<SecondExample>();
         await example.Process();
 
-        return unit;
+        return product;
     }
 }

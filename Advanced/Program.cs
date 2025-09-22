@@ -25,26 +25,26 @@ public partial class Program
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
-        // var unit = await FirstExample();
-        // var unit = await SecondExample();
-        // var unit = await SaveTimingExample();
-        // var unit = await ConfigurationExample();
-        // var unit = await JournalExample();
-        // var unit = await PathExample();
-        // var unit = await BackupExample();
-        // var unit = await ServiceProviderExample();
-        // var unit = await IntegratedExample();
-        // var unit = await DefaultExample();
-        var unit = await StoragePointExample();
+        // var product = await FirstExample();
+        // var product = await SecondExample();
+        // var product = await SaveTimingExample();
+        // var product = await ConfigurationExample();
+        // var product = await JournalExample();
+        // var product = await PathExample();
+        // var product = await BackupExample();
+        // var product = await ServiceProviderExample();
+        // var product = await IntegratedExample();
+        // var product = await DefaultExample();
+        var product = await StoragePointExample();
 
         ThreadCore.Root.Terminate();
-        if (unit is not null)
+        if (product is not null)
         {// Save all data managed by CrystalData.
-            await unit.Context.ServiceProvider.GetRequiredService<CrystalControl>().StoreAndRip();
+            await product.Context.ServiceProvider.GetRequiredService<CrystalControl>().StoreAndRip();
         }
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
-        if (unit?.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
+        if (product?.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
         {// Flush the buffered logs and then shut down the logger.
             await unitLogger.FlushAndTerminate();
         }

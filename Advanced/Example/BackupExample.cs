@@ -56,18 +56,18 @@ public partial class Program
                 });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
+        var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"First data:");
         Console.WriteLine($"Load {data.ToString()}");
         data.Id++;
         data.Name += "Fuga";
         Console.WriteLine($"Save {data.ToString()}");
 
-        var data2 = unit.Context.ServiceProvider.GetRequiredService<BackupData>();
+        var data2 = product.Context.ServiceProvider.GetRequiredService<BackupData>();
         Console.WriteLine($"Backup data:");
         Console.WriteLine($"Load {data2.ToString()}");
         data2.Id += 2;
@@ -76,6 +76,6 @@ public partial class Program
 
         await crystalControl.Store(); // Save all data.
 
-        return unit;
+        return product;
     }
 }
