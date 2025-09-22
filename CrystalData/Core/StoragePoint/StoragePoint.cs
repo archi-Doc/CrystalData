@@ -47,17 +47,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </summary>
     public bool IsLocked => this.storageObject?.IsLocked == true;
 
-    /*/// <summary>
-    /// Gets a value indicating whether storage is rip.<br/>
-    /// Storage is shutting down and is read-only.
-    /// </summary>
-    public bool IsRip => this.storageObject?.IsRip == true;*/
-
-    /*/// <summary>
-    /// Gets a value indicating whether storage is pending release.<br/>
-    /// Once the lock is released, the storage will be persisted and memory will be freed.
-    /// </summary>
-    public bool IsPendingRelease => this.storageObject?.IsPendingRelease == true;*/
+    public bool IsDeleted => this.storageObject?.IsDeleted == true;
 
     #endregion
 
@@ -127,14 +117,33 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
         => this.GetOrCreateStorageObject().TryLock<TData>(AcquisitionMode.GetOrCreate, timeout, cancellationToken);
 
-    public ValueTask<TData> PinData()
-        => this.GetOrCreateStorageObject().PinData<TData>();
-
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
+
+    /// <summary>
+    /// Pins the data associated with this storage point in memory.<br/>
+    /// This operation ensures the data remains in memory and is not released.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation.<br/>
+    /// The result contains the pinned data.
+    /// </returns>
+    public ValueTask<TData> PinData()
+        => this.GetOrCreateStorageObject().PinData<TData>();
+
+    /// <summary>
+    /// Adds this storage point to the save queue.<br/>
+    /// The save queue is used to schedule data persistence operations.
+    /// </summary>
+    /// <param name="delaySeconds">
+    /// The number of seconds to delay before saving.<br/>
+    /// If 0 is specified, the default delay time is used.
+    /// </param>
+    public void AddToSaveQueue(int delaySeconds = 0)
+        => ((IStructualRoot)this.GetOrCreateStorageObject()).AddToSaveQueue(delaySeconds);
 
     #endregion
 

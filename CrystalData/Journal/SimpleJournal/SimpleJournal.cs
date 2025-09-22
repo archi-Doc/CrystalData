@@ -16,9 +16,9 @@ public partial class SimpleJournal : IJournal
     public const int RecordBufferLength = 1024 * 1024 * 1; // 1MB
     private const int MergeThresholdNumber = 100;
 
-    public SimpleJournal(Crystalizer crystalizer, SimpleJournalConfiguration configuration, ILogger<SimpleJournal> logger)
+    public SimpleJournal(CrystalControl crystalControl, SimpleJournalConfiguration configuration, ILogger<SimpleJournal> logger)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.SimpleJournalConfiguration = configuration;
         this.MainConfiguration = this.SimpleJournalConfiguration.DirectoryConfiguration;
         this.BackupConfiguration = this.SimpleJournalConfiguration.BackupDirectoryConfiguration;
@@ -33,7 +33,7 @@ public partial class SimpleJournal : IJournal
 
     public DirectoryConfiguration? BackupConfiguration { get; private set; }
 
-    private Crystalizer crystalizer;
+    private CrystalControl crystalControl;
     private bool prepared;
     private IFiler? rawFiler;
     private IFiler? backupFiler;
@@ -66,7 +66,7 @@ public partial class SimpleJournal : IJournal
 
         if (this.rawFiler == null)
         {
-            (this.rawFiler, this.MainConfiguration) = this.crystalizer.ResolveFiler(this.MainConfiguration);
+            (this.rawFiler, this.MainConfiguration) = this.crystalControl.ResolveFiler(this.MainConfiguration);
             var result = await this.rawFiler.PrepareAndCheck(param, this.MainConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {
@@ -77,7 +77,7 @@ public partial class SimpleJournal : IJournal
         if (this.BackupConfiguration is not null &&
             this.backupFiler == null)
         {
-            (this.backupFiler, this.BackupConfiguration) = this.crystalizer.ResolveFiler(this.BackupConfiguration);
+            (this.backupFiler, this.BackupConfiguration) = this.crystalControl.ResolveFiler(this.BackupConfiguration);
             var result = await this.backupFiler.PrepareAndCheck(param, this.BackupConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {

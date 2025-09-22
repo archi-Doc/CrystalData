@@ -35,10 +35,10 @@ public partial class JournalData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit?> JournalExample()
+    public static async Task<UnitProduct?> JournalExample()
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
                 // Register SimpleData configuration.
@@ -53,11 +53,11 @@ public partial class Program
                 context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration("Local/JournalExample/Journal"), 256));
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var goshujin = unit.Context.ServiceProvider.GetRequiredService<JournalData.GoshujinClass>(); // Retrieve a data instance from the service provider.
+        var goshujin = product.Context.ServiceProvider.GetRequiredService<JournalData.GoshujinClass>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine("Journal example:");
 

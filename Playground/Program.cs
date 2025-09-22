@@ -11,46 +11,6 @@ using ValueLink;
 
 namespace Sandbox;
 
-[TinyhandObject(ExplicitKeyOnly = true)]
-// [ValueLinkObject]
-public partial class OneSo : SemaphoreLock
-{// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
-    /*internal ObjectProtectionState protectionState;
-
-    [Key(0)]
-    [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
-    private ulong pointId; // Lock:StorageControl
-
-    [Key(1)]
-    private uint typeIdentifier; // Lock:StorageControl
-
-    [Key(2)]
-    internal StorageId storageId0; // Lock:StorageControl
-
-    [Key(3)]
-    internal StorageId storageId1; // Lock:StorageControl
-
-    [Key(4)]
-    internal StorageId storageId2; // Lock:StorageControl
-
-    internal StorageMap storageMap; // Lock:StorageControl
-
-    internal OneSo? onMemoryPrevious; // Lock:StorageControl
-    internal OneSo? onMemoryNext; // Lock:StorageControl
-
-    internal int saveQueueTime; // Lock:StorageControl System time in seconds registered in the save queue
-    internal OneSo? saveQueuePrevious; // Lock:StorageControl
-    internal OneSo? saveQueueNext; // Lock:StorageControl
-
-    private object? data; // Lock:this
-    internal int size; // Lock:StorageControl*/
-}
-
-public class SemaphoreLock2 : SemaphoreLock
-{
-    public int X;
-}
-
 public sealed partial class CrystalSupplement
 {
     [TinyhandObject(LockObject = "lockObject")]
@@ -266,7 +226,7 @@ internal class Program
     public static async Task Main(string[] args)
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .Configure(context =>
             {
                 // context.AddSingleton<FirstData>();
@@ -274,8 +234,8 @@ internal class Program
             })
             .ConfigureCrystal((unitContext, crystalContext) =>
             {
-                // CrystalizerOptions
-                crystalContext.SetCrystalizerOptions(new CrystalizerOptions() with
+                // CrystalOptions
+                crystalContext.SetCrystalOptions(new CrystalOptions() with
                 {
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
@@ -320,21 +280,19 @@ internal class Program
             {
             });
 
-        var unit = builder.Build(); // Build.
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
+        var product = builder.Build(); // Build.
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
+        var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
-        Console.WriteLine($"Estimated size: SemaphoreLock2 {EstimateSize.Class<SemaphoreLock2>()} bytes");
         Console.WriteLine($"Estimated size: SemaphoreSlim {EstimateSize.Constructor(() => new SemaphoreSlim(0))} bytes");
         Console.WriteLine($"Estimated size: FirstData {EstimateSize.Class<FirstData>()} bytes");
         Console.WriteLine($"Estimated size: SizeTestClass {EstimateSize.Class<SizeTestClass>()} bytes");
         Console.WriteLine($"Estimated size: StoragePoint<DoubleClass> {EstimateSize.Class<StoragePoint<DoubleClass>>()} bytes");
         Console.WriteLine($"Estimated size: StorageObject {EstimateSize.Constructor(() => CrystalData.Internal.StorageObject.UnsafeConstructor())} bytes");
-        Console.WriteLine($"Estimated size: OneSo {EstimateSize.Class<OneSo>()} bytes");
         Console.WriteLine($"Estimated size: StorageId {EstimateSize.Struct<StorageId>()} bytes");
         // Console.WriteLine($"Estimated size: StorageObjec2 {EstimateSize.Class<StorageObjec2>()} bytes");
         // Console.WriteLine($"Estimated size: StoragePoint<> {EstimateSize.Struct<StoragePoint>()} bytes");
@@ -352,18 +310,18 @@ internal class Program
 
         Console.WriteLine($"Save {data.ToString()}");
 
-        var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        var crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         crystal.AddToSaveQueue(2);
         // await Task.Delay(10_000);
 
-        data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
+        data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"Data {data.ToString()}");
 
-        crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
+        crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        var crystal2 = product.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
         // await crystal2.PrepareAndLoad(false);
 
-        var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
+        var data2 = product.Context.ServiceProvider.GetRequiredService<SecondData>();
         var classStorage = data2.ClassStorage;
         using (var d = await classStorage.TryLock(AcquisitionMode.GetOrCreate))
         {
@@ -395,7 +353,7 @@ internal class Program
 
         await data2.ClassStorage.StoreData(StoreMode.TryRelease);
         data2.ClassStorage.DeleteLatestStorageForTest();
-        await crystalizer.StoreJournal();
+        await crystalControl.StoreJournal();
 
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
         Console.WriteLine($"Second: {await data2.ClassStorage.TryGet()}");
@@ -440,9 +398,9 @@ internal class Program
         var sd = await goshujinStorage.Find(100);
         sd = await goshujinStorage.Find(123);
 
-        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+        Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
         var r2 = await goshujinStorage.StoreData(StoreMode.ForceRelease);
-        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+        Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
 
         using (var sc = await sd!.TryLock())
         {
@@ -460,9 +418,9 @@ internal class Program
             }
         }
 
-        crystalizer.Dump();
-        // await crystalizer.StoreAndRelease();
-        await crystalizer.StoreAndRip();
-        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+        crystalControl.Dump();
+        // await crystalControl.StoreAndRelease();
+        await crystalControl.StoreAndRip();
+        Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
     }
 }

@@ -34,7 +34,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
 
     bool IFiler.SupportPartialWrite => true;
 
-    protected Crystalizer? Crystalizer { get; set; }
+    protected CrystalControl? CrystalControl { get; set; }
 
     #endregion
 

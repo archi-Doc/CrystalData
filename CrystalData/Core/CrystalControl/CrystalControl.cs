@@ -18,7 +18,7 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-public partial class Crystalizer
+public partial class CrystalControl
 {
     public const string BinaryExtension = ".th";
     public const string Utf8Extension = ".tinyhand";
@@ -31,7 +31,7 @@ public partial class Crystalizer
 
     public int DefaultSaveDelaySeconds { get; set; }// Default save delay seconds
 
-    public CrystalizerOptions Options { get; }
+    public CrystalOptions Options { get; }
 
     public CrystalSupplement CrystalSupplement { get; }
 
@@ -53,8 +53,8 @@ public partial class Crystalizer
 
     internal IServiceProvider ServiceProvider { get; }
 
-    private readonly CrystalizerConfiguration configuration;
-    private readonly CrystalizerCore crystalizerCore;
+    private readonly CrystalControlConfiguration configuration;
+    private readonly CrystalControlCore crystalControlCore;
 
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
@@ -66,7 +66,7 @@ public partial class Crystalizer
 
     #endregion
 
-    public Crystalizer(CrystalizerConfiguration configuration, CrystalizerOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<Crystalizer> logger, UnitLogger unitLogger, IStorageKey storageKey)
+    public CrystalControl(CrystalControlConfiguration configuration, CrystalOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<CrystalControl> logger, UnitLogger unitLogger, IStorageKey storageKey)
     {
         this.UpdateTime();
         this.configuration = configuration;
@@ -94,7 +94,7 @@ public partial class Crystalizer
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
         this.Logger = logger;
-        this.crystalizerCore = new(this);
+        this.crystalControlCore = new(this);
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -367,7 +367,7 @@ public partial class Crystalizer
         }
 
         var resolved = this.ResolveSingleFiler(configuration);
-        var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<Crystalizer>(this), resolved.FixedConfiguration).ConfigureAwait(false);
+        var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<CrystalControl>(this), resolved.FixedConfiguration).ConfigureAwait(false);
         if (result.IsFailure())
         {
             return result;
@@ -391,7 +391,7 @@ public partial class Crystalizer
     public async Task<CrystalResult> LoadConfigurations(FileConfiguration configuration)
     {
         var resolved = this.ResolveSingleFiler(configuration);
-        var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<Crystalizer>(this), resolved.FixedConfiguration).ConfigureAwait(false);
+        var result = await resolved.Filer.PrepareAndCheck(PrepareParam.NoQuery<CrystalControl>(this), resolved.FixedConfiguration).ConfigureAwait(false);
         if (result.IsFailure())
         {
             return result;
@@ -448,7 +448,7 @@ public partial class Crystalizer
         }
 
         await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
-        this.crystalizerCore.Start();
+        this.crystalControlCore.Start();
 
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);
@@ -611,7 +611,7 @@ public partial class Crystalizer
 
     public async Task<bool> TestJournalAll()
     {
-        var crystals = this.crystals.GetCrystals(true);
+        var crystals = this.crystals.GetCrystals(false);
         var result = true;
         foreach (var x in crystals)
         {
@@ -734,10 +734,10 @@ public partial class Crystalizer
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowNotPrepared()
-        => throw new InvalidOperationException("Crystalizer is not prepared. Call Prepare() first.");
+        => throw new InvalidOperationException("CrystalControl is not prepared. Call Prepare() first.");
 
-    internal static string GetRootedFile(Crystalizer? crystalizer, string file)
-        => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.Options.DataDirectory, file);
+    internal static string GetRootedFile(CrystalControl? crystalControl, string file)
+        => crystalControl == null ? file : PathHelper.GetRootedFile(crystalControl.Options.DataDirectory, file);
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -782,7 +782,7 @@ public partial class Crystalizer
         return previous != this.SystemTimeInSeconds;
     }
 
-    internal async Task<bool> ProcessSaveQueue(ICrystalInternal[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
+    internal async Task<bool> ProcessSaveQueue(ICrystalInternal[] tempArray, CrystalControl crystalControl, CancellationToken cancellationToken)
     {
         var result = false;
         while (true)
@@ -865,7 +865,7 @@ public partial class Crystalizer
             }
         }
 
-        return await this.Journal.Prepare(PrepareParam.New<Crystalizer>(this, useQuery)).ConfigureAwait(false);
+        return await this.Journal.Prepare(PrepareParam.New<CrystalControl>(this, useQuery)).ConfigureAwait(false);
     }
 
     private async Task ReadJournal()

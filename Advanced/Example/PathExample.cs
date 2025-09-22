@@ -7,38 +7,38 @@ public partial class Program
     private const string BucketName = "test_bucket";
     private const string KeyPair = "AccessKeyId=SecretAccessKey";
 
-    public static async Task<BuiltUnit> PathExample()
+    public static async Task<UnitProduct> PathExample()
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                context.SetOptions(context.GetOptions<CrystalOptions>() with
                 {
                     // RootPath = Path.Combine(context.RootDirectory, "Additional"), // Root directory
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")), // Global directory
                 });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
 
-        // Get the crystal from crystalizer.
-        var crystal = crystalizer.GetOrCreateCrystal<FirstData>(
+        // Get the crystal from crystalControl.
+        var crystal = crystalControl.GetOrCreateCrystal<FirstData>(
             new CrystalConfiguration()
             {
                 SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
 
-                // If a relative path is specified, it combines the root directory of Crystalizer with the path to create an absolute path.
+                // If a relative path is specified, it combines the root directory of CrystalControl with the path to create an absolute path.
                 FileConfiguration = new LocalFileConfiguration("Local/PathExample/FirstData.tinyhand"),
 
                 // The absolute path will be used as is.
                 // FileConfiguration = new LocalFileConfiguration("C:\\Local/PathExample/FirstData.tinyhand"),
 
-                // When specifying GlobalFileConfiguration, the path will be combined with GlobalMain of CrystalizerOptions to create an absolute path.
+                // When specifying GlobalFileConfiguration, the path will be combined with GlobalMain of CrystalOptions to create an absolute path.
                 // FileConfiguration = new GlobalFileConfiguration("Global/FirstData.tinyhand"),
 
                 // You can also save data on AWS S3. Please enter authentication information using IStorageKey.
@@ -47,27 +47,27 @@ public partial class Program
 
         if (AccessKeyPair.TryParse(KeyPair, out var accessKeyPair))
         {// AccessKeyId=SecretAccessKey
-            unit.Context.ServiceProvider.GetRequiredService<IStorageKey>().AddKey(BucketName, accessKeyPair);
+            product.Context.ServiceProvider.GetRequiredService<IStorageKey>().AddKey(BucketName, accessKeyPair);
         }
 
-        // await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        // await crystalControl.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
         await crystal.PrepareAndLoad(false); // You can also prepare and load data individually through the ICrystal interface.
         var data = crystal.Data;
 
         // Unit root directory
-        var unitOptions = unit.Context.ServiceProvider.GetRequiredService<UnitOptions>();
+        var unitOptions = product.Context.ServiceProvider.GetRequiredService<UnitOptions>();
         Console.WriteLine($"UnitOptions root directory: {unitOptions.DataDirectory}");
 
-        // Crystalizer root directory
-        Console.WriteLine($"Crystalizer root directory: {crystalizer.Options.DataDirectory}");
+        // CrystalControl root directory
+        Console.WriteLine($"CrystalControl root directory: {crystalControl.Options.DataDirectory}");
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id = 1;
         data.Name = "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.Store(); // Save all data.
+        await crystalControl.Store(); // Save all data.
 
-        return unit;
+        return product;
     }
 }

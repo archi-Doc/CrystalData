@@ -4,9 +4,9 @@ namespace CrystalData;
 
 // From a quite simple class for data storage...
 [TinyhandObject]
-public partial record SimpleExample
+public partial record SimpleClass
 {
-    public SimpleExample()
+    public SimpleClass()
     {
     }
 
@@ -16,17 +16,17 @@ public partial record SimpleExample
 
 // To a complex class designed for handling large-scale data in terms of both quantity and capacity.
 [TinyhandObject(Structual = true)]
-public partial record AdvancedExample
+public partial record AdvancedClass
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
     public static void Register(ICrystalConfigurationContext context)
     {
-        context.AddCrystal<AdvancedExample>(
+        context.AddCrystal<AdvancedClass>(
             new()
             {
                 SaveFormat = SaveFormat.Binary,
                 SaveInterval = TimeSpan.FromMinutes(10),
-                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain.tinyhand"),
-                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup.tinyhand"),
+                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain"),
+                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup"),
                 StorageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage"),
                     new GlobalDirectoryConfiguration("BackupStorage")),
@@ -38,7 +38,7 @@ public partial record AdvancedExample
 
     [TinyhandObject(Structual = true)]
     [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
-    public partial class Point : StoragePoint<AdvancedExample>
+    public partial class Point : StoragePoint<AdvancedClass>
     {
         public void TryInitialize(int id)
         {
@@ -53,7 +53,7 @@ public partial record AdvancedExample
         public int Id { get; private set; }
     }
 
-    public AdvancedExample()
+    public AdvancedClass()
     {
     }
 
@@ -80,13 +80,18 @@ public partial record AdvancedExample
         var sc = g.Find(3, AcquisitionMode.Get);
     }
 
-    // [Key(0, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     [Key(0)]
-    public StoragePoint<AdvancedExample> ChildStorage { get; private set; } = new();
+    public int Id { get; private set; }
 
     [Key(1)]
-    public StoragePoint<Point.GoshujinClass> ChildrenStorage { get; private set; } = new();
+    public partial string Name { get; set; } = "Test";
 
     [Key(2)]
+    public StoragePoint<AdvancedClass> ChildStorage { get; private set; } = new();
+
+    [Key(3)]
+    public StoragePoint<Point.GoshujinClass> ChildrenStorage { get; private set; } = new();
+
+    [Key(4)]
     public partial StoragePoint<byte[]> ByteArrayStorage { get; private set; } = new();
 }

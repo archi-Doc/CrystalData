@@ -24,13 +24,13 @@
 
 ## Quick start
 
-Install CrystalData using Package Manager Console.
+Install **CrystalData** using Package Manager Console.
 
 ```
 Install-Package CrystalData
 ```
 
-This is a small example code to use CrystalData.
+This is a small example code to use **CrystalData**.
 
 ```csharp
 // First, create a class to represent the data content.
@@ -51,32 +51,31 @@ public partial class FirstData
 
 ```csharp
 // Create a builder to organize dependencies and register data configurations.
-var builder = new CrystalControl.Builder()
+var builder = new CrystalUnit.Builder()
     .ConfigureCrystal(context =>
     {
         // Register FirstData configuration.
         context.AddCrystal<FirstData>(
             new CrystalConfiguration()
             {
-                SavePolicy = SavePolicy.Manual, // The timing of saving data is controlled by the application.
                 SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                 NumberOfFileHistories = 0, // No history file.
                 FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
             });
     });
 
-var unit = builder.Build(); // Build.
-var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+var product = builder.Build(); // Build.
+var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>(); // Retrieve a data instance from the service provider.
+var data = product.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 
 Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
-data.Id = 1;
-data.Name = "Fuga";
+data.Id += 1;
+data.Name += "Fuga";
 Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-await crystalizer.SaveAll(); // Save all data.
+await crystalControl.StoreAndRip(); // Save data and perform the shutdown process.
 ```
 
 
@@ -88,9 +87,9 @@ CrystalData is designed to cover a really wide range of storage needs.
 ```csharp
 // From a quite simple class for data storage...
 [TinyhandObject]
-public partial record SimpleExample
+public partial record SimpleClass
 {
-    public SimpleExample()
+    public SimpleClass()
     {
     }
 
@@ -100,19 +99,17 @@ public partial record SimpleExample
 
 // To a complex class designed for handling large-scale data in terms of both quantity and capacity.
 [TinyhandObject(Structual = true)]
-[ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public partial record AdvancedExample
+public partial record AdvancedClass
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
-    public static void Register(ICrystalUnitContext context)
+    public static void Register(ICrystalConfigurationContext context)
     {
-        context.AddCrystal<AdvancedExample>(
+        context.AddCrystal<AdvancedClass>(
             new()
             {
                 SaveFormat = SaveFormat.Binary,
-                SavePolicy = SavePolicy.Periodic,
                 SaveInterval = TimeSpan.FromMinutes(10),
-                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain.tinyhand"),
-                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup.tinyhand"),
+                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain"),
+                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup"),
                 StorageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage"),
                     new GlobalDirectoryConfiguration("BackupStorage")),
@@ -122,26 +119,41 @@ public partial record AdvancedExample
         context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));
     }
 
-    public AdvancedExample()
+    [TinyhandObject(Structual = true)]
+    [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
+    public partial class Point : StoragePoint<AdvancedClass>
+    {
+        public void TryInitialize(int id)
+        {
+            if (this.Id == 0)
+            {
+                this.Id = id;
+            }
+        }
+
+        [Key(1)]
+        [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+        public int Id { get; private set; }
+    }
+
+    public AdvancedClass()
     {
     }
 
-    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-    private int id;
+    [Key(0)]
+    public int Id { get; private set; }
 
-    [Key(1, AddProperty = "Name")]
-    [Link(Type = ChainType.Ordered)]
-    private string name = string.Empty;
+    [Key(1)]
+    public partial string Name { get; set; } = "Test";
 
-    [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedExample> child = new();
+    [Key(2)]
+    public StoragePoint<AdvancedClass> ChildStorage { get; private set; } = new();
 
-    [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<AdvancedExample.GoshujinClass> children = new();
+    [Key(3)]
+    public StoragePoint<Point.GoshujinClass> ChildrenStorage { get; private set; } = new();
 
-    [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
-    private StorageData<byte[]> byteArray = new();
+    [Key(4)]
+    public partial StoragePoint<byte[]> ByteArrayStorage { get; private set; } = new();
 }
 ```
 
@@ -258,7 +270,7 @@ context.AddCrystal<SaveTimingData>(
 Add the following code to save all data and release resources when the application exits.
 
 ```csharp
-await unit.Context.ServiceProvider.GetRequiredService<Crystalizer>().SaveAllAndTerminate();
+await unit.Context.ServiceProvider.GetRequiredService<CrystalControl>().SaveAllAndTerminate();
 ```
 
 
@@ -310,9 +322,9 @@ var unit = builder.Build(); // Build.
 ```csharp
 public class ConfigurationExampleClass
 {
-    public ConfigurationExampleClass(Crystalizer crystalizer, FirstData firstData)
+    public ConfigurationExampleClass(CrystalControl crystalControl, FirstData firstData)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.firstData = firstData;
     }
 }
@@ -320,20 +332,20 @@ public class ConfigurationExampleClass
 
 
 
-#### Crystalizer
+#### CrystalControl
 
-Create an **ICrystal** object using the **Crystalizer**.
+Create an **ICrystal** object using the **CrystalControl**.
 
 ```csharp
 // Get or create an ICrystal interface of the data.
-var crystal = this.crystalizer.GetOrCreateCrystal<SecondData>(
+var crystal = this.crystalControl.GetOrCreateCrystal<SecondData>(
     new CrystalConfiguration(
         SavePolicy.Manual,
         new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData.tinyhand")));
 var secondData = crystal.Data;
 
 // You can create multiple crystals from single data class.
-var crystal2 = this.crystalizer.CreateCrystal<SecondData>(
+var crystal2 = this.crystalControl.CreateCrystal<SecondData>(
     new CrystalConfiguration(
         SavePolicy.Manual,
         new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData2.tinyhand")));
@@ -360,7 +372,7 @@ context.AddCrystal<FirstData>(
 
 #### Local path
 
-If a relative path is specified, it combines the root directory of **Crystalizer** with the path to create an absolute path.
+If a relative path is specified, it combines the root directory of **CrystalControl** with the path to create an absolute path.
 
 ```csharp
 FileConfiguration = new LocalFileConfiguration("Local/PathExample/FirstData.tinyhand"),
@@ -376,7 +388,7 @@ FileConfiguration = new LocalFileConfiguration("C:\\Local/PathExample/FirstData.
 
 #### Global path
 
-When specifying **GlobalFileConfiguration**, the path will be combined with **GlobalDirectory** of **CrystalizerOptions** to create an absolute path.
+When specifying **GlobalFileConfiguration**, the path will be combined with **GlobalDirectory** of **CrystalOptions** to create an absolute path.
 
 ```csharp
 FileConfiguration = new GlobalFileConfiguration("Global/FirstData.tinyhand"),
@@ -387,8 +399,8 @@ var builder = new CrystalControl.Builder()
     .ConfigureCrystal(context =>
     {
     })
-    .SetupOptions<CrystalizerOptions>((context, options) =>
-    {// You can change the root directory of the CrystalData by modifying CrystalizerOptions.
+    .SetupOptions<CrystalOptions>((context, options) =>
+    {// You can change the root directory of the CrystalData by modifying CrystalOptions.
         context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
         if (unitOptions is not null)
         {
@@ -435,7 +447,7 @@ context.AddCrystal<BackupData>(
 ```
 
 ```csharp
-.SetupOptions<CrystalizerOptions>((context, options) =>
+.SetupOptions<CrystalOptions>((context, options) =>
 {
     context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
     if (unitOptions is not null)

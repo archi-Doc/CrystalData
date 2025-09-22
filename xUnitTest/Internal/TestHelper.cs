@@ -23,7 +23,7 @@ public static class TestHelper
             }
             : EmptyStorageConfiguration.Default;
 
-        var builder = new CrystalControl.Builder();
+        var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
@@ -36,13 +36,13 @@ public static class TestHelper
                 });
         });
 
-        var unit = builder.Build();
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        crystalizer.StorageControl.MemoryUsage.Is(0);
+        var product = builder.Build();
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        crystalControl.StorageControl.MemoryUsage.Is(0);
 
-        var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoad(false);
+        var crystal = crystalControl.GetCrystal<TData>();
+        var result = await crystalControl.PrepareAndLoad(false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
@@ -50,7 +50,7 @@ public static class TestHelper
     public static async Task<ICrystal<TData>> CreateAndStartCrystal2<TData>()
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
-        var builder = new CrystalControl.Builder();
+        var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
@@ -65,32 +65,37 @@ public static class TestHelper
 
         builder.PostConfigure(context =>
         {
-            context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+            context.SetOptions(context.GetOptions<CrystalOptions>() with
             {
                 GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]"),
             });
         });
 
-        var unit = builder.Build();
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        crystalizer.StorageControl.MemoryUsage.Is(0);
+        var product = builder.Build();
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        crystalControl.StorageControl.MemoryUsage.Is(0);
 
-        var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoad(false);
+        var crystal = crystalControl.GetCrystal<TData>();
+        var result = await crystalControl.PrepareAndLoad(false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
 
     public static async Task StoreAndReleaseAndDelete(ICrystal crystal)
     {
-        var crystalizer = crystal.Crystalizer;
-        await crystalizer.StoreAndRelease();
-        crystalizer.StorageControl.MemoryUsage.Is(0);
-        await crystalizer.DeleteAll();
-
-        if (crystal.Crystalizer.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)
+        var crystalControl = crystal.CrystalControl;
+        crystalControl.StorageControl.Rip();
+        await crystalControl.StoreAndRelease();
+        if (crystalControl.StorageControl.MemoryUsage > 0)
         {
-            crystalizer.DeleteDirectory(journalConfiguration.DirectoryConfiguration);
+            crystalControl.StorageControl.MemoryUsage.Is(0);
+        }
+
+        await crystalControl.DeleteAll();
+
+        if (crystal.CrystalControl.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)
+        {
+            crystalControl.DeleteDirectory(journalConfiguration.DirectoryConfiguration);
         }
 
         var directory = Path.GetDirectoryName(crystal.CrystalConfiguration.FileConfiguration.Path);
@@ -100,9 +105,9 @@ public static class TestHelper
             Directory.Delete(directory, true);
         }
 
-        if (crystalizer.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
+        if (crystalControl.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
         {
-            crystalizer.DeleteDirectory(crystalizer.Options.GlobalDirectory);
+            crystalControl.DeleteDirectory(crystalControl.Options.GlobalDirectory);
         }
     }
 

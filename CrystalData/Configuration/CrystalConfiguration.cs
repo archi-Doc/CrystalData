@@ -38,7 +38,7 @@ public sealed partial record CrystalConfiguration
 
     /// <summary>
     /// Gets the format for saving data, which can either be in binary or UTF8.<br/>
-    /// If not specified, <see cref="CrystalizerOptions.DefaultSaveFormat"/> (the default is binary) will be used..
+    /// If not specified, <see cref="CrystalOptions.DefaultSaveFormat"/> (the default is binary) will be used..
     /// </summary>
     public SaveFormat SaveFormat { get; init; }
 

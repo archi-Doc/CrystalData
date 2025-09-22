@@ -26,7 +26,7 @@ public class S3Filer : FilerBase, IFiler
 
     /*public static AddStorageResult Check(GroupStorage storageGroup, string bucket, string path)
     {
-        if (!storageGroup.Crystalizer.StorageKey.TryGetKey(bucket, out var accessKeyPair))
+        if (!storageGroup.CrystalControl.StorageKey.TryGetKey(bucket, out var accessKeyPair))
         {
             return AddStorageResult.NoStorageKey;
         }
@@ -244,13 +244,13 @@ RepeatList:
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
         var directoryPath = string.Empty;
-        this.Crystalizer = param.Crystalizer;
-        if (this.Crystalizer.Options.EnableFilerLogger)
+        this.CrystalControl = param.CrystalControl;
+        if (this.CrystalControl.Options.EnableFilerLogger)
         {
-            this.logger ??= this.Crystalizer.UnitLogger.GetLogger<S3Filer>();
+            this.logger ??= this.CrystalControl.UnitLogger.GetLogger<S3Filer>();
         }
 
-        if (!this.Crystalizer.StorageKey.TryGetKey(this.bucket, out var accessKeyPair))
+        if (!this.CrystalControl.StorageKey.TryGetKey(this.bucket, out var accessKeyPair))
         {// No access key
             this.logger?.TryGet(LogLevel.Fatal)?.Log(CrystalDataHashed.S3Filer.NoAccessKey, this.bucket);
             return CrystalResult.NoAccess;

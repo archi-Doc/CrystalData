@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CrystalData.Internal;
@@ -32,16 +33,17 @@ public partial class StorageControl : IPersistable
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
     private StorageObject? saveQueueHead;
+    private StorageObject? pinnedHead;
 
-    public Crystalizer? Crystalizer { get; private set; }
+    public CrystalControl? CrystalControl { get; private set; }
 
     internal ILogger? Logger { get; set; }
 
     public bool IsRip => this.isRip;
 
-    public long MemoryUsageLimit { get; private set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
+    public long MemoryUsageLimit { get; private set; } = CrystalOptions.DefaultMemoryUsageLimit;
 
-    public TimeSpan SaveInterval { get; private set; } = CrystalizerOptions.DefaultSaveInterval;
+    public TimeSpan SaveInterval { get; private set; } = CrystalOptions.DefaultSaveInterval;
 
     /// <summary>
     /// Gets an estimated memory usage.<br/>
@@ -86,6 +88,8 @@ public partial class StorageControl : IPersistable
         this.storageMaps = [];
     }
 
+    public void Rip() => this.isRip = true;
+
     public void AddStorageMap(StorageMap storageMap)
     {
         using (this.lowestLockObject.EnterScope())
@@ -96,15 +100,13 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void Initialize(Crystalizer crystalizer)
+    internal void Initialize(CrystalControl crystalControl)
     {
-        this.Crystalizer = crystalizer;
-        this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
-        this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
-        this.SaveInterval = crystalizer.Options.SaveInterval;
+        this.CrystalControl = crystalControl;
+        this.Logger = crystalControl.UnitLogger.GetLogger<StorageControl>();
+        this.MemoryUsageLimit = crystalControl.Options.MemoryUsageLimit;
+        this.SaveInterval = crystalControl.Options.SaveInterval;
     }
-
-    internal void Rip() => this.isRip = true;
 
     internal void ResurrectForTesting() => this.isRip = false;
 
@@ -114,7 +116,8 @@ public partial class StorageControl : IPersistable
 
         using (this.lowestLockObject.EnterScope())
         {
-            if (node.storageMap.IsEnabled)
+            if (node.storageMap.IsEnabled &&
+                !node.IsPinned)
             {
                 this.memoryUsage += newSize - node.size;
             }
@@ -152,13 +155,35 @@ public partial class StorageControl : IPersistable
         {
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
+
+        list = this.CreatePinnedList();
+        if (list is null)
+        {
+            return;
+        }
+
+        foreach (var x in list)
+        {
+            await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+        }
     }
 
     internal async Task ReleaseObjects(CancellationToken cancellationToken)
     {
+        var list = this.CreatePinnedList();
+        if (list is null)
+        {
+            return;
+        }
+
+        foreach (var x in list)
+        {
+            await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+        }
+
         while (!cancellationToken.IsCancellationRequested)
         {
-            var list = this.CreateOnMemoryList();
+            list = this.CreateOnMemoryList();
             if (list is null)
             {
                 return;
@@ -198,7 +223,7 @@ public partial class StorageControl : IPersistable
                     break;
                 }
 
-                this.MoveToRecentInternal(node);
+                this.UpdateLinkInternal(node);
             }
 
             await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
@@ -214,6 +239,8 @@ public partial class StorageControl : IPersistable
     /// <param name="newSize">The new size of the object.</param>
     internal void MoveToRecent(StorageObject node, int newSize)
     {
+        Debug.Assert(node.IsPinned == false);
+
         newSize = Math.Max(newSize, MinimumDataSize);
 
         if (node.storageMap.IsEnabled)
@@ -226,7 +253,7 @@ public partial class StorageControl : IPersistable
                     node.size = newSize;
                 }
 
-                this.MoveToRecentInternal(node);
+                this.UpdateLinkInternal(node);
             }
         }
         else
@@ -241,13 +268,13 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void MoveToRecent(StorageObject node)
+    internal void UpdateLink(StorageObject node)
     {
         if (node.storageMap.IsEnabled)
         {// If the storage map is enabled, move to recent.
             using (this.lowestLockObject.EnterScope())
             {
-                this.MoveToRecentInternal(node);
+                this.UpdateLinkInternal(node);
             }
         }
     }
@@ -429,9 +456,9 @@ public partial class StorageControl : IPersistable
         }*/
     }
 
-    internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
+    internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, CrystalControl crystalControl, CancellationToken cancellationToken)
     {
-        var threshold = crystalizer.SystemTimeInSeconds - crystalizer.DefaultSaveDelaySeconds;
+        var threshold = crystalControl.SystemTimeInSeconds - crystalControl.DefaultSaveDelaySeconds;
         var result = false;
         while (true)
         {
@@ -491,7 +518,7 @@ public partial class StorageControl : IPersistable
 
     internal void AddToSaveQueue(StorageObject node)
     {
-        if (this.Crystalizer is null)
+        if (this.CrystalControl is null)
         {
             return;
         }
@@ -503,7 +530,7 @@ public partial class StorageControl : IPersistable
                 return;
             }
 
-            node.saveQueueTime = this.Crystalizer.SystemTimeInSeconds;
+            node.saveQueueTime = this.CrystalControl.SystemTimeInSeconds;
 
             if (this.saveQueueHead is null)
             {// First node
@@ -520,11 +547,40 @@ public partial class StorageControl : IPersistable
         }
     }
 
+    /*internal bool CompareMap(StorageMap map1, StorageMap map2)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            var objects1 = map1.StorageObjects;
+            var objects2 = map2.StorageObjects;
+
+            if (objects1.Count != objects2.Count)
+            {
+                return false;
+            }
+
+            foreach (var x in objects1.PointIdChain)
+            {
+                if (!objects2.PointIdChain.TryGetValue(x.PointId, out var y))
+                {
+                    return false;
+                }
+
+                if (!x.Compare(y))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }*/
+
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
     {
         // OnMemory list (Least recently used list).
         if (node.onMemoryPrevious is not null && node.onMemoryNext is not null)
-        {
+        {// Pinned objects also use OnMemoryList, but onMemoryPrevious will always be null.
             if (node.storageMap.IsEnabled)
             {
                 this.memoryUsage -= node.Size;
@@ -579,8 +635,13 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    private void MoveToRecentInternal(StorageObject node)
+    private void UpdateLinkInternal(StorageObject node)
     {
+        if (node.IsPinned)
+        {// Pinned data does not update links.
+            return;
+        }
+
         if (node.onMemoryNext is null ||
             node.onMemoryPrevious is null)
         {// Not added to the list.
@@ -637,5 +698,36 @@ public partial class StorageControl : IPersistable
         }
 
         return list;
+    }
+
+    private List<StorageObject>? CreatePinnedList()
+    {
+        List<StorageObject> list = new();
+        using (this.lowestLockObject.EnterScope())
+        {
+            var node = this.pinnedHead;
+            while (node is not null)
+            {
+                list.Add(node);
+                node = node.onMemoryNext;
+            }
+        }
+
+        return list;
+    }
+
+    internal void PinObject(StorageObject node)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            if (!node.IsPinned)
+            {
+                node.storageObjectState |= StorageObjectState.Pinned;
+
+                this.ReleaseInternal(node, false);
+                node.onMemoryNext = this.pinnedHead;
+                this.pinnedHead = node;
+            }
+        }
     }
 }

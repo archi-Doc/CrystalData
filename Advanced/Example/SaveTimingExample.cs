@@ -17,10 +17,10 @@ public partial class SaveTimingData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> SaveTimingExample()
+    public static async Task<UnitProduct> SaveTimingExample()
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
                 // Register SimpleData configuration.
@@ -34,11 +34,11 @@ public partial class Program
                     });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
+        var crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
         var data = crystal.Data;
 
         // Save instantly
@@ -55,6 +55,6 @@ public partial class Program
         // Manual...
         await crystal.Store();
 
-        return unit;
+        return product;
     }
 }

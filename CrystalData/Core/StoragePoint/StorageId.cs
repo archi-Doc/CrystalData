@@ -98,6 +98,11 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         this.FileId == other.FileId &&
         this.Hash == other.Hash;
 
+    public bool Equals(ref StorageId other)
+        => this.JournalPosition == other.JournalPosition &&
+        this.FileId == other.FileId &&
+        this.Hash == other.Hash;
+
     public static bool operator >(StorageId w1, StorageId w2)
         => w1.CompareTo(w2) > 0;
 

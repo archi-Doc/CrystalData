@@ -2,7 +2,9 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using CrystalData.Journal;
 using Tinyhand.IO;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -14,11 +16,11 @@ namespace CrystalData.Internal;
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
-    public const int MaxHistories = 3; // 199
+    public const int MaxHistories = 3;
 
     #region FieldAndProperty
 
-    internal byte objectState;//
+    internal StorageObjectState storageObjectState; // Lock:StorageControl
     internal ObjectProtectionState protectionState;
 
     [Key(0)]
@@ -77,6 +79,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public bool IsEnabled => this.storageMap.IsEnabled;
 
+    public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
+
+    public bool IsDeleted => this.protectionState == ObjectProtectionState.Deleted;
+
     #endregion
 
     internal StorageObject()
@@ -106,6 +112,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
             }
         }
+
+        this.storageControl.PinObject(this);
 
         return (TData)this.data;
     }
@@ -139,7 +147,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 return default;
             }
 
-            this.storageControl.MoveToRecent(this);
+            this.storageControl.UpdateLink(this);
             return (TData)data;
         }
 
@@ -177,7 +185,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
 
         if (this.storageControl.IsRip)
-        {
+        {// Rip
             return new(DataScopeResult.Rip);
         }
 
@@ -203,9 +211,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         {// PrepareAndLoad
             await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
         }
+        else
+        {// Already loaded
+            this.storageControl.UpdateLink(this);
+        }
 
         if (this.data is not null)
-        {// Already exists
+        {// Data loaded
             if (acquisitionMode == AcquisitionMode.Create)
             {
                 this.Exit();
@@ -257,11 +269,81 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
+    internal async Task<bool> TestJournal(SimpleJournal journal)
+    {
+        var storage = this.storageMap.Storage;
+        object? data = default;
+        for (var i = MaxHistories - 1; i >= 0; i--)
+        {
+            var storageId = i switch
+            {
+                0 => this.storageId0,
+                1 => this.storageId1,
+                2 => this.storageId2,
+                _ => throw new InvalidOperationException(),
+            };
+
+            if (!storageId.IsValid)
+            {
+                continue;
+            }
+
+            var fileId = storageId.FileId;
+            var result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
+            try
+            {
+                if (result.IsFailure ||
+                FarmHash.Hash64(result.Data.Span) != storageId.Hash)
+                {
+                    return false;
+                }
+
+                if (data is not null)
+                {// Compare with previous data
+                    var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data);
+                    var isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
+                    rentMemory.Return();
+                    if (!isEqual)
+                    {
+                        return false;
+                    }
+                }
+
+                data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                if (data is null)
+                {
+                    return false;
+                }
+
+                var upplerLimit = i switch
+                {
+                    0 => 0ul,
+                    1 => this.storageId0.JournalPosition,
+                    2 => this.storageId1.JournalPosition,
+                    _ => throw new InvalidOperationException(),
+                };
+
+                var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+                data = await journal.RestoreData(storageId.JournalPosition, upplerLimit, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
+                if (data is null)
+                {
+                    return false;
+                }
+            }
+            finally
+            {
+                result.Return();
+            }
+        }
+
+        return true;
+    }
+
     #region IStructualRoot
 
     bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (this.storageMap.Crystalizer?.Journal is { } journal &&
+        if (this.storageMap.CrystalControl?.Journal is { } journal &&
             this.storageMap.CrystalObject is { } crystalObject)
         {
             journal.GetWriter(recordType, out writer);
@@ -281,7 +363,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
     {
-        if (this.storageMap.Crystalizer?.Journal is { } journal)
+        if (this.storageMap.CrystalControl?.Journal is { } journal)
         {
             return journal.Add(ref writer);
         }
@@ -293,12 +375,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     void IStructualRoot.AddToSaveQueue(int delaySeconds)
     {
-        // The delay time for Storage saving is configured collectively in StorageControl (Crystalizer.DefaultSaveDelaySeconds).
-        /*if (this.storageMap.Crystalizer is { } crystalizer)
+        // The delay time for Storage saving is configured collectively in StorageControl (CrystalControl.DefaultSaveDelaySeconds).
+        /*if (this.storageMap.CrystalControl is { } crystalControl)
         {
             if (delaySeconds == 0)
             {
-                delaySeconds = crystalizer.DefaultSaveDelaySeconds;
+                delaySeconds = crystalControl.DefaultSaveDelaySeconds;
             }
         }*/
 
@@ -327,7 +409,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 this.storageControl.Release(this, false); // Release
                 dataCopy = this.data;
-                this.data = default;
+                if (!this.IsPinned)
+                {
+                    this.data = default;
+                }
+
                 if (dataCopy is null)
                 {// No data
                     return true;
@@ -345,7 +431,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             {
                 this.storageControl.Release(this, false); // Release
                 dataCopy = this.data;
-                this.data = default;
+                if (!this.IsPinned)
+                {
+                    this.data = default;
+                }
+
                 if (dataCopy is null)
                 {// No data
                     return true;
@@ -444,8 +534,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (reader.TryReadJournalRecord_PeekIfKeyOrLocator(out var record))
-        {// Key or Locator
+        if (reader.TryReadJournalRecord_PeekIDelegated(out var record))
+        {//AddItem
+            this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {
                 return structualObject.ProcessJournalRecord(ref reader);
@@ -539,22 +630,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 return;
             }
 
-            this.SetDataInternal(data, false, result.Data);
             if (journalPosition > 0)
             {// Since the storage was lost, attempt to reconstruct it using the existing data and the journal.
-                var restoreResult = false;
-                if (data is not null &&
-                    this.storageMap.Journal is { } journal)
+                TData? restoredData = default;
+                if (this.storageMap.Journal is { } journal)
                 {
                     var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                    restoreResult = await journal.RestoreData<TData>(journalPosition, data, plane, this.PointId).ConfigureAwait(false);
+                    restoredData = await journal.RestoreData<TData>(journalPosition, 0ul, data, plane, this.PointId).ConfigureAwait(false) as TData;
                 }
 
-                var dataType = this.data.GetType();
+                var dataType = data.GetType();
                 var storageInfo = $"Type = {dataType.Name}, PointId = {this.pointId}";
 
-                if (restoreResult)
+                if (restoredData is not null)
                 {// Successfully restored
+                    data = restoredData;
                     this.storageControl.Logger?.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
                 }
                 else
@@ -562,10 +652,45 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                     this.storageControl.Logger?.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
                 }
             }
+
+            this.SetDataInternal(data, false, result.Data);
         }
         finally
         {
             result.Return();
+        }
+    }
+
+    private void PrepareForJournal()
+    {// Lock:?
+        if (this.data is not null)
+        {// Already loaded
+            return;
+        }
+
+        var storage = this.storageMap.Storage;
+        ulong fileId = 0;
+        if (this.storageId0.IsValid)
+        {
+            fileId = this.storageId0.FileId;
+            var result = storage.GetAsync(ref fileId).ConfigureAwait(false).GetAwaiter().GetResult();
+            if (result.IsSuccess &&
+                FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
+            {
+                this.data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+            }
+
+            result.Return();
+        }
+
+        if (this.data is null)
+        {
+            this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
+        }
+
+        if (this.data is IStructualObject structualObject)
+        {
+            structualObject.SetupStructure(this);
         }
     }
 
@@ -577,6 +702,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     internal void SetDataInternal<TData>(TData newData, bool recordJournal, BytePool.RentReadOnlyMemory original)
         where TData : class
     {// Lock:this
+        if (this.IsPinned)
+        {// Pinned (data is guaranteed to be non-null)
+#pragma warning disable CS8774 // Member must have a non-null value when exiting.
+            return;
+#pragma warning restore CS8774 // Member must have a non-null value when exiting.
+        }
+
         BytePool.RentMemory rentMemory = default;
         this.data = newData!;
         if (this.data is IStructualObject structualObject)
@@ -668,4 +800,33 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             ((IStructualObject)this).AddJournalRecord(JournalRecord.Delete);
         }
     }
+
+    /*internal bool Compare(StorageObject other)
+    {
+        if (this.pointId != other.pointId ||
+            this.typeIdentifier != other.typeIdentifier)
+        {
+            return false;
+        }
+
+        if (this.storageId0.Equals(ref other.storageId0))
+        {
+            return true;
+        }
+
+        this.PrepareForJournal();
+        other.PrepareForJournal();
+        if (this.data is null || other.data is null)
+        {
+            return false;
+        }
+
+        var (_, r1) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, this.data);
+        var (_, r2) = TinyhandTypeIdentifier.TrySerializeRentMemory(other.TypeIdentifier, other.data);
+        var result = r1.Span.SequenceEqual(r2.Span);
+        r1.Return();
+        r2.Return();
+
+        return result;
+    }*/
 }

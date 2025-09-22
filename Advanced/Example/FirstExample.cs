@@ -20,10 +20,10 @@ public partial class FirstData
 
 public partial class Program
 {
-    public static async Task<BuiltUnit> FirstExample()
+    public static async Task<UnitProduct> FirstExample()
     {
         // Create a builder to organize dependencies and register data configurations.
-        var builder = new CrystalControl.Builder()
+        var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
                 // Register SimpleData configuration.
@@ -36,19 +36,19 @@ public partial class Program
                     });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>(); // Retrieve a data instance from the service provider.
+        var data = product.Context.ServiceProvider.GetRequiredService<FirstData>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id = 1;
         data.Name = "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.Store(); // Save all data.
+        await crystalControl.Store(); // Save all data.
 
-        return unit;
+        return product;
     }
 }

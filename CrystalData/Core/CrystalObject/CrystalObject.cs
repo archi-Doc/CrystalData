@@ -26,7 +26,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     private CrystalConfiguration crystalConfiguration;
     private int saveIntervalInSeconds = MinimumSaveIntervalInSeconds;
 
-    public Crystalizer Crystalizer { get; }
+    public CrystalControl CrystalControl { get; }
 
     public CrystalConfiguration OriginalCrystalConfiguration => this.originalCrystalConfiguration;
 
@@ -96,7 +96,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         }
     }
 
-    public IJournal? Journal => this.Crystalizer.Journal;
+    public IJournal? Journal => this.CrystalControl.Journal;
 
     Waypoint ICrystalInternal.Waypoint => this.waypoint;
 
@@ -110,9 +110,9 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     #endregion
 
-    public CrystalObject(Crystalizer crystalizer)
+    public CrystalObject(CrystalControl crystalControl)
     {
-        this.Crystalizer = crystalizer;
+        this.CrystalControl = crystalControl;
         this.originalCrystalConfiguration = CrystalConfiguration.Default;
         this.crystalConfiguration = CrystalConfiguration.Default;
         ((IStructualObject)this).StructualRoot = this;
@@ -242,7 +242,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         // this.TryGetLogger(LogLevel.Debug)?.Log("Store called");
         using (this.Goshujin!.LockObject.EnterScope())
         {// Set the next save time for periodic data saving.
-            this.TimeForDataSavingValue = this.Crystalizer.SystemTimeInSeconds + this.saveIntervalInSeconds;
+            this.TimeForDataSavingValue = this.CrystalControl.SystemTimeInSeconds + this.saveIntervalInSeconds;
         }
 
         if (this.CrystalConfiguration.Volatile)
@@ -305,7 +305,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         }
 
         // Starting position
-        var startingPosition = this.Crystalizer.GetJournalPosition();
+        var startingPosition = this.CrystalControl.GetJournalPosition();
 
         // Serialize
         BytePool.RentMemory rentMemory;
@@ -352,21 +352,21 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             goto Exit;
         }
 
-        this.Crystalizer.UpdateWaypoint(this, ref currentWaypoint, hash);
+        this.CrystalControl.UpdateWaypoint(this, ref currentWaypoint, hash);
 
-        // this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Debug)?.Log("Saved");
+        // this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Debug)?.Log("Saved");
         var result = await filer.Save(rentMemory.ReadOnly, currentWaypoint).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {// Write error
             return result;
         }
 
-        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
+        this.CrystalControl.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
             this.leadingJournalPosition =
-            this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
+            this.CrystalControl.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
@@ -381,10 +381,10 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         return CrystalResult.Success;
 
 Exit:
-        this.Crystalizer.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
+        this.CrystalControl.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
         using (this.semaphore.EnterScope())
         {
-            this.leadingJournalPosition = this.Crystalizer.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
+            this.leadingJournalPosition = this.CrystalControl.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
@@ -400,12 +400,13 @@ Exit:
 
     async Task<bool> IPersistable.TestJournal()
     {
-        if (this.Crystalizer.Journal is not CrystalData.Journal.SimpleJournal journal)
+        if (this.CrystalControl.Journal is not CrystalData.Journal.SimpleJournal journal)
         {// No journaling
             return true;
         }
 
         var testResult = true;
+        TData? previousObject = default;
         using (this.semaphore.EnterScope())
         {
             if (this.crystalFiler is null ||
@@ -420,8 +421,7 @@ Exit:
                 return testResult;
             }
 
-            var logger = this.Crystalizer.UnitLogger.GetLogger<TData>();
-            TData? previousObject = default;
+            var logger = this.CrystalControl.UnitLogger.GetLogger<TData>();
             for (var i = 0; i < waypoints.Length; i++)
             {// waypoint[i] -> waypoint[i + 1]
                 var base32 = waypoints[i].ToBase32();
@@ -447,7 +447,7 @@ Exit:
 
                 if (currentObject is StorageMap storageMap)
                 {// For StorageMap, initialization is performed (to obtain storage.NumberOfHistoryFiles).
-                    storageMap.Enable(this.Crystalizer.StorageControl, default!, this.Storage);
+                    storageMap.Enable(this.CrystalControl.StorageControl, default!, this.Storage);
                 }
 
                 if (currentObject is IStructualObject structualObject)
@@ -503,6 +503,13 @@ Exit:
 
                 previousObject = currentObject;
             }
+
+            if (typeof(TData) == typeof(StorageMap) &&
+                previousObject is StorageMap map)
+            {// Test storage objects
+                map.CrystalObject = this;
+                testResult = await map.TestJournal(journal);
+            }
         }
 
         return testResult;
@@ -514,7 +521,7 @@ Exit:
 
     bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (this.Crystalizer.Journal is { } journal)
+        if (this.CrystalControl.Journal is { } journal)
         {
             journal.GetWriter(recordType, out writer);
 
@@ -531,9 +538,9 @@ Exit:
 
     ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
     {
-        if (this.Crystalizer.Journal is not null)
+        if (this.CrystalControl.Journal is not null)
         {
-            return this.Crystalizer.Journal.Add(ref writer);
+            return this.CrystalControl.Journal.Add(ref writer);
         }
         else
         {
@@ -545,7 +552,7 @@ Exit:
     {
         if (delaySeconds == 0)
         {
-            delaySeconds = this.Crystalizer.DefaultSaveDelaySeconds;
+            delaySeconds = this.CrystalControl.DefaultSaveDelaySeconds;
         }
 
         this.SetTimeForDataSaving(delaySeconds);
@@ -554,7 +561,7 @@ Exit:
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetTimeForDataSaving(int secondsUntilSave)
     {
-        var timeForDataSaving = this.Crystalizer.SystemTimeInSeconds + secondsUntilSave;
+        var timeForDataSaving = this.CrystalControl.SystemTimeInSeconds + secondsUntilSave;
         if (this.TimeForDataSaving == 0 || timeForDataSaving < this.TimeForDataSaving)
         {
             using (this.Goshujin!.LockObject.EnterScope())
@@ -618,18 +625,18 @@ Exit:
 
     private async Task<CrystalResult> PrepareAndLoadInternal(bool useQuery)
     {// this.semaphore.EnterScope()
-        if (!this.Crystalizer.IsPrepared)
+        if (!this.CrystalControl.IsPrepared)
         {
-            Crystalizer.ThrowNotPrepared();
+            CrystalControl.ThrowNotPrepared();
         }
 
         CrystalResult result;
-        var param = PrepareParam.New<TData>(this.Crystalizer, useQuery);
+        var param = PrepareParam.New<TData>(this.CrystalControl, useQuery);
 
         // CrystalFiler
         if (this.crystalFiler == null)
         {
-            this.crystalFiler = new(this.Crystalizer);
+            this.crystalFiler = new(this.CrystalControl);
             result = await this.crystalFiler.PrepareAndCheck(param, this.CrystalConfiguration).ConfigureAwait(false);
             if (result.IsFailure())
             {
@@ -641,7 +648,7 @@ Exit:
         if (this.storage == null)
         {
             var storageConfiguration = this.CrystalConfiguration.StorageConfiguration;
-            this.storage = this.Crystalizer.ResolveStorage(ref storageConfiguration);
+            this.storage = this.CrystalControl.ResolveStorage(ref storageConfiguration);
             result = await this.storage.PrepareAndCheck(param, storageConfiguration).ConfigureAwait(false);
             if (result.IsFailure())
             {
@@ -660,7 +667,7 @@ Exit:
         if (singletonData is null &&
             this.originalCrystalConfiguration.IsSingleton)
         {// For singleton data, it is always treated as a singleton instance, regardless of whether or not ServiceProvider is used.
-            singletonData = this.Crystalizer.ServiceProvider.GetRequiredService<TData>();
+            singletonData = this.CrystalControl.ServiceProvider.GetRequiredService<TData>();
         }
 
         // var filer = Volatile.Read(ref this.crystalFiler);
@@ -689,11 +696,11 @@ Exit:
         }
 
         // Check journal position
-        if (loadResult.Waypoint.IsValid && this.Crystalizer.Journal is { } journal)
+        if (loadResult.Waypoint.IsValid && this.CrystalControl.Journal is { } journal)
         {
             if (loadResult.Waypoint.JournalPosition.CircularCompareTo(journal.GetCurrentPosition()) > 0)
             {// loadResult.Waypoint.JournalPosition > journal.GetCurrentPosition()
-                this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalDataQueryDefault.InconsistentJournal, this.CrystalConfiguration.FileConfiguration.Path);
+                this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalDataQueryDefault.InconsistentJournal, this.CrystalConfiguration.FileConfiguration.Path);
 
                 // Wayback
                 await this.crystalFiler.Delete(loadResult.Waypoint).ConfigureAwait(false);
@@ -705,7 +712,7 @@ Exit:
         {// Loaded
             this.data = data;
             this.waypoint = loadResult.Waypoint;
-            this.leadingJournalPosition = this.Crystalizer.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
+            this.leadingJournalPosition = this.CrystalControl.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
             if (this.CrystalConfiguration.HasFileHistories)
             {
                 if (this.waypoint.IsValid)
@@ -742,7 +749,7 @@ Exit:
     private async Task<(CrystalResult Result, TData? Data, Waypoint Waypoint)> LoadAndDeserializeNotInternal(PrepareParam param, TData? singletonData)
     {
         var configuration = this.CrystalConfiguration;
-        var isPreviouslyStored = this.Crystalizer.CrystalSupplement.TryGetStoredJournalPosition<TData>(configuration.FileConfiguration, out var storedJournalPosition);
+        var isPreviouslyStored = this.CrystalControl.CrystalSupplement.TryGetStoredJournalPosition<TData>(configuration.FileConfiguration, out var storedJournalPosition);
         // param.RegisterConfiguration(configuration.FileConfiguration, out var newlyRegistered);
 
         // Load data (the hash is checked by CrystalFiler)
@@ -759,33 +766,37 @@ Exit:
             return (CrystalResult.Success, default, default); // New
         }
 
+        var deserializedData = data.Result.Object;
         if (data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
             var restoreResult = false;
-            if (this.Crystalizer.Journal is { } journal)
+            if (this.CrystalControl.Journal is { } journal)
             {// Read journal (LeadingJournalPosition -> StoredJournalPosition)
-                restoreResult = await journal.RestoreData(data.Waypoint.JournalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false);
+                if (await journal.RestoreData(data.Waypoint.JournalPosition, 0ul, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
+                {
+                    deserializedData = restoredData;
+                }
             }
 
             if (restoreResult)
             {
-                this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
+                this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
             }
             else
             {
-                this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalObject.RestoreFailure);
+                this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalObject.RestoreFailure);
             }
         }
 
         if (configuration.HasFileHistories)
         {
-            return (CrystalResult.Success, data.Result.Object, data.Waypoint);
+            return (CrystalResult.Success, deserializedData, data.Waypoint);
         }
         else
         {// Calculate a hash to prevent saving the same data.
             // var waypoint = data.Waypoint.WithHash(FarmHash.Hash64(data.Result.Data.Memory.Span));//
             var waypoint = data.Waypoint.WithHash(data.Waypoint.Hash);
-            return (CrystalResult.Success, data.Result.Object, waypoint);
+            return (CrystalResult.Success, deserializedData, waypoint);
         }
     }
 
@@ -795,8 +806,8 @@ Exit:
     {
         if (this.crystalFiler == null)
         {
-            this.crystalFiler = new(this.Crystalizer);
-            this.crystalFiler.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.Crystalizer), this.CrystalConfiguration).Wait();
+            this.crystalFiler = new(this.CrystalControl);
+            this.crystalFiler.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), this.CrystalConfiguration).Wait();
         }
     }
 
@@ -807,8 +818,8 @@ Exit:
         if (this.storage == null)
         {
             var storageConfiguration = this.CrystalConfiguration.StorageConfiguration;
-            this.storage = this.Crystalizer.ResolveStorage(ref storageConfiguration);
-            this.storage.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.Crystalizer), storageConfiguration).Wait();
+            this.storage = this.CrystalControl.ResolveStorage(ref storageConfiguration);
+            this.storage.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), storageConfiguration).Wait();
         }
     }
 
@@ -838,7 +849,7 @@ Exit:
 
         var hash = FarmHash.Hash64(rentMemory.Span);
         this.waypoint = default;
-        this.Crystalizer.UpdateWaypoint(this, ref this.waypoint, hash);
+        this.CrystalControl.UpdateWaypoint(this, ref this.waypoint, hash);
 
         // Save immediately to fix the waypoint.
         _ = this.crystalFiler?.Save(rentMemory.ReadOnly, this.waypoint);
@@ -855,7 +866,7 @@ Exit:
 
     private void LogWaypoint(string prefix)
     {
-        var logger = this.Crystalizer.UnitLogger.GetLogger<TData>();
+        var logger = this.CrystalControl.UnitLogger.GetLogger<TData>();
         logger.TryGet(LogLevel.Error)?.Log($"{prefix}, {this.waypoint.ToString()}");
     }
 
@@ -864,7 +875,7 @@ Exit:
         var configuration = this.originalCrystalConfiguration;
 
         var saveFormat = configuration.SaveFormat;
-        saveFormat = saveFormat == SaveFormat.Default ? this.Crystalizer.Options.DefaultSaveFormat : saveFormat;
+        saveFormat = saveFormat == SaveFormat.Default ? this.CrystalControl.Options.DefaultSaveFormat : saveFormat;
 
         var fileConfiguration = configuration.FileConfiguration;
         var fileName = fileConfiguration.FileName;
@@ -893,7 +904,7 @@ Exit:
             }
         }
 
-        if (this.Crystalizer.Options.DefaultBackup is { } globalBackup)
+        if (this.CrystalControl.Options.DefaultBackup is { } globalBackup)
         {
             if (backupFileConfiguration is null)
             {
@@ -934,5 +945,5 @@ Exit:
         this.SetTimeForDataSaving(this.saveIntervalInSeconds);
     }
 
-    private ILogWriter? TryGetLogger(LogLevel logLevel = LogLevel.Information) => this.Crystalizer.UnitLogger.GetLogger<TData>().TryGet(logLevel);
+    private ILogWriter? TryGetLogger(LogLevel logLevel = LogLevel.Information) => this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(logLevel);
 }

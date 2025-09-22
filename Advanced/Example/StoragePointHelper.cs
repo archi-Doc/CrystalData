@@ -17,7 +17,7 @@ public static partial class StoragePointHelper2
             NumberOfHistoryFiles = DefaultNumberOfFileHistories,
         };
 
-        var builder = new CrystalControl.Builder();
+        var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
@@ -30,24 +30,24 @@ public static partial class StoragePointHelper2
                 });
         });
 
-        var unit = builder.Build();
-        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
+        var product = builder.Build();
+        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
 
-        var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoad(false);
+        var crystal = crystalControl.GetCrystal<TData>();
+        var result = await crystalControl.PrepareAndLoad(false);
         return crystal;
     }
 
     public static async Task StoreAndReleaseAndDelete(ICrystal crystal)
     {
-        var crystalizer = crystal.Crystalizer;
-        await crystalizer.StoreAndRelease();
-        await crystalizer.DeleteAll();
+        var crystalControl = crystal.CrystalControl;
+        await crystalControl.StoreAndRelease();
+        await crystalControl.DeleteAll();
 
-        if (crystal.Crystalizer.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)
+        if (crystal.CrystalControl.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)
         {
-            crystalizer.DeleteDirectory(journalConfiguration.DirectoryConfiguration);
+            crystalControl.DeleteDirectory(journalConfiguration.DirectoryConfiguration);
         }
 
         var directory = Path.GetDirectoryName(crystal.CrystalConfiguration.FileConfiguration.Path);
@@ -56,9 +56,9 @@ public static partial class StoragePointHelper2
             Directory.Delete(directory, true);
         }
 
-        if (crystalizer.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
+        if (crystalControl.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
         {
-            crystalizer.DeleteDirectory(crystalizer.Options.GlobalDirectory);
+            crystalControl.DeleteDirectory(crystalControl.Options.GlobalDirectory);
         }
     }
 }

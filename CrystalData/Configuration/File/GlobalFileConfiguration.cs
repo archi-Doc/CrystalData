@@ -4,7 +4,7 @@ namespace CrystalData;
 
 /// <summary>
 /// Represents a global file configuration, inheriting from <see cref="FileConfiguration"/>.<br/>
-/// Specifies the file path relative to the common root directory, as defined by <see cref="CrystalizerOptions.GlobalDirectory"/>.
+/// Specifies the file path relative to the common root directory, as defined by <see cref="CrystalOptions.GlobalDirectory"/>.
 /// </summary>
 [TinyhandObject]
 public partial record GlobalFileConfiguration : FileConfiguration
@@ -20,7 +20,7 @@ public partial record GlobalFileConfiguration : FileConfiguration
     /// <summary>
     /// Initializes a new instance of the <see cref="GlobalFileConfiguration"/> class with the specified file path.
     /// </summary>
-    /// <param name="file">The file path relative to the common root directory, as defined by <see cref="CrystalizerOptions.GlobalDirectory"/>.</param>
+    /// <param name="file">The file path relative to the common root directory, as defined by <see cref="CrystalOptions.GlobalDirectory"/>.</param>
     public GlobalFileConfiguration(string file)
         : base(file)
     {

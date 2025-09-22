@@ -2,13 +2,13 @@
 
 namespace CrystalData;
 
-public partial record class CrystalizerOptions
+public partial record class CrystalOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB
     public static readonly TimeSpan DefaultSaveInterval = TimeSpan.FromHours(1);
     public static readonly TimeSpan DefaultSaveDelay = TimeSpan.FromMinutes(1);
 
-    public CrystalizerOptions()
+    public CrystalOptions()
     {
         this.FilerTimeout = TimeSpan.MinValue; // TimeSpan.FromSeconds(3);
         this.TimeoutUntilForcedRelease = TimeSpan.FromSeconds(10);

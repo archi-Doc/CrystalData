@@ -18,7 +18,7 @@ public sealed partial class StorageMap : IStructualObject
 
     #region FiendAndProperty
 
-    public Crystalizer? Crystalizer { get; private set; }
+    public CrystalControl? CrystalControl { get; private set; }
 
     public IJournal? Journal { get; private set; }
 
@@ -26,7 +26,7 @@ public sealed partial class StorageMap : IStructualObject
 
     public StorageControl StorageControl { get; private set; }
 
-    internal CrystalObjectBase? CrystalObject { get; private set; }
+    internal CrystalObjectBase? CrystalObject { get; set; }
 
     private bool enabledStorageMap;
 
@@ -56,9 +56,9 @@ public sealed partial class StorageMap : IStructualObject
 
     bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (this.crystalizer.Journal is not null)
+        if (this.crystalControl.Journal is not null)
         {
-            this.crystalizer.Journal.GetWriter(recordType, out writer);
+            this.crystalControl.Journal.GetWriter(recordType, out writer);
 
             writer.Write_Locator();
             writer.Write(this.);
@@ -73,9 +73,9 @@ public sealed partial class StorageMap : IStructualObject
 
     ulong IStructualRoot.AddJournal(ref TinyhandWriter writer)
     {
-        if (this.crystalizer.Journal is not null)
+        if (this.crystalControl.Journal is not null)
         {
-            return this.crystalizer.Journal.Add(ref writer);
+            return this.crystalControl.Journal.Add(ref writer);
         }
         else
         {
@@ -87,7 +87,7 @@ public sealed partial class StorageMap : IStructualObject
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.OnChanged)
         {
-            this.Crystalizer.AddToSaveQueue(this);
+            this.CrystalControl.AddToSaveQueue(this);
             return true;
         }
         else
@@ -147,12 +147,25 @@ public sealed partial class StorageMap : IStructualObject
     internal void Enable(StorageControl storageControl, CrystalObjectBase crystalObject, IStorage storage)
     {
         this.StorageControl = storageControl;
-        this.Crystalizer = this.StorageControl.Crystalizer;
-        this.Journal = this.Crystalizer?.Journal;
+        this.CrystalControl = this.StorageControl.CrystalControl;
+        this.Journal = this.CrystalControl?.Journal;
         this.Storage = storage;
         this.CrystalObject = crystalObject;
         this.enabledStorageMap = true;
         storageControl.AddStorageMap(this);
+    }
+
+    internal async Task<bool> TestJournal(SimpleJournal journal)
+    {
+        foreach (var x in this.StorageObjects)
+        {
+            if (!await x.TestJournal(journal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void UpdateStorageUsageInternal(long size)
