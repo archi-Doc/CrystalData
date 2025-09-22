@@ -148,16 +148,16 @@ internal partial class SimpleStorage : IStorage
         return CrystalResult.Success;
     }
 
-    async Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    async Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
     {
         if (this.storageCrystal is not null)
         {
-            await this.storageCrystal.Store(StoreMode.StoreOnly).ConfigureAwait(false);
+            await this.storageCrystal.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
         if (this.mapCrystal is not null)
         {
-            await this.mapCrystal.Store(StoreMode.StoreOnly).ConfigureAwait(false);
+            await this.mapCrystal.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
         return CrystalResult.Success;

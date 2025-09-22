@@ -54,19 +54,19 @@ internal static class StoreTaskExtension
 
             if (storeMode == StoreMode.StoreOnly)
             {// Store only
-                await task.PersistableObject.Store(StoreMode.StoreOnly).ConfigureAwait(false);
+                await task.PersistableObject.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
                 unloaded++;
             }
             else if (storeMode == StoreMode.ForceRelease ||
                 (utc - task.FirstProcessed) > crystalControl.Options.TimeoutUntilForcedRelease)
             {// Force release
-                await task.PersistableObject.Store(StoreMode.ForceRelease).ConfigureAwait(false);
+                await task.PersistableObject.StoreData(StoreMode.ForceRelease).ConfigureAwait(false);
                 crystalControl.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
                 unloaded++;
             }
             else
             {// Try release
-                var result = await task.PersistableObject.Store(StoreMode.TryRelease).ConfigureAwait(false);
+                var result = await task.PersistableObject.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalControl.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);

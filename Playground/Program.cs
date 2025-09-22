@@ -243,7 +243,7 @@ internal class Program
                 });
 
                 // Journal
-                crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                //crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage")/*,
@@ -280,8 +280,8 @@ internal class Program
             {
             });
 
-        Waypoint.TryParse("00000000000F3V8KQ9XGBKBC0HWC2CJC0000000", out var wp);
-        Waypoint.TryParse("00000000000F30W1ZEZXFX4QMCWC2CJC0000000", out var wp1);
+        Waypoint.TryParse("0000000000005SGVMCUTZ68JYJZ9U57F0000000", out var wp);
+        Waypoint.TryParse("0000000000007PBGGE9WTK99N1Z9U57F0000000", out var wp1);
 
         var product = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;

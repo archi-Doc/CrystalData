@@ -18,7 +18,7 @@ public interface IPersistable
     /// <param name="storeMode">The mode in which to store the data.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task{CrystalResult}"/> representing the asynchronous operation, with the result indicating the outcome.</returns>
-    Task<CrystalResult> Store(StoreMode storeMode = StoreMode.StoreOnly, CancellationToken cancellationToken = default);
+    Task<CrystalResult> StoreData(StoreMode storeMode = StoreMode.StoreOnly, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Tests the integrity of the journal associated with the persisted data.

@@ -647,7 +647,7 @@ public partial class CrystalControl
         // Save journal
         if (this.Journal is { } journal)
         {
-            await journal.Store().ConfigureAwait(false);
+            await journal.StoreData().ConfigureAwait(false);
         }
     }
 
@@ -678,24 +678,17 @@ public partial class CrystalControl
         ulong journalPosition;
         if (this.Journal != null)
         {
-            journalPosition = this.Journal.GetCurrentPosition();
+            journalPosition = this.Journal.AddWaypoint(); // this.Journal.GetCurrentPosition();
+
+            /*this.Journal.GetWriter(JournalType.Waypoint, out var writer);
+            writer.Write(plane);
+            writer.Write(hash);
+            journalPosition = this.Journal.Add(ref writer);*/
         }
         else
         {
             journalPosition = waypoint.JournalPosition + 1; // The journal position is incremented to differentiate new data from old.
         }
-
-        /*if (this.Journal != null)
-        {
-            this.Journal.GetWriter(JournalType.Waypoint, out var writer);
-            writer.Write(plane);
-            writer.Write(hash);
-            journalPosition = this.Journal.Add(ref writer);
-        }
-        else
-        {
-            journalPosition = waypoint.JournalPosition + 1;
-        }*/
 
         waypoint = new(journalPosition, hash, plane);
     }
@@ -816,7 +809,7 @@ public partial class CrystalControl
 
             for (var i = 0; i < count; i++)
             {
-                await tempArray[i].Store(StoreMode.StoreOnly).ConfigureAwait(false);
+                await tempArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
             }
 
             Array.Clear(tempArray, 0, count);
@@ -1034,7 +1027,7 @@ public partial class CrystalControl
 
         if (this.Journal is { } journal)
         {// Journal
-            await journal.Store().ConfigureAwait(false);
+            await journal.StoreData().ConfigureAwait(false);
         }
 
         await this.CrystalSupplement.Store(terminate).ConfigureAwait(false);

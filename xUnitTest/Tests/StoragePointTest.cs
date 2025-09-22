@@ -158,7 +158,7 @@ public class StoragePointTest
         g.StringStorage.Set("Test String");
         // await g.StringStorage.DeleteData();
 
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
         // await crystal.CrystalControl.StoreAndRelease();
 
         g.StringStorage.Set("Test String2");

@@ -58,7 +58,7 @@ public class StorageDataTest
         var crystal = await TestHelper.CreateAndStartCrystal<StorageDataClass.GoshujinClass>(true);
 
         var g = crystal.Data;
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
 
         // g2: empty
@@ -67,7 +67,7 @@ public class StorageDataTest
         g2.GoshujinEquals(g).IsTrue();
 
         // Save & Test journal
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
         var result = await crystal.CrystalControl.TestJournalAll();
         result.IsTrue();
@@ -102,7 +102,7 @@ public class StorageDataTest
         await r.Children.DeleteData();
 
         // Save & Test journal
-        await crystal.Store(StoreMode.ForceRelease);
+        await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
         result = await crystal.CrystalControl.TestJournalAll();
         result.IsTrue();

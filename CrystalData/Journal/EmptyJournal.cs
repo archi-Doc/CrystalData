@@ -20,12 +20,17 @@ public class EmptyJournal : IJournal
         return 0;
     }
 
+    ulong IJournal.AddWaypoint()
+    {
+        return 0;
+    }
+
     void IJournal.GetWriter(JournalType recordType, out TinyhandWriter writer)
     {
         writer = default(TinyhandWriter);
     }
 
-    Task<CrystalResult> IPersistable.Store(StoreMode storeMode, CancellationToken cancellationToken)
+    Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
         => Task.FromResult(CrystalResult.Success);
 
     Type IPersistable.DataType => typeof(EmptyJournal);
