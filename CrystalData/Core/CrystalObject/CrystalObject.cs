@@ -591,6 +591,11 @@ Exit:
                 return false;
             }
 
+            if (journalObject is StorageMap sm)
+            {
+
+            }
+
             var fork = reader.Fork();
             try
             {

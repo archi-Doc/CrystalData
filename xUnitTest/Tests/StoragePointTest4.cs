@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Linq;
+using Arc.Crypto;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -88,7 +89,9 @@ public partial class SptPoint2 : StoragePoint<SptClass2>
 
 public class StoragePointTest4
 {
-    public const int Max = 100;
+    public const int MaxId = 100;
+    public const int Concurrency = 1;
+    public const int Repetition = 100;
 
     private int totalCount = 0;
     private SptPoint2.GoshujinClass? g;
@@ -99,11 +102,12 @@ public class StoragePointTest4
         var crystal = await TestHelper.CreateAndStartCrystal<StoragePoint<SptPoint2.GoshujinClass>>(true);
         this.g = await crystal.Data.PinData();
 
-        // await this.Setup(c1);
+        await this.Run();
         await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
 
+        await this.Run();
         await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
@@ -112,9 +116,12 @@ public class StoragePointTest4
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
-    private async Task Increment(SptPoint2 c1, int id)
+    private static int GetRandomId()
+        => RandomVault.Default.NextInt32(1, MaxId + 1);
+
+    private async Task Increment(int id)
     {
-        using (var dataScope = c1.TryLock(AcquisitionMode.GetOrCreate).Result)
+        using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOrCreate).Result)
         {
             if (dataScope.IsValid)
             {
@@ -129,9 +136,17 @@ public class StoragePointTest4
         }
     }
 
-    private async Task<bool> Decrement(SptPoint2 c1, int id)
+    private async Task StoreAndRelease(int id)
     {
-        using (var dataScope = c1.TryLock(AcquisitionMode.Get).Result)
+        if (this.g.Find(id) is { } storagePoint)
+        {
+            await storagePoint.StoreData(StoreMode.TryRelease);
+        }
+    }
+
+    private async Task<bool> Decrement(int id)
+    {
+        using (var dataScope = this.g.TryLock(id, AcquisitionMode.Get).Result)
         {
             if (dataScope.IsValid)
             {
@@ -144,7 +159,7 @@ public class StoragePointTest4
 
                 if (data.Count <= 0)
                 {
-                    c1.Goshujin.Delete(id);
+                    await this.g.Delete(id);
                     return false;
                 }
                 else
@@ -159,9 +174,29 @@ public class StoragePointTest4
         }
     }
 
+    private async Task Run()
+    {
+        var tasks = Enumerable.Range(1, Concurrency).Select(async _ =>
+        {
+            for (int i = 0; i < Repetition; ++i)
+            {
+                var id = GetRandomId();
+                await this.Increment(id);
+                id = GetRandomId();
+                // await this.Increment(id);
+                id = GetRandomId();
+                // await this.Decrement(id);
+                id = GetRandomId();
+                // await this.StoreAndRelease(id);
+
+                Interlocked.Increment(ref this.totalCount);
+            }
+        }).ToArray();
+    }
+
     private async Task Setup(SptPoint2 c1)
     {
-        for (var i = 1; i <= Max; i++)
+        for (var i = 1; i <= MaxId; i++)
         {
             c1.TryInitialize(i);
         }
@@ -169,16 +204,17 @@ public class StoragePointTest4
 
     private async Task Validate()
     {
-        for (var i = 1; i <= Max; i++)
+        var sum = 0;
+        for (var i = 1; i <= MaxId; i++)
         {
             var c = await this.g.TryGet(i);
             if (c is not null)
             {
-                this.totalCount += c.Count;
+                sum += c.Count;
                 c.Validate().IsTrue();
             }
         }
 
-        this.totalCount.Is(N);
+        sum.Is(this.totalCount);
     }
 }
