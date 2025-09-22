@@ -226,7 +226,7 @@ public sealed partial class CrystalSupplement
 
     #region FieldAndProperty
 
-    private readonly Crystalizer crystalizer;
+    private readonly CrystalControl crystalControl;
     private readonly ILogger logger;
     private int ripCount;
     private Data data = new();
@@ -242,10 +242,10 @@ public sealed partial class CrystalSupplement
 
     #endregion
 
-    internal CrystalSupplement(Crystalizer crystalizer)
+    internal CrystalSupplement(CrystalControl crystalControl)
     {
-        this.crystalizer = crystalizer;
-        this.logger = this.crystalizer.UnitLogger.GetLogger<CrystalSupplement>();
+        this.crystalControl = crystalControl;
+        this.logger = this.crystalControl.UnitLogger.GetLogger<CrystalSupplement>();
     }
 
     public bool TryGetStoredJournalPosition<TData>(FileConfiguration fileConfiguration, out ulong journalPosition)
@@ -264,20 +264,20 @@ public sealed partial class CrystalSupplement
     {
         if (this.mainFiler is null)
         {
-            var fileConfiguration = this.crystalizer.Options.SupplementFile;
+            var fileConfiguration = this.crystalControl.Options.SupplementFile;
             fileConfiguration ??= new LocalFileConfiguration(DefaultSupplementFileName);
-            (this.mainFiler, this.mainConfiguration) = await this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(fileConfiguration).ConfigureAwait(false);
+            (this.mainFiler, this.mainConfiguration) = await this.crystalControl.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(fileConfiguration).ConfigureAwait(false);
         }
 
-        if (this.backupFiler is null && this.crystalizer.Options.BackupSupplementFile is not null)
+        if (this.backupFiler is null && this.crystalControl.Options.BackupSupplementFile is not null)
         {
-            (this.backupFiler, this.backupConfiguration) = await this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(this.crystalizer.Options.BackupSupplementFile).ConfigureAwait(false);
+            (this.backupFiler, this.backupConfiguration) = await this.crystalControl.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(this.crystalControl.Options.BackupSupplementFile).ConfigureAwait(false);
         }
 
         if (this.ripFiler is null && this.mainConfiguration is not null)
         {
             var configuration = this.mainConfiguration.AppendPath(RipSuffix);
-            (this.ripFiler, _) = await this.crystalizer.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).ConfigureAwait(false);
+            (this.ripFiler, _) = await this.crystalControl.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).ConfigureAwait(false);
 
             if (this.ripFiler is not null)
             {// Load rip file

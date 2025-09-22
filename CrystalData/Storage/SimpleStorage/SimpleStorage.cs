@@ -13,9 +13,9 @@ internal partial class SimpleStorage : IStorage
     private const string Filename = "Simple";
     private const int DefaultNumberOfHistoryFiles = 2;
 
-    public SimpleStorage(Crystalizer crystalizer)
+    public SimpleStorage(CrystalControl crystalControl)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.timeout = TimeSpan.MinValue;
         this.storageMap = StorageMap.Disabled;
     }
@@ -25,7 +25,7 @@ internal partial class SimpleStorage : IStorage
 
     #region FieldAndProperty
 
-    private Crystalizer crystalizer;
+    private CrystalControl crystalControl;
     private string directory = string.Empty;
     private string backupDirectory = string.Empty;
     private ICrystal<SimpleStorageData>? storageCrystal;
@@ -71,7 +71,7 @@ internal partial class SimpleStorage : IStorage
 
         if (this.mainFiler is null)
         {
-            (this.mainFiler, directoryConfiguration) = this.crystalizer.ResolveFiler(directoryConfiguration);
+            (this.mainFiler, directoryConfiguration) = this.crystalControl.ResolveFiler(directoryConfiguration);
             result = await this.mainFiler.PrepareAndCheck(param, directoryConfiguration).ConfigureAwait(false);
             if (result.IsFailure())
             {
@@ -91,7 +91,7 @@ internal partial class SimpleStorage : IStorage
 
             if (this.backupFiler is null)
             {
-                (this.backupFiler, backupDirectoryConfiguration) = this.crystalizer.ResolveFiler(backupDirectoryConfiguration);
+                (this.backupFiler, backupDirectoryConfiguration) = this.crystalControl.ResolveFiler(backupDirectoryConfiguration);
                 result = await this.backupFiler.PrepareAndCheck(param, backupDirectoryConfiguration).ConfigureAwait(false);
                 if (result.IsFailure())
                 {
@@ -102,7 +102,7 @@ internal partial class SimpleStorage : IStorage
 
         if (this.storageCrystal == null)
         {// SimpleStorageData (file to size)
-            this.storageCrystal = this.crystalizer.CreateCrystal<SimpleStorageData>(null, true);
+            this.storageCrystal = this.crystalControl.CreateCrystal<SimpleStorageData>(null, true);
             var mainConfiguration = directoryConfiguration.CombineFile(Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(Filename);
             this.storageCrystal.Configure(new CrystalConfiguration(mainConfiguration)
@@ -121,7 +121,7 @@ internal partial class SimpleStorage : IStorage
 
         if (this.mapCrystal == null)
         {// StorageMap (StorageObject)
-            this.mapCrystal = this.crystalizer.CreateCrystal<StorageMap>(null, true);
+            this.mapCrystal = this.crystalControl.CreateCrystal<StorageMap>(null, true);
             var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
             var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
             this.mapCrystal.Configure(new CrystalConfiguration(mainConfiguration)
@@ -141,7 +141,7 @@ internal partial class SimpleStorage : IStorage
             else
             {
                 this.storageMap = this.mapCrystal.Data;
-                this.storageMap.Enable(this.crystalizer.StorageControl, (CrystalObjectBase)this.mapCrystal, this);
+                this.storageMap.Enable(this.crystalControl.StorageControl, (CrystalObjectBase)this.mapCrystal, this);
             }
         }
 

@@ -4,9 +4,9 @@ namespace QuickStart;
 
 public class ConfigurationExampleClass
 {
-    public ConfigurationExampleClass(Crystalizer crystalizer, FirstData firstData)
+    public ConfigurationExampleClass(CrystalControl crystalControl, FirstData firstData)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.firstData = firstData;
     }
 
@@ -17,7 +17,7 @@ public class ConfigurationExampleClass
         Console.WriteLine($"First: {this.firstData.ToString()}");
 
         // Get or create an ICrystal interface of the data.
-        var crystal = this.crystalizer.GetOrCreateCrystal<SecondData>(
+        var crystal = this.crystalControl.GetOrCreateCrystal<SecondData>(
             new CrystalConfiguration(
                 new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData.tinyhand")));
         var secondData = crystal.Data;
@@ -27,7 +27,7 @@ public class ConfigurationExampleClass
         Console.WriteLine($"Second: {secondData.ToString()}");
 
         // You can create multiple crystals from single data class.
-        var crystal2 = this.crystalizer.CreateCrystal<SecondData>(
+        var crystal2 = this.crystalControl.CreateCrystal<SecondData>(
             new CrystalConfiguration(
                 new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData2.tinyhand")));
         var secondData2 = crystal2.Data;
@@ -37,7 +37,7 @@ public class ConfigurationExampleClass
         Console.WriteLine($"Second: {secondData2.ToString()}");
     }
 
-    private readonly Crystalizer crystalizer;
+    private readonly CrystalControl crystalControl;
     private FirstData firstData;
 }
 
@@ -63,8 +63,8 @@ public partial class Program
             });
 
         var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
         var example = unit.Context.ServiceProvider.GetRequiredService<ConfigurationExampleClass>();
         await example.Process();

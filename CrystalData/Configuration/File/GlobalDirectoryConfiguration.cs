@@ -4,7 +4,7 @@ namespace CrystalData;
 
 /// <summary>
 /// Represents a global directory configuration, inheriting from <see cref="DirectoryConfiguration"/>.<br/>
-/// Specifies the directory path relative to the common root directory, as defined by <see cref="CrystalizerOptions.GlobalDirectory"/>.
+/// Specifies the directory path relative to the common root directory, as defined by <see cref="CrystalOptions.GlobalDirectory"/>.
 /// </summary>
 [TinyhandObject]
 public partial record GlobalDirectoryConfiguration : DirectoryConfiguration
@@ -20,7 +20,7 @@ public partial record GlobalDirectoryConfiguration : DirectoryConfiguration
     /// <summary>
     /// Initializes a new instance of the <see cref="GlobalDirectoryConfiguration"/> class with the specified directory path.
     /// </summary>
-    /// <param name="directory">The directory path relative to the common root directory, as defined by <see cref="CrystalizerOptions.GlobalDirectory"/>.</param>
+    /// <param name="directory">The directory path relative to the common root directory, as defined by <see cref="CrystalOptions.GlobalDirectory"/>.</param>
     public GlobalDirectoryConfiguration(string directory)
         : base(directory)
     {

@@ -49,7 +49,7 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                context.SetOptions(context.GetOptions<CrystalOptions>() with
                 {
                     // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
                     DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "DefaultBackup")),
@@ -57,8 +57,8 @@ public partial class Program
             });
 
         var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"First data:");
@@ -74,7 +74,7 @@ public partial class Program
         data2.Name += "Up";
         Console.WriteLine($"Save {data2.ToString()}");
 
-        await crystalizer.Store(); // Save all data.
+        await crystalControl.Store(); // Save all data.
 
         return unit;
     }

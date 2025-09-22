@@ -38,11 +38,11 @@ public static class TestHelper
 
         var unit = builder.Build();
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        crystalizer.StorageControl.MemoryUsage.Is(0);
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        crystalControl.StorageControl.MemoryUsage.Is(0);
 
-        var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoad(false);
+        var crystal = crystalControl.GetCrystal<TData>();
+        var result = await crystalControl.PrepareAndLoad(false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
@@ -65,37 +65,37 @@ public static class TestHelper
 
         builder.PostConfigure(context =>
         {
-            context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+            context.SetOptions(context.GetOptions<CrystalOptions>() with
             {
                 GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]"),
             });
         });
 
         var unit = builder.Build();
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        crystalizer.StorageControl.MemoryUsage.Is(0);
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        crystalControl.StorageControl.MemoryUsage.Is(0);
 
-        var crystal = crystalizer.GetCrystal<TData>();
-        var result = await crystalizer.PrepareAndLoad(false);
+        var crystal = crystalControl.GetCrystal<TData>();
+        var result = await crystalControl.PrepareAndLoad(false);
         result.Is(CrystalResult.Success);
         return crystal;
     }
 
     public static async Task StoreAndReleaseAndDelete(ICrystal crystal)
     {
-        var crystalizer = crystal.Crystalizer;
-        crystalizer.StorageControl.Rip();
-        await crystalizer.StoreAndRelease();
-        if (crystalizer.StorageControl.MemoryUsage > 0)
+        var crystalControl = crystal.CrystalControl;
+        crystalControl.StorageControl.Rip();
+        await crystalControl.StoreAndRelease();
+        if (crystalControl.StorageControl.MemoryUsage > 0)
         {
-            crystalizer.StorageControl.MemoryUsage.Is(0);
+            crystalControl.StorageControl.MemoryUsage.Is(0);
         }
 
-        await crystalizer.DeleteAll();
+        await crystalControl.DeleteAll();
 
-        if (crystal.Crystalizer.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)
+        if (crystal.CrystalControl.JournalConfiguration is SimpleJournalConfiguration journalConfiguration)
         {
-            crystalizer.DeleteDirectory(journalConfiguration.DirectoryConfiguration);
+            crystalControl.DeleteDirectory(journalConfiguration.DirectoryConfiguration);
         }
 
         var directory = Path.GetDirectoryName(crystal.CrystalConfiguration.FileConfiguration.Path);
@@ -105,9 +105,9 @@ public static class TestHelper
             Directory.Delete(directory, true);
         }
 
-        if (crystalizer.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
+        if (crystalControl.Options.GlobalDirectory is not EmptyDirectoryConfiguration)
         {
-            crystalizer.DeleteDirectory(crystalizer.Options.GlobalDirectory);
+            crystalControl.DeleteDirectory(crystalControl.Options.GlobalDirectory);
         }
     }
 

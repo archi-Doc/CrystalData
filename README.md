@@ -65,8 +65,8 @@ var builder = new CrystalControl.Builder()
     });
 
 var unit = builder.Build(); // Build.
-var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
 var data = unit.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 
@@ -75,7 +75,7 @@ data.Id += 1;
 data.Name += "Fuga";
 Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-await crystalizer.StoreAndRip(); // Save data and perform the shutdown process.
+await crystalControl.StoreAndRip(); // Save data and perform the shutdown process.
 ```
 
 
@@ -270,7 +270,7 @@ context.AddCrystal<SaveTimingData>(
 Add the following code to save all data and release resources when the application exits.
 
 ```csharp
-await unit.Context.ServiceProvider.GetRequiredService<Crystalizer>().SaveAllAndTerminate();
+await unit.Context.ServiceProvider.GetRequiredService<CrystalControl>().SaveAllAndTerminate();
 ```
 
 
@@ -322,9 +322,9 @@ var unit = builder.Build(); // Build.
 ```csharp
 public class ConfigurationExampleClass
 {
-    public ConfigurationExampleClass(Crystalizer crystalizer, FirstData firstData)
+    public ConfigurationExampleClass(CrystalControl crystalControl, FirstData firstData)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.firstData = firstData;
     }
 }
@@ -332,20 +332,20 @@ public class ConfigurationExampleClass
 
 
 
-#### Crystalizer
+#### CrystalControl
 
-Create an **ICrystal** object using the **Crystalizer**.
+Create an **ICrystal** object using the **CrystalControl**.
 
 ```csharp
 // Get or create an ICrystal interface of the data.
-var crystal = this.crystalizer.GetOrCreateCrystal<SecondData>(
+var crystal = this.crystalControl.GetOrCreateCrystal<SecondData>(
     new CrystalConfiguration(
         SavePolicy.Manual,
         new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData.tinyhand")));
 var secondData = crystal.Data;
 
 // You can create multiple crystals from single data class.
-var crystal2 = this.crystalizer.CreateCrystal<SecondData>(
+var crystal2 = this.crystalControl.CreateCrystal<SecondData>(
     new CrystalConfiguration(
         SavePolicy.Manual,
         new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData2.tinyhand")));
@@ -372,7 +372,7 @@ context.AddCrystal<FirstData>(
 
 #### Local path
 
-If a relative path is specified, it combines the root directory of **Crystalizer** with the path to create an absolute path.
+If a relative path is specified, it combines the root directory of **CrystalControl** with the path to create an absolute path.
 
 ```csharp
 FileConfiguration = new LocalFileConfiguration("Local/PathExample/FirstData.tinyhand"),
@@ -388,7 +388,7 @@ FileConfiguration = new LocalFileConfiguration("C:\\Local/PathExample/FirstData.
 
 #### Global path
 
-When specifying **GlobalFileConfiguration**, the path will be combined with **GlobalDirectory** of **CrystalizerOptions** to create an absolute path.
+When specifying **GlobalFileConfiguration**, the path will be combined with **GlobalDirectory** of **CrystalOptions** to create an absolute path.
 
 ```csharp
 FileConfiguration = new GlobalFileConfiguration("Global/FirstData.tinyhand"),
@@ -399,8 +399,8 @@ var builder = new CrystalControl.Builder()
     .ConfigureCrystal(context =>
     {
     })
-    .SetupOptions<CrystalizerOptions>((context, options) =>
-    {// You can change the root directory of the CrystalData by modifying CrystalizerOptions.
+    .SetupOptions<CrystalOptions>((context, options) =>
+    {// You can change the root directory of the CrystalData by modifying CrystalOptions.
         context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
         if (unitOptions is not null)
         {
@@ -447,7 +447,7 @@ context.AddCrystal<BackupData>(
 ```
 
 ```csharp
-.SetupOptions<CrystalizerOptions>((context, options) =>
+.SetupOptions<CrystalOptions>((context, options) =>
 {
     context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
     if (unitOptions is not null)

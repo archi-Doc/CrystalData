@@ -23,9 +23,9 @@ public partial class SecondData
 
 public class SecondExample
 {
-    public SecondExample(Crystalizer crystalizer, ICrystal<SecondData> crystal)
+    public SecondExample(CrystalControl crystalControl, ICrystal<SecondData> crystal)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.crystal = crystal; // Get an ICrystal interface for data storage operations.
     }
 
@@ -40,14 +40,14 @@ public class SecondExample
 
         await this.crystal.Store(); // Save data.
 
-        var firstCrystal = this.crystalizer.CreateCrystal<FirstData>(new(SaveFormat.Utf8, new LocalFileConfiguration("Local/SecondExample/FirstData.tinyhand")));
+        var firstCrystal = this.crystalControl.CreateCrystal<FirstData>(new(SaveFormat.Utf8, new LocalFileConfiguration("Local/SecondExample/FirstData.tinyhand")));
         firstCrystal.Data.Id++;
         firstCrystal.Data.Name += "Nupo";
 
         // await firstCrystal.Save(); // The data will be automatically saved when the application is closed.
     }
 
-    private Crystalizer crystalizer;
+    private CrystalControl crystalControl;
     private ICrystal<SecondData> crystal;
 }
 
@@ -87,7 +87,7 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                context.SetOptions(context.GetOptions<CrystalOptions>() with
                 {
                     EnableFilerLogger = true, // Enable filer logger.
                     DataDirectory = Directory.GetCurrentDirectory(),
@@ -104,8 +104,8 @@ public partial class Program
         myBuilder.AddBuilder(crystalDataBuilder);
 
         var unit = myBuilder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        var result = await crystalizer.PrepareAndLoad(true); // Use the default query.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var result = await crystalControl.PrepareAndLoad(true); // Use the default query.
         if (result.IsFailure())
         {// Abort
             return default;

@@ -4,15 +4,15 @@ namespace CrystalData.Filer;
 
 internal class RawFilerToFiler : ISingleFiler
 {
-    internal RawFilerToFiler(Crystalizer crystalizer, IFiler rawFiler, string path)
+    internal RawFilerToFiler(CrystalControl crystalControl, IFiler rawFiler, string path)
     {
-        this.Crystalizer = crystalizer;
+        this.CrystalControl = crystalControl;
         this.RawFiler = rawFiler;
         this.Path = path;
-        this.timeout = crystalizer.Options.FilerTimeout;
+        this.timeout = crystalControl.Options.FilerTimeout;
     }
 
-    public Crystalizer Crystalizer { get; }
+    public CrystalControl CrystalControl { get; }
 
     public IFiler RawFiler { get; }
 
@@ -55,7 +55,7 @@ internal class RawFilerToFiler : ISingleFiler
             path = $"{this.Path}.{extension}";
         }
 
-        return new RawFilerToFiler(this.Crystalizer, this.RawFiler, path);
+        return new RawFilerToFiler(this.CrystalControl, this.RawFiler, path);
     }
 
     public override string ToString()

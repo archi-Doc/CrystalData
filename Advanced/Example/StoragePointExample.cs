@@ -47,9 +47,9 @@ public partial class SptPoint : StoragePoint<SptClass>
 
 public class StoragePointExample
 {
-    public StoragePointExample(Crystalizer crystalizer, ICrystal<SptClass> crystal)
+    public StoragePointExample(CrystalControl crystalControl, ICrystal<SptClass> crystal)
     {
-        this.crystalizer = crystalizer;
+        this.crystalControl = crystalControl;
         this.crystal = crystal; // Get an ICrystal interface for data storage operations.
     }
 
@@ -71,7 +71,7 @@ public class StoragePointExample
         }
     }
 
-    private readonly Crystalizer crystalizer;
+    private readonly CrystalControl crystalControl;
     private readonly ICrystal<SptClass> crystal;
 }
 
@@ -112,8 +112,8 @@ public partial class Program
 
         var unit = builder.Build();
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>();
-        var result = await crystalizer.PrepareAndLoad(true); // Use the default query.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        var result = await crystalControl.PrepareAndLoad(true); // Use the default query.
         if (result.IsFailure())
         {// Abort
             return default;

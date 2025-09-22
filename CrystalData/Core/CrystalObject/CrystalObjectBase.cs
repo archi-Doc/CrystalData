@@ -52,7 +52,7 @@ internal abstract partial class CrystalObjectBase
 
     /// <summary>
     /// Gets or sets a value indicating whether this crystal object is unmanaged.<br/>
-    /// Unmanaged crystals are not subject to Load, Store, or Delete operations by the Crystalizer (except during journal reading).
+    /// Unmanaged crystals are not subject to Load, Store, or Delete operations by the CrystalControl (except during journal reading).
     /// </summary>
     public bool IsUnmanaged { get; set; }
 

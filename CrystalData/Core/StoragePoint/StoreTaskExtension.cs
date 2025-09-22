@@ -6,11 +6,11 @@ internal static class StoreTaskExtension
 {
     private const int WaitTimeInMilliseconds = 1_000;
 
-    public static async Task StoreTask(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
+    public static async Task StoreTask(CrystalControl crystalControl, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
     {
         while (true)
         {
-            var result = await ProcessGoshujin(crystalizer, goshujin, storeMode).ConfigureAwait(false);
+            var result = await ProcessGoshujin(crystalControl, goshujin, storeMode).ConfigureAwait(false);
             if (result.Remaining == 0)
             {
                 return;
@@ -22,7 +22,7 @@ internal static class StoreTaskExtension
         }
     }
 
-    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(Crystalizer crystalizer, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
+    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(CrystalControl crystalControl, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
     {
         var unloaded = 0;
         ReleaseTask? task;
@@ -58,10 +58,10 @@ internal static class StoreTaskExtension
                 unloaded++;
             }
             else if (storeMode == StoreMode.ForceRelease ||
-                (utc - task.FirstProcessed) > crystalizer.Options.TimeoutUntilForcedRelease)
+                (utc - task.FirstProcessed) > crystalControl.Options.TimeoutUntilForcedRelease)
             {// Force release
                 await task.PersistableObject.Store(StoreMode.ForceRelease).ConfigureAwait(false);
-                crystalizer.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
+                crystalControl.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
                 unloaded++;
             }
             else
@@ -69,7 +69,7 @@ internal static class StoreTaskExtension
                 var result = await task.PersistableObject.Store(StoreMode.TryRelease).ConfigureAwait(false);
                 if (result == CrystalResult.DataIsLocked)
                 {
-                    crystalizer.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);
+                    crystalControl.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);
                     task.RepeatableReadSemaphore?.LockAndForceRelease();
                     using (goshujin.LockObject.EnterScope())
                     {
@@ -79,7 +79,7 @@ internal static class StoreTaskExtension
                 }
                 else
                 {
-                    crystalizer.Logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.Unload.Unloaded, task.PersistableObject.DataType.FullName!);
+                    crystalControl.Logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.Unload.Unloaded, task.PersistableObject.DataType.FullName!);
                     unloaded++;
                 }
             }

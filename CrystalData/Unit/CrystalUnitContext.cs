@@ -8,7 +8,7 @@ namespace CrystalData;
 
 internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomContext
 {
-    void ICrystalConfigurationContext.SetCrystalizerOptions(CrystalizerOptions options)
+    void ICrystalConfigurationContext.SetCrystalizerOptions(CrystalOptions options)
     {
         this.crystalizerOptions = options;
     }
@@ -38,7 +38,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
     {
         if (this.crystalizerOptions is null)
         {
-            this.crystalizerOptions = new CrystalizerOptions() with { DataDirectory = context.DataDirectory, };
+            this.crystalizerOptions = new CrystalOptions() with { DataDirectory = context.DataDirectory, };
         }
 
         context.SetOptions(this.crystalizerOptions);
@@ -52,15 +52,15 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
 
         foreach (var x in this.typeToCrystalConfiguration)
         {// This is slow, but it is Singleton anyway.
-            // Singleton: ICrystal<T> => Crystalizer.GetCrystal<T>()
-            context.Services.TryAdd(ServiceDescriptor.Singleton(typeof(ICrystal<>).MakeGenericType(x.Key), provider => provider.GetRequiredService<Crystalizer>().GetCrystal(x.Key)));
+            // Singleton: ICrystal<T> => CrystalControl.GetCrystal<T>()
+            context.Services.TryAdd(ServiceDescriptor.Singleton(typeof(ICrystal<>).MakeGenericType(x.Key), provider => provider.GetRequiredService<CrystalControl>().GetCrystal(x.Key)));
 
             /*if (x.Key.GetCustomAttribute<TinyhandObjectAttribute>() is { } attribute &&
                 attribute.UseServiceProvider)
             {// Tinyhand invokes ServiceProvider during object creation, which leads to recursive calls.
             }
             else
-            {// Singleton: T => Crystalizer.GetObject<T>()
+            {// Singleton: T => CrystalControl.GetObject<T>()
                 foreach (var y in context.Services)
                 {
                     if (y.ServiceType == x.Key && y.Lifetime == ServiceLifetime.Singleton)
@@ -71,7 +71,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
                     }
                 }
 
-                context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetObject(x.Key)));
+                context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<CrystalControl>().GetObject(x.Key)));
             }*/
 
             if (x.Key.GetCustomAttribute<TinyhandObjectAttribute>() is { } attribute &&
@@ -88,13 +88,13 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
                     }
                 }
                 else
-                {// Singleton: T => Crystalizer.GetObject<T>()
-                    context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<Crystalizer>().GetData(x.Key)));
+                {// Singleton: T => CrystalControl.GetObject<T>()
+                    context.Services.TryAdd(ServiceDescriptor.Transient(x.Key, provider => provider.GetRequiredService<CrystalControl>().GetData(x.Key)));
                 }
             }
         }
 
-        var crystalizerConfiguration = context.GetOptions<CrystalizerConfiguration>();
+        var crystalizerConfiguration = context.GetOptions<CrystalControlConfiguration>();
         crystalizerConfiguration = crystalizerConfiguration with
         {
             JournalConfiguration = this.journalConfiguration,
@@ -108,7 +108,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
         context.SetOptions(crystalizerConfiguration);
     }
 
-    private CrystalizerOptions? crystalizerOptions;
+    private CrystalOptions? crystalizerOptions;
     private Dictionary<Type, CrystalConfiguration> typeToCrystalConfiguration = new();
     private JournalConfiguration journalConfiguration = EmptyJournalConfiguration.Default;
 }

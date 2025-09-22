@@ -343,7 +343,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
-        if (this.storageMap.Crystalizer?.Journal is { } journal &&
+        if (this.storageMap.CrystalControl?.Journal is { } journal &&
             this.storageMap.CrystalObject is { } crystalObject)
         {
             journal.GetWriter(recordType, out writer);
@@ -363,7 +363,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
     {
-        if (this.storageMap.Crystalizer?.Journal is { } journal)
+        if (this.storageMap.CrystalControl?.Journal is { } journal)
         {
             return journal.Add(ref writer);
         }
@@ -375,12 +375,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     void IStructualRoot.AddToSaveQueue(int delaySeconds)
     {
-        // The delay time for Storage saving is configured collectively in StorageControl (Crystalizer.DefaultSaveDelaySeconds).
-        /*if (this.storageMap.Crystalizer is { } crystalizer)
+        // The delay time for Storage saving is configured collectively in StorageControl (CrystalControl.DefaultSaveDelaySeconds).
+        /*if (this.storageMap.CrystalControl is { } crystalControl)
         {
             if (delaySeconds == 0)
             {
-                delaySeconds = crystalizer.DefaultSaveDelaySeconds;
+                delaySeconds = crystalControl.DefaultSaveDelaySeconds;
             }
         }*/
 

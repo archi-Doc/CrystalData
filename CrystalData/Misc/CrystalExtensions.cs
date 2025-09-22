@@ -15,9 +15,9 @@ public static class CrystalExtensions
     public static string ToExtension(this SaveFormat saveFormat)
         => saveFormat switch
         {
-            SaveFormat.Binary => Crystalizer.BinaryExtension,
-            SaveFormat.Utf8 => Crystalizer.Utf8Extension,
-            _ => Crystalizer.BinaryExtension,
+            SaveFormat.Binary => CrystalControl.BinaryExtension,
+            SaveFormat.Utf8 => CrystalControl.Utf8Extension,
+            _ => CrystalControl.BinaryExtension,
         };
 
     /// <summary>

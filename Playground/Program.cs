@@ -235,7 +235,7 @@ internal class Program
             .ConfigureCrystal((unitContext, crystalContext) =>
             {
                 // CrystalizerOptions
-                crystalContext.SetCrystalizerOptions(new CrystalizerOptions() with
+                crystalContext.SetCrystalizerOptions(new CrystalOptions() with
                 {
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
@@ -282,8 +282,8 @@ internal class Program
 
         var unit = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
@@ -353,7 +353,7 @@ internal class Program
 
         await data2.ClassStorage.StoreData(StoreMode.TryRelease);
         data2.ClassStorage.DeleteLatestStorageForTest();
-        await crystalizer.StoreJournal();
+        await crystalControl.StoreJournal();
 
         Console.WriteLine($"First: {await data.DoubleStorage.TryGet()}");
         Console.WriteLine($"Second: {await data2.ClassStorage.TryGet()}");
@@ -398,9 +398,9 @@ internal class Program
         var sd = await goshujinStorage.Find(100);
         sd = await goshujinStorage.Find(123);
 
-        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+        Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
         var r2 = await goshujinStorage.StoreData(StoreMode.ForceRelease);
-        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+        Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
 
         using (var sc = await sd!.TryLock())
         {
@@ -418,9 +418,9 @@ internal class Program
             }
         }
 
-        crystalizer.Dump();
-        // await crystalizer.StoreAndRelease();
-        await crystalizer.StoreAndRip();
-        Console.WriteLine($"MemoryUsage: {crystalizer.StorageControl.MemoryUsage}");
+        crystalControl.Dump();
+        // await crystalControl.StoreAndRelease();
+        await crystalControl.StoreAndRip();
+        Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
     }
 }

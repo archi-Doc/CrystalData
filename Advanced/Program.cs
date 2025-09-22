@@ -40,7 +40,7 @@ public partial class Program
         ThreadCore.Root.Terminate();
         if (unit is not null)
         {// Save all data managed by CrystalData.
-            await unit.Context.ServiceProvider.GetRequiredService<Crystalizer>().StoreAndRip();
+            await unit.Context.ServiceProvider.GetRequiredService<CrystalControl>().StoreAndRip();
         }
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.

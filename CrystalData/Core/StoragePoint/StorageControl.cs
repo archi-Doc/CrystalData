@@ -35,15 +35,15 @@ public partial class StorageControl : IPersistable
     private StorageObject? saveQueueHead;
     private StorageObject? pinnedHead;
 
-    public Crystalizer? Crystalizer { get; private set; }
+    public CrystalControl? CrystalControl { get; private set; }
 
     internal ILogger? Logger { get; set; }
 
     public bool IsRip => this.isRip;
 
-    public long MemoryUsageLimit { get; private set; } = CrystalizerOptions.DefaultMemoryUsageLimit;
+    public long MemoryUsageLimit { get; private set; } = CrystalOptions.DefaultMemoryUsageLimit;
 
-    public TimeSpan SaveInterval { get; private set; } = CrystalizerOptions.DefaultSaveInterval;
+    public TimeSpan SaveInterval { get; private set; } = CrystalOptions.DefaultSaveInterval;
 
     /// <summary>
     /// Gets an estimated memory usage.<br/>
@@ -100,12 +100,12 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal void Initialize(Crystalizer crystalizer)
+    internal void Initialize(CrystalControl crystalControl)
     {
-        this.Crystalizer = crystalizer;
-        this.Logger = crystalizer.UnitLogger.GetLogger<StorageControl>();
-        this.MemoryUsageLimit = crystalizer.Options.MemoryUsageLimit;
-        this.SaveInterval = crystalizer.Options.SaveInterval;
+        this.CrystalControl = crystalControl;
+        this.Logger = crystalControl.UnitLogger.GetLogger<StorageControl>();
+        this.MemoryUsageLimit = crystalControl.Options.MemoryUsageLimit;
+        this.SaveInterval = crystalControl.Options.SaveInterval;
     }
 
     internal void ResurrectForTesting() => this.isRip = false;
@@ -456,9 +456,9 @@ public partial class StorageControl : IPersistable
         }*/
     }
 
-    internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, Crystalizer crystalizer, CancellationToken cancellationToken)
+    internal async Task<bool> ProcessSaveQueue(StorageObject[] tempArray, CrystalControl crystalControl, CancellationToken cancellationToken)
     {
-        var threshold = crystalizer.SystemTimeInSeconds - crystalizer.DefaultSaveDelaySeconds;
+        var threshold = crystalControl.SystemTimeInSeconds - crystalControl.DefaultSaveDelaySeconds;
         var result = false;
         while (true)
         {
@@ -518,7 +518,7 @@ public partial class StorageControl : IPersistable
 
     internal void AddToSaveQueue(StorageObject node)
     {
-        if (this.Crystalizer is null)
+        if (this.CrystalControl is null)
         {
             return;
         }
@@ -530,7 +530,7 @@ public partial class StorageControl : IPersistable
                 return;
             }
 
-            node.saveQueueTime = this.Crystalizer.SystemTimeInSeconds;
+            node.saveQueueTime = this.CrystalControl.SystemTimeInSeconds;
 
             if (this.saveQueueHead is null)
             {// First node

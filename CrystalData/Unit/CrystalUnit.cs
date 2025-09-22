@@ -30,9 +30,9 @@ public class CrystalUnit
             {
                 // Main services
                 context.AddSingleton<CrystalUnit>();
-                context.AddSingleton<CrystalizerConfiguration>();
-                context.AddSingleton<CrystalizerOptions>();
-                context.AddSingleton<Crystalizer>();
+                context.AddSingleton<CrystalControlConfiguration>();
+                context.AddSingleton<CrystalOptions>();
+                context.AddSingleton<CrystalControl>();
                 context.AddTransient<StorageControl>();
                 context.AddTransient<StorageMap>();
                 context.AddSingleton<IStorageKey, StorageKey>();

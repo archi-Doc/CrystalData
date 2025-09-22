@@ -5,7 +5,7 @@ namespace CrystalData;
 public enum SaveFormat
 {
     /// <summary>
-    /// The save format is specified in <see cref="CrystalizerOptions"/>.<br/>
+    /// The save format is specified in <see cref="CrystalOptions"/>.<br/>
     /// If not specified, data is saved in binary format.
     /// </summary>
     Default,

@@ -16,7 +16,7 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                context.SetOptions(context.GetOptions<CrystalOptions>() with
                 {
                     // RootPath = Path.Combine(context.RootDirectory, "Additional"), // Root directory
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")), // Global directory
@@ -24,15 +24,15 @@ public partial class Program
             });
 
         var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
 
-        // Get the crystal from crystalizer.
-        var crystal = crystalizer.GetOrCreateCrystal<FirstData>(
+        // Get the crystal from crystalControl.
+        var crystal = crystalControl.GetOrCreateCrystal<FirstData>(
             new CrystalConfiguration()
             {
                 SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
 
-                // If a relative path is specified, it combines the root directory of Crystalizer with the path to create an absolute path.
+                // If a relative path is specified, it combines the root directory of CrystalControl with the path to create an absolute path.
                 FileConfiguration = new LocalFileConfiguration("Local/PathExample/FirstData.tinyhand"),
 
                 // The absolute path will be used as is.
@@ -50,7 +50,7 @@ public partial class Program
             unit.Context.ServiceProvider.GetRequiredService<IStorageKey>().AddKey(BucketName, accessKeyPair);
         }
 
-        // await crystalizer.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
+        // await crystalControl.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
         await crystal.PrepareAndLoad(false); // You can also prepare and load data individually through the ICrystal interface.
         var data = crystal.Data;
 
@@ -58,15 +58,15 @@ public partial class Program
         var unitOptions = unit.Context.ServiceProvider.GetRequiredService<UnitOptions>();
         Console.WriteLine($"UnitOptions root directory: {unitOptions.DataDirectory}");
 
-        // Crystalizer root directory
-        Console.WriteLine($"Crystalizer root directory: {crystalizer.Options.DataDirectory}");
+        // CrystalControl root directory
+        Console.WriteLine($"CrystalControl root directory: {crystalControl.Options.DataDirectory}");
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id = 1;
         data.Name = "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.Store(); // Save all data.
+        await crystalControl.Store(); // Save all data.
 
         return unit;
     }

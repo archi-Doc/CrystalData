@@ -4,34 +4,34 @@ using CrystalData.Internal;
 
 namespace CrystalData;
 
-public partial class Crystalizer
+public partial class CrystalControl
 {
-    private class CrystalizerCore : TaskCore
+    private class CrystalControlCore : TaskCore
     {
         private const int IntervalInMilliseconds = 100;
         private const int SaveBatchSize = 32;
 
-        private readonly Crystalizer crystalizer;
+        private readonly CrystalControl crystalControl;
         private readonly StorageControl storageControl;
         private StorageObject[] tempArray = new StorageObject[SaveBatchSize];
         private ICrystalInternal[] tempArray2 = new ICrystalInternal[SaveBatchSize];
 
-        public CrystalizerCore(Crystalizer crystalizer)
+        public CrystalControlCore(CrystalControl crystalControl)
             : base(null, Process, false)
         {
-            this.crystalizer = crystalizer;
-            this.storageControl = crystalizer.StorageControl;
+            this.crystalControl = crystalControl;
+            this.storageControl = crystalControl.StorageControl;
         }
 
         private static async Task Process(object? parameter)
         {
-            var core = (CrystalizerCore)parameter!;
-            var crystalizer = core.crystalizer;
+            var core = (CrystalControlCore)parameter!;
+            var crystalControl = core.crystalControl;
             var storageControl = core.storageControl;
 
             while (!core.IsTerminated)
             {
-                var timeUpdated = crystalizer.UpdateTime();
+                var timeUpdated = crystalControl.UpdateTime();
                 var delayFlag = true;
 
                 if (storageControl.StorageReleaseRequired)
@@ -42,12 +42,12 @@ public partial class Crystalizer
 
                 if (timeUpdated)
                 {
-                    if (await storageControl.ProcessSaveQueue(core.tempArray, crystalizer, core.CancellationToken).ConfigureAwait(false))
+                    if (await storageControl.ProcessSaveQueue(core.tempArray, crystalControl, core.CancellationToken).ConfigureAwait(false))
                     {// Processes the save queue.
                         delayFlag = false;
                     }
 
-                    if (await crystalizer.ProcessSaveQueue(core.tempArray2, crystalizer, core.CancellationToken).ConfigureAwait(false))
+                    if (await crystalControl.ProcessSaveQueue(core.tempArray2, crystalControl, core.CancellationToken).ConfigureAwait(false))
                     {// Processes the save queue.
                         delayFlag = false;
                     }

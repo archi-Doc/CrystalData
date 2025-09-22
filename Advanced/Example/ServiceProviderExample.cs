@@ -45,8 +45,8 @@ public partial class Program
 
         var unit = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         // var data = unit.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
         var data = unit.Context.ServiceProvider.GetRequiredService<ServiceProviderData>(); // Retrieve a data instance from the service provider.
@@ -56,7 +56,7 @@ public partial class Program
         data.Age += 1000d;
         Console.WriteLine($"Save {data.ToString()}");
 
-        await crystalizer.Store(); // Save all data.
+        await crystalControl.Store(); // Save all data.
 
         return unit;
     }

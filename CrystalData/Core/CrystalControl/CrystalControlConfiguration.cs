@@ -2,9 +2,9 @@
 
 namespace CrystalData;
 
-public record class CrystalizerConfiguration
+public record class CrystalControlConfiguration
 {
-    public CrystalizerConfiguration()
+    public CrystalControlConfiguration()
     {
     }
 

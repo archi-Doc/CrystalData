@@ -12,9 +12,9 @@ public class LocalFiler : FilerBase, IFiler
     {
     }
 
-    public static AddStorageResult Check(Crystalizer crystalizer, string directory)
+    public static AddStorageResult Check(CrystalControl crystalControl, string directory)
     {
-        var result = CheckPath(crystalizer, directory);
+        var result = CheckPath(crystalControl, directory);
         if (!result.Success)
         {
             return AddStorageResult.WriteError;
@@ -28,7 +28,7 @@ public class LocalFiler : FilerBase, IFiler
         var worker = (LocalFiler)w;
         var tryCount = 0;
 
-        var filePath = Crystalizer.GetRootedFile(worker.Crystalizer, work.Path);
+        var filePath = CrystalControl.GetRootedFile(worker.CrystalControl, work.Path);
         work.Result = CrystalResult.Started;
         // Console.WriteLine($"{work.ToString()} -> {filePath}");
         if (work.Type == FilerWork.WorkType.Write)
@@ -258,13 +258,13 @@ TryWrite:
 
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
-        this.Crystalizer = param.Crystalizer;
-        if (this.Crystalizer.Options.EnableFilerLogger)
+        this.CrystalControl = param.CrystalControl;
+        if (this.CrystalControl.Options.EnableFilerLogger)
         {
-            this.logger ??= this.Crystalizer.UnitLogger.GetLogger<LocalFiler>();
+            this.logger ??= this.CrystalControl.UnitLogger.GetLogger<LocalFiler>();
         }
 
-        var directoryPath = Path.GetDirectoryName(PathHelper.GetRootedFile(this.Crystalizer.Options.DataDirectory, configuration.Path));
+        var directoryPath = Path.GetDirectoryName(PathHelper.GetRootedFile(this.CrystalControl.Options.DataDirectory, configuration.Path));
         if (directoryPath is null)
         {
             return CrystalResult.NoAccess;
@@ -293,7 +293,7 @@ TryWrite:
     public override string ToString()
         => $"LocalFiler";
 
-    private static (bool Success, string RootedPath) CheckPath(Crystalizer crystalizer, string file)
+    private static (bool Success, string RootedPath) CheckPath(CrystalControl crystalControl, string file)
     {
         string rootedPath = string.Empty;
         try
@@ -304,7 +304,7 @@ TryWrite:
             }
             else
             {
-                rootedPath = Path.Combine(crystalizer.Options.DataDirectory, file);
+                rootedPath = Path.Combine(crystalControl.Options.DataDirectory, file);
             }
 
             Directory.CreateDirectory(rootedPath);

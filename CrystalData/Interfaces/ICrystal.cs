@@ -4,7 +4,7 @@ namespace CrystalData;
 
 public interface ICrystal : IStructualObject, IStructualRoot, IPersistable
 {
-    Crystalizer Crystalizer { get; }
+    CrystalControl CrystalControl { get; }
 
     CrystalConfiguration CrystalConfiguration { get; }
 

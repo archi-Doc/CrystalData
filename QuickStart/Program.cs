@@ -41,8 +41,8 @@ internal class Program
             });
 
         var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
         var data = unit.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 
@@ -51,6 +51,6 @@ internal class Program
         data.Name += "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.StoreAndRip(); // Save data and perform the shutdown process.
+        await crystalControl.StoreAndRip(); // Save data and perform the shutdown process.
     }
 }

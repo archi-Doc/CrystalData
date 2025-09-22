@@ -31,25 +31,25 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalizerOptions>() with
+                context.SetOptions(context.GetOptions<CrystalOptions>() with
                 {
                     DefaultSaveFormat = SaveFormat.Utf8,
                 });
             });
 
-        var unit = builder.Build(); // Build.
-        var crystalizer = unit.Context.ServiceProvider.GetRequiredService<Crystalizer>(); // Obtains a Crystalizer instance for data storage operations.
-        await crystalizer.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var product = builder.Build(); // Build.
+        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var data = unit.Context.ServiceProvider.GetRequiredService<DefaultData>(); // Retrieve a data instance from the service provider.
+        var data = product.Context.ServiceProvider.GetRequiredService<DefaultData>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
         data.Id += 1;
         data.Name += "Fuga";
         Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
 
-        await crystalizer.Store(); // Save all data.
+        await crystalControl.Store(); // Save all data.
 
-        return unit;
+        return product;
     }
 }
