@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics;
 using System.Linq;
 using Arc.Crypto;
 using CrystalData;
@@ -90,8 +91,8 @@ public partial class SptPoint2 : StoragePoint<SptClass2>
 public class StoragePointTest4
 {
     public const int MaxId = 100;
-    public const int Concurrency = 1;
-    public const int Repetition = 1;
+    public const int Concurrency = 1; // 100
+    public const int Repetition = 1; // 100
 
     private Random random = new Random(11);
     private int totalCount = 0;
@@ -136,6 +137,20 @@ public class StoragePointTest4
                 throw new Exception();
             }
         }
+
+        /*var ob = await this.g.Find(48).TryGet();
+        using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOrCreate).Result)
+        {
+            if (dataScope.IsValid)
+            {
+                dataScope.Data.Count++;
+                dataScope.Data.Hash = dataScope.Data.GetHashCode();
+            }
+            else
+            {
+                throw new Exception();
+            }
+        }*/
     }
 
     private async Task StoreAndRelease(int id)
