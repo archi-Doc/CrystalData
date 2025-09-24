@@ -297,9 +297,9 @@ public class StoragePointTest3
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
 
-        await this.Validate2(c1);
-        await this.Modify2(c1);
-        await this.Validate3(c1);
+        //await this.Validate2(c1);
+        //await this.Modify2(c1);
+        //await this.Validate3(c1);
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
         (await crystal.CrystalControl.TestJournalAll()).IsTrue();

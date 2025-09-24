@@ -508,7 +508,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             // Journal
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                writer.Write(JournalRecord.AddItem);
+                writer.Write(JournalRecord.AddCustom);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
                 root.AddJournalAndDispose(ref writer);
             }
@@ -539,6 +539,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             record == JournalRecord.Locator ||
             record == JournalRecord.AddItem)
         {// Key or Locator
+            if (record == JournalRecord.AddCustom)
+            {
+            }
             this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {
@@ -562,7 +565,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             this.DeleteObject(false, default).Wait();
             return true;
         }
-        else if (record == JournalRecord.AddItem)
+        else if (record == JournalRecord.AddCustom)
         {
             reader.Advance(1);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);

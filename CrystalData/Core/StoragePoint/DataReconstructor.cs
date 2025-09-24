@@ -162,7 +162,7 @@ public static class JournalExtensions
                  return false;
              }*/
         }
-        else if (record == JournalRecord.AddItem)
+        else if (record == JournalRecord.AddCustom)
         {
             return true;
         }
