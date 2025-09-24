@@ -124,7 +124,7 @@ public class StoragePointTest4
 
     private async Task Increment(int id)
     {
-        using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOrCreate).Result)
+        using (var dataScope = await this.g.TryLock(id, AcquisitionMode.GetOrCreate))
         {
             if (dataScope.IsValid)
             {
@@ -191,9 +191,9 @@ public class StoragePointTest4
         }
     }
 
-    private async Task Run()
+    private Task Run()
     {
-        var tasks = Enumerable.Range(1, Concurrency).Select(async _ =>
+        var tasks = Enumerable.Range(1, Concurrency).Select(async x =>
         {
             for (int i = 0; i < Repetition; ++i)
             {
@@ -208,7 +208,9 @@ public class StoragePointTest4
 
                 Interlocked.Increment(ref this.totalCount);
             }
-        }).ToArray();
+        });
+
+        return Task.WhenAll(tasks);
     }
 
     private async Task Setup()
