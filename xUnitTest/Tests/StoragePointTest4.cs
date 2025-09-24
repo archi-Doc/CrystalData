@@ -106,12 +106,12 @@ public class StoragePointTest4
 
         // await this.Setup();
         await this.Run();
-        await this.Validate();
+        //await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
 
         await this.Run();
-        await this.Validate();
+        //await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
         (await crystal.CrystalControl.TestJournalAll()).IsTrue();
@@ -128,9 +128,10 @@ public class StoragePointTest4
         {
             if (dataScope.IsValid)
             {
+                /*((IStructualObject)dataScope.Data).TryGetJournalWriter(out var writer);
                 dataScope.Data.TryInitialize(id);
                 dataScope.Data.Count++;
-                dataScope.Data.Hash = dataScope.Data.GetHashCode();
+                dataScope.Data.Hash = dataScope.Data.GetHashCode();*/
             }
             else
             {

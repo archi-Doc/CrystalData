@@ -132,13 +132,10 @@ public static class JournalExtensions
     /// </summary>
     private static bool ReadValueRecord(ref TinyhandReader reader, ref object? data, uint typeIdentifier)
     {
-        if (reader.TryReadJournalRecord_PeekIDelegated(out var record))
-        {// Key or Locator
-            if (record == JournalRecord.AddItem)
-            {
-                return true;
-            }
+        reader.TryPeekJournalRecord(out var record);
 
+        if (record == JournalRecord.Key || record == JournalRecord.Locator)
+        {// Key or Locator
             if (data is IStructualObject structualObject)
             {
                 return structualObject.ProcessJournalRecord(ref reader);
@@ -151,6 +148,7 @@ public static class JournalExtensions
 
         if (record == JournalRecord.Value)
         {
+            reader.Advance(1);
             data = TinyhandTypeIdentifier.TryDeserializeReader(typeIdentifier, ref reader);
             return data is not null;
 
@@ -163,6 +161,10 @@ public static class JournalExtensions
              {
                  return false;
              }*/
+        }
+        else if (record == JournalRecord.AddItem)
+        {
+            return true;
         }
 
         return true;

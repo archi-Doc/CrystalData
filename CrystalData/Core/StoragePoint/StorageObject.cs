@@ -534,12 +534,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (reader.TryReadJournalRecord_PeekIDelegated(out var record))
-        {
-            if (record == JournalRecord.AddItem)
-            {//
-
-            }
+        reader.TryPeekJournalRecord(out var record);
+        if (record == JournalRecord.Key ||
+            record == JournalRecord.Locator ||
+            record == JournalRecord.AddItem)
+        {// Key or Locator
             this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {
@@ -553,16 +552,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         if (record == JournalRecord.Value)
         {
+            reader.Advance(1);
             this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
         else if (record == JournalRecord.Delete)
         {// Delete storage
+            reader.Advance(1);
             this.DeleteObject(false, default).Wait();
             return true;
         }
         else if (record == JournalRecord.AddItem)
         {
+            reader.Advance(1);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             if (storageId > this.storageId0)
             {
