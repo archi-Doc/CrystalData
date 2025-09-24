@@ -591,11 +591,6 @@ Exit:
                 return false;
             }
 
-            if (journalObject is StorageMap sm)
-            {
-
-            }
-
             var fork = reader.Fork();
             try
             {
@@ -606,6 +601,10 @@ Exit:
 
                     if (plane == currentPlane)
                     {
+                        if (journalObject is StorageMap sm)
+                        {
+
+                        }
                         if (journalObject.ProcessJournalRecord(ref reader))
                         {// Success
                         }
