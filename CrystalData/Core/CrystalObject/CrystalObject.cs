@@ -612,8 +612,8 @@ Exit:
                         {// Failure
                             success = false;
 
-                            reader = fork;//
-                            journalObject.ProcessJournalRecord(ref reader);
+                            // reader = fork;
+                            // journalObject.ProcessJournalRecord(ref reader);
                         }
                     }
                 }

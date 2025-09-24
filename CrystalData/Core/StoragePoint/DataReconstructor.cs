@@ -134,18 +134,6 @@ public static class JournalExtensions
     {
         reader.TryPeekJournalRecord(out var record);
 
-        if (record == JournalRecord.Key || record == JournalRecord.Locator)
-        {// Key or Locator
-            if (data is IStructualObject structualObject)
-            {
-                return structualObject.ProcessJournalRecord(ref reader);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
         if (record == JournalRecord.Value)
         {
             reader.Advance(1);
@@ -167,6 +155,14 @@ public static class JournalExtensions
             return true;
         }
 
-        return true;
+        // Other (Key or Locator)
+        if (data is IStructualObject structualObject)
+        {
+            return structualObject.ProcessJournalRecord(ref reader);
+        }
+        else
+        {
+            return false;
+        }
     }
 }

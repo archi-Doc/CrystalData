@@ -106,12 +106,12 @@ public class StoragePointTest4
 
         // await this.Setup();
         await this.Run();
-        //await this.Validate();
+        await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
 
         await this.Run();
-        //await this.Validate();
+        await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
         (await crystal.CrystalControl.TestJournalAll()).IsTrue();
@@ -128,22 +128,8 @@ public class StoragePointTest4
         {
             if (dataScope.IsValid)
             {
-                /*((IStructualObject)dataScope.Data).TryGetJournalWriter(out var writer);
+                ((IStructualObject)dataScope.Data).TryGetJournalWriter(out var writer);
                 dataScope.Data.TryInitialize(id);
-                dataScope.Data.Count++;
-                dataScope.Data.Hash = dataScope.Data.GetHashCode();*/
-            }
-            else
-            {
-                throw new Exception();
-            }
-        }
-
-        /*var ob = await this.g.Find(48).TryGet();
-        using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOrCreate).Result)
-        {
-            if (dataScope.IsValid)
-            {
                 dataScope.Data.Count++;
                 dataScope.Data.Hash = dataScope.Data.GetHashCode();
             }
@@ -151,7 +137,7 @@ public class StoragePointTest4
             {
                 throw new Exception();
             }
-        }*/
+        }
     }
 
     private async Task StoreAndRelease(int id)
@@ -201,12 +187,13 @@ public class StoragePointTest4
                 var id = this.GetRandomId();
                 await this.Increment(id);
                 id = this.GetRandomId();
-                // await this.Increment(id);
+                await this.Increment(id);
                 id = this.GetRandomId();
                 // await this.Decrement(id);
                 id = this.GetRandomId();
                 // await this.StoreAndRelease(id);
 
+                Interlocked.Increment(ref this.totalCount);
                 Interlocked.Increment(ref this.totalCount);
             }
         });
