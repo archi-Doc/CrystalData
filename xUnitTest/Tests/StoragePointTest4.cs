@@ -189,7 +189,7 @@ public class StoragePointTest4
                 id = this.GetRandomId();
                 await this.Increment(id);
                 id = this.GetRandomId();
-                // await this.Decrement(id);
+                await this.Decrement(id);
                 id = this.GetRandomId();
                 // await this.StoreAndRelease(id);
 

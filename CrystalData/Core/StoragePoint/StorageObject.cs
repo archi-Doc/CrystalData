@@ -242,12 +242,34 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         return new((TData)this.data, this);
     }
 
+    public bool DeleteAfterUnlock()
+    {
+    }
+
     public void Unlock()
     {// Lock:this
         // Protected -> Unprotected
         Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Unprotected, ObjectProtectionState.Protected);
 
         this.Exit();
+    }
+
+    public Task UnlockAndDelete(DateTime forceDeleteAfter = default)
+    {// Lock:this
+        // Unprotected or Protected -> Deleted
+        var originalState = Interlocked.Exchange(ref this.protectionState, ObjectProtectionState.Deleted);
+        var deleted = originalState != ObjectProtectionState.Deleted;
+        //
+        this.Exit();
+
+        if (deleted)
+        {
+            return this.DeleteObject(true, forceDeleteAfter);
+        }
+        else
+        {
+            return Task.CompletedTask;
+        }
     }
 
     internal void DeleteLatestStorageForTest()
