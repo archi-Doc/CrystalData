@@ -547,7 +547,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     }
 
     internal Task DeleteData(DateTime forceDeleteAfter, bool writeJournal)
-        => this.DeleteObject(forceDeleteAfter, writeJournal);
+        => this.DeleteObject(forceDeleteAfter, true); // To record that a StoragePoint (StorageObject) has been deleted, the journal should be written except during journal replay.
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
@@ -557,10 +557,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             record == JournalRecord.AddItem ||
             record == JournalRecord.DeleteItem)
         {// Key or Locator
-            if (record == JournalRecord.DeleteItem)
-            {
-                // return true;
-            }
             this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {

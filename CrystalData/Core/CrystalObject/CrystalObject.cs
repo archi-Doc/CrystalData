@@ -480,13 +480,13 @@ Exit:
                     {// Failure
                         logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.TestJournal.Failure, base32);
                         testResult = false;
-                        //
-                        if (currentObject is StorageMap currentMap &&
+
+                        /*if (currentObject is StorageMap currentMap &&
                             previousObject is StorageMap previousMap)
                         {
                             var sb = previousMap.Dump();
                             var sb2 = currentMap.Dump();
-                        }
+                        }*/
                     }
                 }
 
@@ -609,9 +609,9 @@ Exit:
                     if (plane == currentPlane)
                     {
                         if (journalObject is StorageMap sm)
-                        {
-
+                        {//
                         }
+
                         if (journalObject.ProcessJournalRecord(ref reader))
                         {// Success
                         }
