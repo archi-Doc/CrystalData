@@ -132,10 +132,8 @@ public class StoragePointTest4
                 dataScope.Data.TryInitialize(id);
                 dataScope.Data.Count++;
                 dataScope.Data.Hash = dataScope.Data.GetHashCode();
-            }
-            else
-            {
-                throw new Exception();
+
+                Interlocked.Increment(ref this.totalCount);
             }
         }
     }
@@ -148,7 +146,7 @@ public class StoragePointTest4
         }
     }
 
-    private async Task<bool> Decrement(int id)
+    private async Task Decrement(int id)
     {
         using (var dataScope = this.g.TryLock(id, AcquisitionMode.Get).Result)
         {
@@ -159,21 +157,17 @@ public class StoragePointTest4
                 {
                     dataScope.Data.Count--;
                     dataScope.Data.Hash = dataScope.Data.GetHashCode();
+
+                    Interlocked.Decrement(ref this.totalCount);
                 }
 
                 if (data.Count <= 0)
                 {
-                    await this.g.Delete(id);
-                    return false;
+                    // await dataScope.UnlockAndDelete();
                 }
                 else
                 {
-                    return true;
                 }
-            }
-            else
-            {
-                return false;
             }
         }
     }
@@ -192,9 +186,6 @@ public class StoragePointTest4
                 await this.Decrement(id);
                 id = this.GetRandomId();
                 // await this.StoreAndRelease(id);
-
-                Interlocked.Increment(ref this.totalCount);
-                Interlocked.Increment(ref this.totalCount);
             }
         });
 
