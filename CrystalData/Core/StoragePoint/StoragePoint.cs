@@ -205,11 +205,12 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <see langword="default"/>: Do not forcibly delete; wait until all operations are finished.<br/>
     /// <see cref="DateTime.UtcNow"/> or earlier: forcibly delete data without waiting.
     /// </param>
+    /// <param name="writeJournal">Indicates whether to write the deletion operation to the journal.</param>
     /// <returns>
     /// A <see cref="Task"/> representing the asynchronous delete operation.
     /// </returns>
-    public virtual Task DeleteData(DateTime forceDeleteAfter = default)
-        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, true);
+    public virtual Task DeleteData(DateTime forceDeleteAfter = default, bool writeJournal = true)
+        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, writeJournal);
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {

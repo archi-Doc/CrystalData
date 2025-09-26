@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Text;
 using CrystalData.Internal;
 using CrystalData.Journal;
 using CrystalData.Storage;
@@ -49,6 +50,17 @@ public sealed partial class StorageMap : IStructualObject
         this.Journal = EmptyJournal.Default;
         this.Storage = EmptyStorage.Default;
         this.enabledStorageMap = false;
+    }
+
+    public string Dump()
+    {
+        var sb = new StringBuilder();
+        foreach (var x in this.StorageObjects.PointIdChain)
+        {
+            sb.AppendLine(x.ToString());
+        }
+
+        return sb.ToString();
     }
 
     /*
@@ -132,6 +144,9 @@ public sealed partial class StorageMap : IStructualObject
             if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
             {
                 return ((IStructualObject)storageObject).ProcessJournalRecord(ref reader);
+            }
+            else
+            {
             }
         }
 

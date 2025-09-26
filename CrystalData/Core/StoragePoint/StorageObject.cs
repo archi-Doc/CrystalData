@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using CrystalData.Journal;
 using Tinyhand.IO;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -264,6 +263,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             return Task.CompletedTask;
         }
     }
+
+    public override string ToString()
+        => $"PointId={this.pointId}, TypeIdentifier={this.typeIdentifier}, {this.storageId0}, {this.storageId1}, {this.storageId2}";
 
     internal void DeleteLatestStorageForTest()
     {
@@ -552,10 +554,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         reader.TryPeekJournalRecord(out var record);
         if (record == JournalRecord.Key ||
             record == JournalRecord.Locator ||
-            record == JournalRecord.AddItem)
+            record == JournalRecord.AddItem ||
+            record == JournalRecord.DeleteItem)
         {// Key or Locator
-            if (record == JournalRecord.AddCustom)
+            if (record == JournalRecord.DeleteItem)
             {
+                // return true;
             }
             this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
@@ -809,7 +813,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             if (dataToDelete is IStructualObject structualObject)
             {
-                await structualObject.DeleteData(forceDeleteAfter).ConfigureAwait(false);
+                await structualObject.DeleteData(forceDeleteAfter, false).ConfigureAwait(false);
             }
         }
         finally
