@@ -209,7 +209,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// A <see cref="Task"/> representing the asynchronous delete operation.
     /// </returns>
     public virtual Task DeleteData(DateTime forceDeleteAfter = default)
-        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter);
+        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, true);
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -242,8 +242,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
-    Task IDataLocker<TData>.DeletePoint(DateTime forceDeleteAfter)
-        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter);
+    Task IDataLocker<TData>.DeletePoint(DateTime forceDeleteAfter, bool writeJournal)
+        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, writeJournal);
 
     #region Tinyhand
 

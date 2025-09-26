@@ -242,10 +242,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         return new((TData)this.data, this);
     }
 
-    public bool DeleteAfterUnlock()
-    {
-    }
-
     public void Unlock()
     {// Lock:this
         // Protected -> Unprotected
@@ -256,15 +252,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public Task UnlockAndDelete(DateTime forceDeleteAfter = default)
     {// Lock:this
-        // Unprotected or Protected -> Deleted
-        var originalState = Interlocked.Exchange(ref this.protectionState, ObjectProtectionState.Deleted);
-        var deleted = originalState != ObjectProtectionState.Deleted;
-        //
+        var deleted = Interlocked.Exchange(ref this.protectionState, ObjectProtectionState.Deleted) != ObjectProtectionState.Deleted;
         this.Exit();
 
         if (deleted)
         {
-            return this.DeleteObject(true, forceDeleteAfter);
+            return this.DeleteObject(forceDeleteAfter, true);
         }
         else
         {
@@ -551,8 +544,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal Task DeleteData(DateTime forceDeleteAfter)
-        => this.DeleteObject(true, forceDeleteAfter);
+    internal Task DeleteData(DateTime forceDeleteAfter, bool writeJournal)
+        => this.DeleteObject(forceDeleteAfter, writeJournal);
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
@@ -584,7 +577,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         else if (record == JournalRecord.Delete)
         {// Delete storage
             reader.Advance(1);
-            this.DeleteObject(false, default).Wait();
+            this.DeleteObject(default, false).Wait();
             return true;
         }
         else if (record == JournalRecord.AddCustom)
@@ -794,7 +787,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    private async Task DeleteObject(bool recordJournal, DateTime forceDeleteAfter)
+    private async Task DeleteObject(DateTime forceDeleteAfter, bool writeJournal)
     {
         await this.EnterAsync().ConfigureAwait(false);
         try
@@ -826,7 +819,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         this.storageControl.EraseStorage(this);
 
-        if (recordJournal)
+        if (writeJournal)
         {
             ((IStructualObject)this).AddJournalRecord(JournalRecord.Delete);
         }
