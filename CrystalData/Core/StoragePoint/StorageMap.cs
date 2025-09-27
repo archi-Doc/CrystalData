@@ -145,9 +145,6 @@ public sealed partial class StorageMap : IStructualObject
             {
                 return ((IStructualObject)storageObject).ProcessJournalRecord(ref reader);
             }
-            else
-            {
-            }
         }
 
         return false;

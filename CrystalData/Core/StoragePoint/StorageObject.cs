@@ -252,6 +252,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     public Task UnlockAndDelete(DateTime forceDeleteAfter = default)
     {// Lock:this
         var deleted = Interlocked.Exchange(ref this.protectionState, ObjectProtectionState.Deleted) != ObjectProtectionState.Deleted;
+        var dataToDelete = this.data;//
         this.Exit();
 
         if (deleted)

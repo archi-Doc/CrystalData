@@ -105,6 +105,7 @@ public class StoragePointTest4
         this.g = await crystal.Data.PinData();
 
         // await this.Setup();
+        await this.Test();
         await this.Run();
         await this.Validate();
 
@@ -148,6 +149,7 @@ public class StoragePointTest4
 
     private async Task Decrement(int id)
     {
+        var deleted = false;
         using (var dataScope = this.g.TryLock(id, AcquisitionMode.Get).Result)
         {
             if (dataScope.IsValid)
@@ -163,13 +165,27 @@ public class StoragePointTest4
 
                 if (data.Count <= 0)
                 {
-                    // await dataScope.UnlockAndDelete();
+                    deleted = true;
+                    await dataScope.UnlockAndDelete();
                 }
                 else
                 {
                 }
             }
         }
+
+        if (deleted)
+        {
+            var d = await this.g.TryGet(id);
+            d.IsNull();
+            this.g.IdChain.FindFirst(id).IsNull();
+        }
+    }
+
+    private async Task Test()
+    {
+        await this.Increment(1);
+        await this.Decrement(1);
     }
 
     private Task Run()
