@@ -49,7 +49,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             {
                 if (this.State == CrystalState.Initial)
                 {// Initial
-                    this.PrepareAndLoadInternal(false).Wait();
+                    this.PrepareAndLoadInternal(false).ConfigureAwait(false).GetAwaiter().GetResult();
                 }
                 else if (this.State == CrystalState.Deleted)
                 {// Deleted
@@ -826,7 +826,7 @@ Exit:
         if (this.crystalFiler == null)
         {
             this.crystalFiler = new(this.CrystalControl);
-            this.crystalFiler.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), this.CrystalConfiguration).Wait();
+            this.crystalFiler.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), this.CrystalConfiguration).ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 
@@ -838,7 +838,7 @@ Exit:
         {
             var storageConfiguration = this.CrystalConfiguration.StorageConfiguration;
             this.storage = this.CrystalControl.ResolveStorage(ref storageConfiguration);
-            this.storage.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), storageConfiguration).Wait();
+            this.storage.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), storageConfiguration).ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 

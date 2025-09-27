@@ -249,20 +249,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         this.Exit();
     }
 
-    public Task UnlockAndDelete(DateTime forceDeleteAfter = default)
+    public bool UnlockAndDelete()
     {// Lock:this
+        // -> Deleted
         var deleted = Interlocked.Exchange(ref this.protectionState, ObjectProtectionState.Deleted) != ObjectProtectionState.Deleted;
-        var dataToDelete = this.data;//
         this.Exit();
 
-        if (deleted)
-        {
-            return this.DeleteObject(forceDeleteAfter, true);
-        }
-        else
-        {
-            return Task.CompletedTask;
-        }
+        return deleted;
     }
 
     public override string ToString()
@@ -578,7 +571,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         else if (record == JournalRecord.Delete)
         {// Delete storage
             reader.Advance(1);
-            this.DeleteObject(default, false).Wait();
+            this.DeleteObject(default, false).ConfigureAwait(false).GetAwaiter().GetResult();
             return true;
         }
         else if (record == JournalRecord.AddCustom)
