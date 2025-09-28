@@ -14,7 +14,7 @@ namespace xUnitTest.CrystalDataTest;
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 [TinyhandObject(Structual = true)]
-public partial class SptClass2
+public partial class SptClass2 : IEquatableObject<SptClass2>
 {
     public SptClass2()
     {
@@ -50,11 +50,14 @@ public partial class SptClass2
     {
         return $"Id={this.Id}, Count={this.Count}, Hash={this.Hash}";
     }
+
+    public bool ObjectEquals(SptClass2 other)
+        => this.Id == other.Id && this.Count == other.Count && this.Hash == other.Hash;
 }
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
-public partial class SptPoint2 : StoragePoint<SptClass2>
+public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject<SptPoint2>
 {
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
@@ -85,6 +88,32 @@ public partial class SptPoint2 : StoragePoint<SptClass2>
         {
             return string.Empty;
         }
+    }
+
+    public bool ObjectEquals(SptPoint2 other)
+    {
+        if (this.PointId != other.PointId)
+        {
+            return false;
+        }
+
+        if (this.Id != other.Id)
+        {
+            return false;
+        }
+
+        var obj1 = this.TryGet().ConfigureAwait(false).GetAwaiter().GetResult();
+        var obj2 = other.TryGet().ConfigureAwait(false).GetAwaiter().GetResult();
+        if (obj1 is null)
+        {
+            return obj2 is null;
+        }
+        else if (obj2 is null)
+        {
+            return false;
+        }
+
+        return obj1.ObjectEquals(obj2);
     }
 }
 
