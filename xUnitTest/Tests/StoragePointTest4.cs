@@ -68,7 +68,7 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
 {
     public partial class GoshujinClass : IEquatableObject
     {
-        public bool ObjectEquals(object otherObject)
+        public bool ObjectEquals(object? otherObject)
         {
             if (otherObject is not GoshujinClass other)
             {
@@ -132,7 +132,7 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
         }
     }
 
-    public bool ObjectEquals(object otherObject)
+    public bool ObjectEquals(object? otherObject)
     {
         if (otherObject is not SptPoint2 other)
         {
@@ -167,8 +167,8 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
 public class StoragePointTest4
 {
     public const int MaxId = 100;
-    public const int Concurrency = 1; // 100
-    public const int Repetition = 100;
+    public const int Concurrency = 10; // 100
+    public const int Repetition = 1000;
 
     private Random random = new Random(11);
     private int totalCount = 0;

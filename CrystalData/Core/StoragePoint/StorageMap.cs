@@ -192,7 +192,7 @@ public sealed partial class StorageMap : IStructualObject, IEquatableObject
         }
     }
 
-    bool IEquatableObject.ObjectEquals(object other)
+    bool IEquatableObject.ObjectEquals(object? other)
     {
         if (other is not StorageMap map)
         {

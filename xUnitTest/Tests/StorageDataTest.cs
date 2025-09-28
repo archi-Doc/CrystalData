@@ -32,8 +32,8 @@ public partial record StorageDataClass : IEquatableObject, IEquatable<StorageDat
     [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StoragePoint<byte[]> byteArray = new();
 
-    public bool ObjectEquals(object other)
-        => ((IEquatable<StorageDataClass>)this).Equals((StorageDataClass)other);
+    public bool ObjectEquals(object? other)
+        => ((IEquatable<StorageDataClass>)this).Equals(other as StorageDataClass);
 
     bool IEquatable<StorageDataClass>.Equals(StorageDataClass? other)
     {

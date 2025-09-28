@@ -55,8 +55,8 @@ public partial record NoStoragePointClass : IEquatableObject, IEquatable<NoStora
     [Key(2)]
     public string Description { get; set; } = string.Empty;
 
-    public bool ObjectEquals(object otherObject)
-        => ((IEquatable<NoStoragePointClass>)this).Equals((NoStoragePointClass)otherObject);
+    public bool ObjectEquals(object? otherObject)
+        => this.Equals(otherObject as NoStoragePointClass);
 
     bool IEquatable<NoStoragePointClass>.Equals(NoStoragePointClass? other)
     {

@@ -302,7 +302,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     internal async Task<bool> TestJournal(SimpleJournal journal)
     {
         var storage = this.storageMap.Storage;
-        object? data = default;
+        object? previousData = default;
+
         for (var i = MaxHistories - 1; i >= 0; i--)
         {
             var storageId = i switch
@@ -320,58 +321,56 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             var fileId = storageId.FileId;
             var result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-            try
-            {
-                if (result.IsFailure ||
+            if (result.IsFailure ||
                 FarmHash.Hash64(result.Data.Span) != storageId.Hash)
-                {
-                    return false;
+            {
+                result.Return();
+                return false;
+            }
+            //
+            var currentData = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+            if (currentData is null)
+            {
+                result.Return();
+                return false;
+            }
+
+            if (previousData is not null)
+            {// Compare with previous data
+                bool isEqual;
+                if (previousData is IEquatableObject equatableObject)
+                {// Use IEquatableObject if possible
+                    isEqual = equatableObject.ObjectEquals(currentData);
+                }
+                else
+                {// Otherwise, compare serialized data
+                    var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, previousData);
+                    isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
+                    rentMemory.Return();
                 }
 
-                if (data is not null)
-                {// Compare with previous data
-                    bool isEqual;
-                    if (data is IEquatableObject equatableObject)
-                    {// Use IEquatableObject if possible
-                        isEqual = equatableObject.ObjectEquals(TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span));
-                    }
-                    else
-                    {// Otherwise, compare serialized data
-                        var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data);
-                        isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
-                        rentMemory.Return();
-                    }
-
-                    if (!isEqual)
-                    {// Different data
-                        return false;
-                    }
-                }
-
-                data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
-                if (data is null)
-                {
-                    return false;
-                }
-
-                var upplerLimit = i switch
-                {
-                    0 => 0ul,
-                    1 => this.storageId0.JournalPosition,
-                    2 => this.storageId1.JournalPosition,
-                    _ => throw new InvalidOperationException(),
-                };
-
-                var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                data = await journal.RestoreData(storageId.JournalPosition, upplerLimit, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
-                if (data is null)
-                {
+                if (!isEqual)
+                {// Different data
+                    result.Return();
                     return false;
                 }
             }
-            finally
+
+            result.Return();
+
+            var upplerLimit = i switch
             {
-                result.Return();
+                0 => 0ul,
+                1 => this.storageId0.JournalPosition,
+                2 => this.storageId1.JournalPosition,
+                _ => throw new InvalidOperationException(),
+            };
+
+            var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+            previousData = await journal.RestoreData(storageId.JournalPosition, upplerLimit, currentData, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
+            if (previousData is null)
+            {
+                return false;
             }
         }
 

@@ -35,7 +35,7 @@ internal partial record SerializableData : IEquatableObject
     public override string ToString()
         => $"{this.id} {this.name} ({this.age.ToString()})";
 
-    public bool ObjectEquals(object otherObject)
+    public bool ObjectEquals(object? otherObject)
     {
         if (otherObject is not SerializableData other)
         {
@@ -74,7 +74,7 @@ internal partial record RepeatableData : IEquatableObject
     public override string ToString()
         => $"{this.id} {this.name} ({this.age.ToString()})";
 
-    public bool ObjectEquals(object otherObject)
+    public bool ObjectEquals(object? otherObject)
     {
         if (otherObject is not RepeatableData other)
         {
