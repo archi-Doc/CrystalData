@@ -20,7 +20,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     #region FieldAndProperty
 
     internal StorageObjectState storageObjectState; // Lock:StorageControl
-    internal ObjectProtectionState protectionState;
+    internal byte protectionState;
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
@@ -80,7 +80,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
 
-    public bool IsDeleted => this.protectionState == ObjectProtectionState.Deleted;
+    public bool IsDeleted => ObjectProtectionStateHelper.IsObsolete(this.protectionState);
 
     #endregion
 
@@ -141,7 +141,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         if (this.data is { } data)
         {
-            if (this.protectionState == ObjectProtectionState.Deleted)
+            if (this.IsDeleted)
             {// Deleted
                 return default;
             }
@@ -157,7 +157,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         try
         {
-            if (this.protectionState == ObjectProtectionState.Deleted)
+            if (this.IsDeleted)
             {// Deleted
                 return default;
             }
@@ -178,7 +178,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
-        if (this.protectionState == ObjectProtectionState.Deleted)
+        if (this.IsDeleted)
         {// Deleted
             return new(DataScopeResult.Obsolete);
         }
@@ -244,7 +244,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     public void Unlock()
     {// Lock:this
         // Protected -> Unprotected
-        Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Unprotected, ObjectProtectionState.Protected);
+        ObjectProtectionStateHelper.TryUnprotect(ref this.protectionState);
 
         this.Exit();
     }
@@ -252,7 +252,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     public bool UnlockAndDelete()
     {// Lock:this
         // -> Deleted
-        var deleted = Interlocked.Exchange(ref this.protectionState, ObjectProtectionState.Deleted) != ObjectProtectionState.Deleted;
+        var deleted = ObjectProtectionStateHelper.TryMarkPendingDeletion(ref this.protectionState);
         this.Exit();
 
         return deleted;
@@ -271,12 +271,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         using (this.EnterScope())
         {
-            if (this.protectionState != ObjectProtectionState.Unprotected)
-            {
+            if (!ObjectProtectionStateHelper.TryProtect(ref this.protectionState))
+            {// Protected or Deleted
                 return;
             }
 
             this.SetDataInternal(data, true, default);
+
+            ObjectProtectionStateHelper.TryUnprotect(ref this.protectionState);
         }
     }
 

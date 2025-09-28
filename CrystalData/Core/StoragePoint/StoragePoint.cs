@@ -29,7 +29,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public ulong PointId => this.pointId;
 
-    ref ObjectProtectionState IDataLocker<TData>.GetProtectionStateRef() => ref this.GetOrCreateStorageObject().protectionState;
+    ref byte IDataLocker<TData>.GetProtectionStateRef() => ref this.GetOrCreateStorageObject().protectionState;
 
     /// <summary>
     /// Gets the <see langword="uint"/> type identifier used by TinyhandSerializer.
