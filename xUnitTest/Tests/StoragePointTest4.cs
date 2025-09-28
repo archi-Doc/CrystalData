@@ -59,6 +59,33 @@ public partial class SptClass2 : IEquatableObject<SptClass2>
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject<SptPoint2>
 {
+    public partial class GoshujinClass
+    {
+        public bool GoshujinEquals(SptPoint2.GoshujinClass other)
+        {
+            if (this.Count != other.Count)
+            {
+                return false;
+            }
+
+            foreach (var x in this.IdChain)
+            {
+                var y = other.IdChain.FindFirst(x.Id);
+                if (y is null)
+                {
+                    return false;
+                }
+
+                if (!((ValueLink.IEquatableObject<SptPoint2>)y).ObjectEquals(x))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
     [Key(1)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; set; }
