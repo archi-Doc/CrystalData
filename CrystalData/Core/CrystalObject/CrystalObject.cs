@@ -463,13 +463,21 @@ Exit:
                 if (previousObject is not null)
                 {// Compare the previous data
                     bool compare;
-                    if (currentFormat == SaveFormat.Binary)
-                    {// Previous (previousObject), Current (currentObject/result.Data.Span): Binary
-                        compare = result.Data.Span.SequenceEqual(TinyhandSerializer.Serialize(previousObject));
+
+                    if (currentObject is IEquatableObject equatableObject)
+                    {// Compare using IEquatableObject
+                        compare = equatableObject.ObjectEquals(previousObject);
                     }
                     else
-                    {// Previous (previousObject), Current (currentObject/result.Data.Span): Utf8
-                        compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
+                    {// Compare by serializing
+                        if (currentFormat == SaveFormat.Binary)
+                        {// Previous (previousObject), Current (currentObject/result.Data.Span): Binary
+                            compare = result.Data.Span.SequenceEqual(TinyhandSerializer.Serialize(previousObject));
+                        }
+                        else
+                        {// Previous (previousObject), Current (currentObject/result.Data.Span): Utf8
+                            compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
+                        }
                     }
 
                     if (compare)

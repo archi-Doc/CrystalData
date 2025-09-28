@@ -13,7 +13,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker, IEquatable<StorageObject>
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
     public const int MaxHistories = 3;
 
@@ -260,6 +260,23 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public override string ToString()
         => $"PointId={this.pointId}, TypeIdentifier={this.typeIdentifier}, {this.storageId0}, {this.storageId1}, {this.storageId2}";
+
+    public bool Equals(StorageObject? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.pointId == other.pointId &&
+            this.typeIdentifier == other.typeIdentifier &&
+            this.storageId0.Equals(ref other.storageId0) &&
+            this.storageId1.Equals(ref other.storageId1) &&
+            this.storageId2.Equals(ref other.storageId2);
+    }
+
+    public override int GetHashCode()
+        => (int)this.pointId;
 
     internal void DeleteLatestStorageForTest()
     {

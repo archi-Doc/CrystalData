@@ -92,7 +92,7 @@ public class StoragePointTest4
 {
     public const int MaxId = 100;
     public const int Concurrency = 1; // 100
-    public const int Repetition = 1; // 100
+    public const int Repetition = 100;
 
     private Random random = new Random(11);
     private int totalCount = 0;
