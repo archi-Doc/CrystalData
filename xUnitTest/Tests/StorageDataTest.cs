@@ -9,7 +9,7 @@ namespace xUnitTest.CrystalDataTest;
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public partial record StorageDataClass : IEquatableObject<StorageDataClass>, IEquatable<StorageDataClass>
+public partial record StorageDataClass : IEquatableObject, IEquatable<StorageDataClass>
 {
     public StorageDataClass()
     {
@@ -32,8 +32,8 @@ public partial record StorageDataClass : IEquatableObject<StorageDataClass>, IEq
     [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StoragePoint<byte[]> byteArray = new();
 
-    bool IEquatableObject<StorageDataClass>.ObjectEquals(StorageDataClass other)
-        => ((IEquatable<StorageDataClass>)this).Equals(other);
+    public bool ObjectEquals(object other)
+        => ((IEquatable<StorageDataClass>)this).Equals((StorageDataClass)other);
 
     bool IEquatable<StorageDataClass>.Equals(StorageDataClass? other)
     {
@@ -64,7 +64,7 @@ public class StorageDataTest
         // g2: empty
         await crystal.PrepareAndLoad(false);
         var g2 = crystal.Data;
-        g2.GoshujinEquals(g).IsTrue();
+        g2.ObjectEquals(g).IsTrue();
 
         // Save & Test journal
         await crystal.StoreData(StoreMode.ForceRelease);

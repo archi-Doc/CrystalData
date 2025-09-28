@@ -9,7 +9,7 @@ namespace xUnitTest.CrystalDataTest;
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
-internal partial record SerializableData : IEquatableObject<SerializableData>
+internal partial record SerializableData : IEquatableObject
 {
     public SerializableData()
     {
@@ -35,13 +35,20 @@ internal partial record SerializableData : IEquatableObject<SerializableData>
     public override string ToString()
         => $"{this.id} {this.name} ({this.age.ToString()})";
 
-    public bool ObjectEquals(SerializableData other)
-        => this.id == other.id && this.name == other.name && this.age == other.age;
+    public bool ObjectEquals(object otherObject)
+    {
+        if (otherObject is not SerializableData other)
+        {
+            return false;
+        }
+
+        return this.id == other.id && this.name == other.name && this.age == other.age;
+    }
 }
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-internal partial record RepeatableData : IEquatableObject<RepeatableData>
+internal partial record RepeatableData : IEquatableObject
 {
     public RepeatableData()
     {
@@ -67,8 +74,15 @@ internal partial record RepeatableData : IEquatableObject<RepeatableData>
     public override string ToString()
         => $"{this.id} {this.name} ({this.age.ToString()})";
 
-    public bool ObjectEquals(RepeatableData other)
-        => this.id == other.id && this.name == other.name && this.age == other.age;
+    public bool ObjectEquals(object otherObject)
+    {
+        if (otherObject is not RepeatableData other)
+        {
+            return false;
+        }
+
+        return this.id == other.id && this.name == other.name && this.age == other.age;
+    }
 }
 
 public class JournalTest
@@ -88,7 +102,7 @@ public class JournalTest
         // g2: empty
         await c.PrepareAndLoad(false);
         var g2 = c.Data;
-        g2.GoshujinEquals(g1).IsTrue();
+        g2.ObjectEquals(g1).IsTrue();
 
         using (g2.LockObject.EnterScope())
         {
@@ -103,7 +117,7 @@ public class JournalTest
         // g3: Zero
         await c.PrepareAndLoad(false);
         var g3 = c.Data;
-        g3.GoshujinEquals(g2).IsTrue();
+        g3.ObjectEquals(g2).IsTrue();
 
         using (g3.LockObject.EnterScope())
         {
@@ -123,7 +137,7 @@ public class JournalTest
         // g4: 1, 2, 3, 4
         await c.PrepareAndLoad(false);
         var g4 = c.Data;
-        g4.GoshujinEquals(g3).IsTrue();
+        g4.ObjectEquals(g3).IsTrue();
         using (g4.LockObject.EnterScope())
         {
             g4.Add(new(1, "1", 1d));
@@ -146,7 +160,7 @@ public class JournalTest
         // g5
         await c.PrepareAndLoad(false);
         var g5 = c.Data;
-        g5.GoshujinEquals(g4).IsTrue();
+        g5.ObjectEquals(g4).IsTrue();
         using (g5.LockObject.EnterScope())
         {
             var d = g5.IdChain.FindFirst(1)!;
@@ -180,7 +194,7 @@ public class JournalTest
         // g2: empty
         await c.PrepareAndLoad(false);
         var g2 = c.Data;
-        g2.GoshujinEquals(g1).IsTrue();
+        g2.ObjectEquals(g1).IsTrue();
 
         g2.Count.Is(0);
         g2.Add(new(0, "Zero", 0));
@@ -191,7 +205,7 @@ public class JournalTest
         // g3: Zero
         await c.PrepareAndLoad(false);
         var g3 = c.Data;
-        g3.GoshujinEquals(g2).IsTrue();
+        g3.ObjectEquals(g2).IsTrue();
         {
             g3.Count.Is(1);
             var d = g3.TryGet(0)!;
@@ -209,7 +223,7 @@ public class JournalTest
         // g4: 1, 2, 3, 4
         await c.PrepareAndLoad(false);
         var g4 = c.Data;
-        g4.GoshujinEquals(g3).IsTrue();
+        g4.ObjectEquals(g3).IsTrue();
         {
             g4.Add(new(1, "1", 1d));
             g4.Add(new(4, "4", 4d));
@@ -237,7 +251,7 @@ public class JournalTest
         // g5
         await c.PrepareAndLoad(false);
         var g5 = c.Data;
-        g5.GoshujinEquals(g4).IsTrue();
+        g5.ObjectEquals(g4).IsTrue();
         {
             using (var w = g5.TryLock(1)!)
             {

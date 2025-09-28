@@ -14,7 +14,7 @@ namespace xUnitTest.CrystalDataTest;
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 [TinyhandObject(Structual = true)]
-public partial class SptClass2 : IEquatableObject<SptClass2>
+public partial class SptClass2 : IEquatableObject
 {
     public SptClass2()
     {
@@ -51,34 +51,49 @@ public partial class SptClass2 : IEquatableObject<SptClass2>
         return $"Id={this.Id}, Count={this.Count}, Hash={this.Hash}";
     }
 
-    public bool ObjectEquals(SptClass2 other)
-        => this.Id == other.Id && this.Count == other.Count && this.Hash == other.Hash;
+    public bool ObjectEquals(object? otherClass)
+    {
+        if (otherClass is not SptClass2 other)
+        {
+            return false;
+        }
+
+        return this.Id == other.Id && this.Count == other.Count && this.Hash == other.Hash;
+    }
 }
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
-public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject<SptPoint2>
+public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
 {
-    public partial class GoshujinClass
+    public partial class GoshujinClass : IEquatableObject
     {
-        public bool GoshujinEquals(SptPoint2.GoshujinClass other)
+        public bool ObjectEquals(object otherObject)
         {
+            if (otherObject is not GoshujinClass other)
+            {
+                return false;
+            }
+
             if (this.Count != other.Count)
             {
                 return false;
             }
 
-            foreach (var x in this.IdChain)
-            {
-                var y = other.IdChain.FindFirst(x.Id);
-                if (y is null)
+            using (this.LockObject.EnterScope())
+            {//
+                foreach (var x in this.IdChain)
                 {
-                    return false;
-                }
+                    var y = other.IdChain.FindFirst(x.Id);
+                    if (y is null)
+                    {
+                        return false;
+                    }
 
-                if (!y.ObjectEquals(x))
-                {
-                    return false;
+                    if (!y.ObjectEquals(x))
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -117,8 +132,13 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject<SptPo
         }
     }
 
-    public bool ObjectEquals(SptPoint2 other)
+    public bool ObjectEquals(object otherObject)
     {
+        if (otherObject is not SptPoint2 other)
+        {
+            return false;
+        }
+
         if (this.PointId != other.PointId)
         {
             return false;

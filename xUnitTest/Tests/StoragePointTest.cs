@@ -35,7 +35,7 @@ public sealed partial record StoragePointClass1
 }
 
 [TinyhandObject(Structual = false)]
-public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass>, IEquatable<NoStoragePointClass>
+public partial record NoStoragePointClass : IEquatableObject, IEquatable<NoStoragePointClass>
 {
     public NoStoragePointClass(int id, string name, string descrption)
     {
@@ -55,8 +55,8 @@ public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass
     [Key(2)]
     public string Description { get; set; } = string.Empty;
 
-    bool IEquatableObject<NoStoragePointClass>.ObjectEquals(NoStoragePointClass other)
-        => ((IEquatable<NoStoragePointClass>)this).Equals(other);
+    public bool ObjectEquals(object otherObject)
+        => ((IEquatable<NoStoragePointClass>)this).Equals((NoStoragePointClass)otherObject);
 
     bool IEquatable<NoStoragePointClass>.Equals(NoStoragePointClass? other)
     {
@@ -73,7 +73,7 @@ public partial record NoStoragePointClass : IEquatableObject<NoStoragePointClass
 
 [TinyhandObject(Structual = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
-public sealed partial record StoragePointClass : IEquatableObject<StoragePointClass>, IEquatable<StoragePointClass>
+public sealed partial record StoragePointClass : IEquatableObject, IEquatable<StoragePointClass>
 {
     public StoragePointClass(int id, string name, string descrption)
     {
@@ -93,8 +93,8 @@ public sealed partial record StoragePointClass : IEquatableObject<StoragePointCl
     [Key(2)]
     public StoragePoint<string> StringStorage { get; set; } = new();
 
-    bool IEquatableObject<StoragePointClass>.ObjectEquals(StoragePointClass other)
-        => ((IEquatable<StoragePointClass>)this).Equals(other);
+    public bool ObjectEquals(object? other)
+        => this.Equals(other as StoragePointClass);
 
     public bool Equals(StoragePointClass? other)
     {
