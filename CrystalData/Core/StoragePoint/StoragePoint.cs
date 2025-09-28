@@ -109,13 +109,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
-        => this.GetOrCreateStorageObject().TryLock<TData>(acquisitionMode, timeout, cancellationToken);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken);
 
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate)
-        => this.GetOrCreateStorageObject().TryLock<TData>(acquisitionMode, ValueLinkGlobal.LockTimeout, default);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default);
 
     ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
-        => this.GetOrCreateStorageObject().TryLock<TData>(AcquisitionMode.GetOrCreate, timeout, cancellationToken);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, AcquisitionMode.GetOrCreate, timeout, cancellationToken);
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>

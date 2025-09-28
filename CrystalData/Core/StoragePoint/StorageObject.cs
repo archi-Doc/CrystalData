@@ -175,7 +175,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(IStructualObject storagePoint, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
         if (this.IsDeleted)
@@ -200,7 +200,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
 
         // Unprotected -> Protected
-        if (Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Protected, ObjectProtectionState.Unprotected) != ObjectProtectionState.Unprotected)
+        if (!ObjectProtectionStateHelper.TryProtect(ref this.protectionState))
         {// Protected(?) or Deleted
             this.Exit();
             return new(DataScopeResult.Obsolete);
@@ -238,7 +238,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             }
         }
 
-        return new((TData)this.data, this);
+        return new((TData)this.data, this, storagePoint);
     }
 
     public void Unlock()
