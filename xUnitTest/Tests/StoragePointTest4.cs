@@ -76,7 +76,7 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject<SptPo
                     return false;
                 }
 
-                if (!((ValueLink.IEquatableObject<SptPoint2>)y).ObjectEquals(x))
+                if (!y.ObjectEquals(x))
                 {
                     return false;
                 }

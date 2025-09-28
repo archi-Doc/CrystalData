@@ -330,11 +330,20 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
                 if (data is not null)
                 {// Compare with previous data
-                    var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data);
-                    var isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
-                    rentMemory.Return();
+                    bool isEqual;
+                    if (data is IEquatableObject equatableObject)
+                    {// Use IEquatableObject if possible
+                        isEqual = equatableObject.ObjectEquals(TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span));
+                    }
+                    else
+                    {// Otherwise, compare serialized data
+                        var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data);
+                        isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
+                        rentMemory.Return();
+                    }
+
                     if (!isEqual)
-                    {
+                    {// Different data
                         return false;
                     }
                 }
