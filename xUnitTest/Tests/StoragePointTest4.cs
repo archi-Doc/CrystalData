@@ -1,8 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Diagnostics;
-using System.Linq;
-using Arc.Crypto;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -66,6 +63,24 @@ public partial class SptClass2 : IEquatableObject
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
 {
+    public class EqualityComparer : IEqualityComparer<SptClass2>
+    {
+        public static readonly EqualityComparer Default = new();
+
+        public bool Equals(SptClass2? x, SptClass2? y)
+        {
+            if (x is null)
+            {
+                return y is null;
+            }
+
+            return x.ObjectEquals(y);
+        }
+
+        public int GetHashCode(SptClass2 obj)
+            => obj.GetHashCode();
+    }
+
     public partial class GoshujinClass : IEquatableObject
     {
         public bool ObjectEquals(object? otherObject)
@@ -81,7 +96,8 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
             }
 
             using (this.LockObject.EnterScope())
-            {//
+            using (other.LockObject.EnterScope())
+            {// might be dead-lock.
                 foreach (var x in this.IdChain)
                 {
                     var y = other.IdChain.FindFirst(x.Id);
@@ -155,10 +171,6 @@ public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
         {
             return obj2 is null;
         }
-        else if (obj2 is null)
-        {
-            return false;
-        }
 
         return obj1.ObjectEquals(obj2);
     }
@@ -205,7 +217,6 @@ public class StoragePointTest4
         {
             if (dataScope.IsValid)
             {
-                ((IStructualObject)dataScope.Data).TryGetJournalWriter(out var writer);
                 dataScope.Data.TryInitialize(id);
                 dataScope.Data.Count++;
                 dataScope.Data.Hash = dataScope.Data.GetHashCode();
@@ -215,17 +226,9 @@ public class StoragePointTest4
         }
     }
 
-    private async Task StoreAndRelease(int id)
-    {
-        if (this.g.Find(id) is { } storagePoint)
-        {
-            await storagePoint.StoreData(StoreMode.TryRelease);
-        }
-    }
-
     private async Task Decrement(int id)
     {
-        var deleted = false;
+        // var deleted = false;
         using (var dataScope = this.g.TryLock(id, AcquisitionMode.Get).Result)
         {
             if (dataScope.IsValid)
@@ -241,7 +244,7 @@ public class StoragePointTest4
 
                 if (data.Count <= 0)
                 {
-                    deleted = true;
+                    // deleted = true;
                     await dataScope.UnlockAndDelete();
                 }
                 else
@@ -250,12 +253,13 @@ public class StoragePointTest4
             }
         }
 
-        if (deleted)
-        {
+        /*if (deleted)
+        {// Deletion cannot be confirmed, as Increment may be called between deletion and confirmation.
+            await Task.Delay(1);
             var d = await this.g.TryGet(id);
             d.IsNull();
             this.g.IdChain.FindFirst(id).IsNull();
-        }
+        }*/
     }
 
     private async Task Test()
@@ -277,7 +281,6 @@ public class StoragePointTest4
                 id = this.GetRandomId();
                 await this.Decrement(id);
                 id = this.GetRandomId();
-                // await this.StoreAndRelease(id);
             }
         });
 
