@@ -321,42 +321,45 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             var fileId = storageId.FileId;
             var result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
-            if (result.IsFailure ||
+            object? currentData;
+            try
+            {
+                if (result.IsFailure ||
                 FarmHash.Hash64(result.Data.Span) != storageId.Hash)
-            {
-                result.Return();
-                return false;
-            }
-            //
-            var currentData = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
-            if (currentData is null)
-            {
-                result.Return();
-                return false;
-            }
-
-            if (previousData is not null)
-            {// Compare with previous data
-                bool isEqual;
-                if (previousData is IEquatableObject equatableObject)
-                {// Use IEquatableObject if possible
-                    isEqual = equatableObject.ObjectEquals(currentData);
-                }
-                else
-                {// Otherwise, compare serialized data
-                    var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, previousData);
-                    isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
-                    rentMemory.Return();
-                }
-
-                if (!isEqual)
-                {// Different data
-                    result.Return();
+                {
                     return false;
                 }
-            }
 
-            result.Return();
+                currentData = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                if (currentData is null)
+                {
+                    return false;
+                }
+
+                if (previousData is not null)
+                {// Compare with previous data
+                    bool isEqual;
+                    if (previousData is IEquatableObject equatableObject)
+                    {// Use IEquatableObject if possible
+                        isEqual = equatableObject.ObjectEquals(currentData);
+                    }
+                    else
+                    {// Otherwise, compare serialized data
+                        var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, previousData);
+                        isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
+                        rentMemory.Return();
+                    }
+
+                    if (!isEqual)
+                    {// Different data
+                        return false;
+                    }
+                }
+            }
+            finally
+            {
+                result.Return();
+            }
 
             var upplerLimit = i switch
             {

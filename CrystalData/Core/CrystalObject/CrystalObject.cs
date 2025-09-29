@@ -616,10 +616,6 @@ Exit:
 
                     if (plane == currentPlane)
                     {
-                        if (journalObject is StorageMap sm)
-                        {//
-                        }
-
                         if (journalObject.ProcessJournalRecord(ref reader))
                         {// Success
                         }
