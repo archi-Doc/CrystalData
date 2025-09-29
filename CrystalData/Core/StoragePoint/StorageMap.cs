@@ -11,7 +11,7 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 [TinyhandObject(UseServiceProvider = true, ExplicitKeyOnly = true)]
-public sealed partial class StorageMap : IStructualObject, IEquatableObject
+public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 {
     public const string Filename = "Map";
 
@@ -64,9 +64,9 @@ public sealed partial class StorageMap : IStructualObject, IEquatableObject
     }
 
     /*
-    #region IStructualRoot
+    #region IStructuralRoot
 
-    bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
+    bool IStructuralRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
         if (this.crystalControl.Journal is not null)
         {
@@ -83,7 +83,7 @@ public sealed partial class StorageMap : IStructualObject, IEquatableObject
         }
     }
 
-    ulong IStructualRoot.AddJournal(ref TinyhandWriter writer)
+    ulong IStructuralRoot.AddJournal(ref TinyhandWriter writer)
     {
         if (this.crystalControl.Journal is not null)
         {
@@ -95,7 +95,7 @@ public sealed partial class StorageMap : IStructualObject, IEquatableObject
         }
     }
 
-    void IStructualRoot.AddToSaveQueue()
+    void IStructuralRoot.AddToSaveQueue()
     {
         if (this.CrystalConfiguration.SavePolicy == SavePolicy.OnChanged)
         {
@@ -110,15 +110,15 @@ public sealed partial class StorageMap : IStructualObject, IEquatableObject
 
     #endregion*/
 
-    #region IStructualObject
+    #region IStructuralObject
 
-    IStructualRoot? IStructualObject.StructualRoot { get; set; }
+    IStructuralRoot? IStructuralObject.StructuralRoot { get; set; }
 
-    IStructualObject? IStructualObject.StructualParent { get; set; }
+    IStructuralObject? IStructuralObject.StructuralParent { get; set; }
 
-    int IStructualObject.StructualKey { get; set; }
+    int IStructuralObject.StructuralKey { get; set; }
 
-    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
+    bool IStructuralObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (!reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -143,14 +143,14 @@ public sealed partial class StorageMap : IStructualObject, IEquatableObject
             var pointId = reader.ReadUInt64();
             if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))
             {
-                return ((IStructualObject)storageObject).ProcessJournalRecord(ref reader);
+                return ((IStructuralObject)storageObject).ProcessJournalRecord(ref reader);
             }
         }
 
         return false;
     }
 
-    void IStructualObject.WriteLocator(ref TinyhandWriter writer)
+    void IStructuralObject.WriteLocator(ref TinyhandWriter writer)
     {
     }
 

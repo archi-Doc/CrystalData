@@ -17,9 +17,9 @@ namespace CrystalData;
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
 [TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
-public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructualObject, IDataLocker<TData>
+public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructuralObject, IDataLocker<TData>
     where TData : class
-{// object:16, ulong:8, StorageObject:8, Structual: 20
+{// object:16, ulong:8, StorageObject:8, Structural: 20
     #region FiendAndProperty
 
     [Key(0)]
@@ -143,7 +143,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// If 0 is specified, the default delay time is used.
     /// </param>
     public void AddToSaveQueue(int delaySeconds = 0)
-        => ((IStructualRoot)this.GetOrCreateStorageObject()).AddToSaveQueue(delaySeconds);
+        => ((IStructuralRoot)this.GetOrCreateStorageObject()).AddToSaveQueue(delaySeconds);
 
     #endregion
 
@@ -177,13 +177,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public void DeleteLatestStorageForTest()
         => this.GetOrCreateStorageObject().DeleteLatestStorageForTest();
 
-    #region IStructualObject
+    #region IStructuralObject
 
-    IStructualRoot? IStructualObject.StructualRoot { get; set; }
+    IStructuralRoot? IStructuralObject.StructuralRoot { get; set; }
 
-    IStructualObject? IStructualObject.StructualParent { get; set; }
+    IStructuralObject? IStructuralObject.StructuralParent { get; set; }
 
-    int IStructualObject.StructualKey { get; set; }
+    int IStructuralObject.StructuralKey { get; set; }
 
     public Task<bool> StoreData(StoreMode storeMode)
     {
@@ -212,22 +212,22 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public virtual Task DeleteData(DateTime forceDeleteAfter = default, bool writeJournal = true)
         => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, writeJournal);
 
-    /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
+    /*void IStructuralObject.SetupStructure(IStructuralObject? parent, int key)
     {
-        ((IStructualObject)this).StructualRoot = parent?.StructualRoot;
+        ((IStructuralObject)this).StructuralRoot = parent?.StructuralRoot;
 
         if (this.storageObject is not null)
         {
-            if (parent?.StructualRoot is ICrystal crystal)
+            if (parent?.StructuralRoot is ICrystal crystal)
             {
                 StorageControl.Default.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, crystal.Storage.StorageMap);
             }
 
-            ((IStructualObject)this.storageObject).SetupStructure(parent, key);
+            ((IStructuralObject)this.storageObject).SetupStructure(parent, key);
         }
     }*/
 
-    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
+    bool IStructuralObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         if (reader.TryReadJournalRecord(out JournalRecord record))
         {
@@ -315,11 +315,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
 
         var storageMap = StorageMap.Disabled;
-        if (((IStructualObject)this).StructualRoot is ICrystal crystal)
+        if (((IStructuralObject)this).StructuralRoot is ICrystal crystal)
         {
             storageMap = crystal.Storage.StorageMap;
         }
-        else if (((IStructualObject)this).StructualRoot is StorageObject storageObject)
+        else if (((IStructuralObject)this).StructuralRoot is StorageObject storageObject)
         {
             storageMap = storageObject.storageMap;
         }
@@ -329,7 +329,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         this.storageObject.SetTypeIdentifier<TData>(); // If the TypeIdentifier is changed, serialization becomes impossible, so update it.
 
         if (this.pointId != previousPointId &&
-            ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+            ((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {
             writer.Write(JournalRecord.Value);
             writer.Write(this.pointId);

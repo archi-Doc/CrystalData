@@ -102,13 +102,13 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     ulong ICrystalInternal.LeadingJournalPosition => this.leadingJournalPosition;
 
-    IStructualRoot? IStructualObject.StructualRoot { get; set; }
+    IStructuralRoot? IStructuralObject.StructuralRoot { get; set; }
 
-    IStructualObject? IStructualObject.StructualParent { get; set; } = null;
+    IStructuralObject? IStructuralObject.StructuralParent { get; set; } = null;
 
-    int IStructualObject.StructualKey { get; set; } = -1;
+    int IStructuralObject.StructuralKey { get; set; } = -1;
 
-    async Task<bool> IStructualObject.StoreData(StoreMode storeMode)
+    async Task<bool> IStructuralObject.StoreData(StoreMode storeMode)
     {
         return await ((IPersistable)this).StoreData(storeMode, default) == CrystalResult.Success;
     }
@@ -120,7 +120,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         this.CrystalControl = crystalControl;
         this.originalCrystalConfiguration = CrystalConfiguration.Default;
         this.crystalConfiguration = CrystalConfiguration.Default;
-        ((IStructualObject)this).StructualRoot = this;
+        ((IStructuralObject)this).StructuralRoot = this;
     }
 
     #region ICrystal
@@ -330,9 +330,9 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             return CrystalResult.SerializationFailed;
         }
 
-        if (obj is IStructualObject structualObject)
+        if (obj is IStructuralObject structuralObject)
         {// Since data may be released by StoreData(), this should be invoked only after serialization.
-            if (await structualObject.StoreData(storeMode).ConfigureAwait(false) == false)
+            if (await structuralObject.StoreData(storeMode).ConfigureAwait(false) == false)
             {
                 return CrystalResult.DataIsLocked;
             }
@@ -455,9 +455,9 @@ Exit:
                     storageMap.Enable(this.CrystalControl.StorageControl, default!, this.Storage);
                 }
 
-                if (currentObject is IStructualObject structualObject)
+                if (currentObject is IStructuralObject structuralObject)
                 {
-                    structualObject.SetupStructure(this);
+                    structuralObject.SetupStructure(this);
                 }
 
                 if (previousObject is not null)
@@ -500,7 +500,7 @@ Exit:
 
                 result.Return();
 
-                if (currentObject is not IStructualObject journalObject)
+                if (currentObject is not IStructuralObject journalObject)
                 {
                     break;
                 }
@@ -537,9 +537,9 @@ Exit:
 
     #endregion
 
-    #region Structual
+    #region Structural
 
-    bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
+    bool IStructuralRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
         if (this.CrystalControl.Journal is { } journal)
         {
@@ -556,7 +556,7 @@ Exit:
         }
     }
 
-    ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
+    ulong IStructuralRoot.AddJournalAndDispose(ref TinyhandWriter writer)
     {
         if (this.CrystalControl.Journal is not null)
         {
@@ -568,7 +568,7 @@ Exit:
         }
     }
 
-    void IStructualRoot.AddToSaveQueue(int delaySeconds)
+    void IStructuralRoot.AddToSaveQueue(int delaySeconds)
     {
         if (delaySeconds == 0)
         {
@@ -594,7 +594,7 @@ Exit:
         }
     }
 
-    private bool ReadJournal(IStructualObject journalObject, ReadOnlyMemory<byte> data, uint currentPlane)
+    private bool ReadJournal(IStructuralObject journalObject, ReadOnlyMemory<byte> data, uint currentPlane)
     {
         var reader = new TinyhandReader(data.Span);
         var success = true;
@@ -876,9 +876,9 @@ Exit:
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetupData()
     {
-        if (this.data is IStructualObject structualObject)
+        if (this.data is IStructuralObject structuralObject)
         {
-            structualObject.SetupStructure(this);
+            structuralObject.SetupStructure(this);
         }
     }
 

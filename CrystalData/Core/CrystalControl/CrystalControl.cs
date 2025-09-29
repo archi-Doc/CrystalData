@@ -945,7 +945,7 @@ public partial class CrystalControl
                     var plane = reader.ReadUInt32();
                     if (dictionary.TryGetValue(plane, out var crystal))
                     {
-                        if (crystal.Data is IStructualObject journalObject)
+                        if (crystal.Data is IStructuralObject journalObject)
                         {
                             var currentPosition = position + (ulong)reader.Consumed;
                             if (currentPosition.CircularCompareTo(crystal.LeadingJournalPosition) >= 0)

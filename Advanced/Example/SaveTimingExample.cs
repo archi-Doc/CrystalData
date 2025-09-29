@@ -5,7 +5,7 @@
 
 namespace QuickStart;
 
-[TinyhandObject(Structual = true)] // Journaling feature is necessary to allow the function to save data when properties are changed.
+[TinyhandObject(Structural = true)] // Journaling feature is necessary to allow the function to save data when properties are changed.
 public partial class SaveTimingData
 {
     [Key(0, AddProperty = "Id")] // Add a property to save data when the value is changed.

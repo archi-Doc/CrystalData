@@ -2,7 +2,7 @@
 
 namespace QuickStart;
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public partial class SptClass
 {
@@ -36,7 +36,7 @@ public partial class SptClass
         => $"Id: {this.Id}, Name: {this.Name}, Count: {this.Count}";
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint : StoragePoint<SptClass>
 {

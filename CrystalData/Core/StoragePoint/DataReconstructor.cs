@@ -156,9 +156,9 @@ public static class JournalExtensions
         }
 
         // Other (Key or Locator)
-        if (data is IStructualObject structualObject)
+        if (data is IStructuralObject structuralObject)
         {
-            return structualObject.ProcessJournalRecord(ref reader);
+            return structuralObject.ProcessJournalRecord(ref reader);
         }
         else
         {

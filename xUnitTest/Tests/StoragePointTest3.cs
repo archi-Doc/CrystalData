@@ -25,7 +25,7 @@ public static class StoragePointTestHelper
     }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class SptClass
 {
     public SptClass()
@@ -149,7 +149,7 @@ public partial class SptClass
     }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.None)]
 public partial class SptInt
 {
@@ -176,7 +176,7 @@ public partial class SptInt
     }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint : StoragePoint<SptClass>
 {

@@ -8,7 +8,7 @@ using Xunit;
 
 namespace xUnitTest.CrystalDataTest;
 
-[TinyhandObject(Structual = true, LockObject = "lockObject")]
+[TinyhandObject(Structural = true, LockObject = "lockObject")]
 public partial record SpRootClass
 {
     public SpRootClass()
@@ -30,7 +30,7 @@ public partial record SpRootClass
     public StoragePoint<SpFirstClass> FirstClassStorage { get; set; } = new();
 }
 
-[TinyhandObject(Structual = true, LockObject = "LockObject")]
+[TinyhandObject(Structural = true, LockObject = "LockObject")]
 public partial record SpFirstClass
 {
     [IgnoreMember]
@@ -40,7 +40,7 @@ public partial record SpFirstClass
     public int Id { get; set; }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public partial record SpSecondClass
 {

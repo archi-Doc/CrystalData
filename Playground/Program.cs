@@ -8,7 +8,7 @@ using ValueLink;
 
 namespace Sandbox;
 
-[TinyhandObject(Structual = true)] // Enable the journaling feature.
+[TinyhandObject(Structural = true)] // Enable the journaling feature.
 [ValueLinkObject] // You can use ValuLink to handle a collection of objects.
 public partial class JournalData
 {
@@ -64,7 +64,7 @@ public sealed partial class CrystalSupplement
     }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
 public partial record SpSecondClass
 {
@@ -81,9 +81,9 @@ public partial record SpSecondClass
     public StoragePoint<FirstData> FirstDataStorage { get; set; } = new();
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class FirstData
-{// Object:16, Structual:20, Member:4+8+16
+{// Object:16, Structural:20, Member:4+8+16
     public FirstData()
     {
     }
@@ -101,9 +101,9 @@ public partial class FirstData
         => $"Id: {this.Id}, Name: {this.Name}, Double: {this.DoubleStorage.TryGet().Result}";
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class SizeTestClass
-{// Object:16, Structual:20, Int:4, String:8, StoragePoint:8+32
+{// Object:16, Structural:20, Int:4, String:8, StoragePoint:8+32
     public SizeTestClass()
     {
     }
@@ -121,7 +121,7 @@ public partial class SizeTestClass
     // public int Int3 { get; set; }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class DoubleClass
 {
     [Key(0)]
@@ -135,8 +135,8 @@ public partial class DoubleClass
         => $"Double {this.Double}";
 }
 
-[TinyhandObject(Structual = true)]
-// [TinyhandObject(Structual = true, UseServiceProvider = true)]
+[TinyhandObject(Structural = true)]
+// [TinyhandObject(Structural = true, UseServiceProvider = true)]
 public partial class SecondData
 {
     public SecondData()
@@ -156,7 +156,7 @@ public partial class SecondData
         => $"Second: {this.ClassStorage.TryGet()}";
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class SecondDataClass
 {
     [Key(0)]
@@ -173,7 +173,7 @@ public partial class SecondDataClass
 /// A class at the isolation level of StoragePoint that inherits from <see cref="StoragePoint{TData}" />.
 /// It maintains relationship information between classes and owns data of type TData as storage.
 /// </summary>
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SpClassPoint : StoragePoint<SpClass>
 {// Value, Link
@@ -234,7 +234,7 @@ public static class Helper
     }*/
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class SpClass
 {
     public SpClass()

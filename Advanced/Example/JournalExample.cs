@@ -5,7 +5,7 @@ using ValueLink;
 
 namespace QuickStart;
 
-[TinyhandObject(Structual = true)] // Enable the journaling feature.
+[TinyhandObject(Structural = true)] // Enable the journaling feature.
 [ValueLinkObject] // You can use ValuLink to handle a collection of objects.
 public partial class JournalData
 {
@@ -33,7 +33,7 @@ public partial class JournalData
         => $"Id: {this.Id}, Name: {this.Name}, Count: {this.Count}";
 }
 
-[TinyhandObject(Structual = true)] // Enable the journaling feature.
+[TinyhandObject(Structural = true)] // Enable the journaling feature.
 public partial class JournalData2
 {
     [Key(0)]

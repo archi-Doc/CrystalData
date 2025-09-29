@@ -6,7 +6,7 @@ using Tinyhand.IO;
 
 namespace CrystalData.Storage;
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal
 {
     public SimpleStorageData()
@@ -72,7 +72,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
     {
         using (this.lockObject.EnterScope())
         {
-            if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
+            if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
             {
                 writer.Write(JournalRecord.DeleteItem);
                 writer.Write(file);
@@ -120,7 +120,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
                 this.fileToSize[file] = dataSize;
 
-                if (sizeDiff != 0 && ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
+                if (sizeDiff != 0 && ((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {
                     writer.Write(JournalRecord.AddItem);
                     writer.Write(file);
@@ -145,7 +145,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
             var file = RandomVault.Default.NextUInt32();
             if (this.fileToSize.TryAdd(file, size))
             {
-                if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, false))
+                if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {
                     writer.Write(JournalRecord.AddItem);
                     writer.Write(file);

@@ -10,7 +10,7 @@ namespace xUnitTest.CrystalDataTest;
 #pragma warning disable SA1401 // Fields should be private
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial class SptClass2 : IEquatableObject
 {
     public SptClass2()
@@ -59,7 +59,7 @@ public partial class SptClass2 : IEquatableObject
     }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class SptPoint2 : StoragePoint<SptClass2>, IEquatableObject
 {
