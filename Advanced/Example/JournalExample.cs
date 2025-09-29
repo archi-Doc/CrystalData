@@ -48,8 +48,13 @@ public partial class Program
         var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
+                context.SetCrystalOptions(new CrystalOptions() with
+                {
+                    GlobalDirectory = new LocalDirectoryConfiguration("Local/JournalExample"),
+                });
+
                 // Register SimpleJournal configuration.
-                context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration("Local/JournalExample/Journal"), 256));
+                context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal"), 256));
 
                 // Register SimpleData configuration.
                 context.AddCrystal<JournalData.GoshujinClass>(
@@ -57,7 +62,7 @@ public partial class Program
                     {
                         SaveFormat = SaveFormat.Utf8,
                         NumberOfFileHistories = 3, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
-                        FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData.tinyhand"), // Specify the file name to save.
+                        FileConfiguration = new GlobalFileConfiguration("JournalData.tinyhand"), // Specify the file name to save.
                     });
 
                 context.AddCrystal<JournalData2>(
@@ -65,7 +70,7 @@ public partial class Program
                     {
                         SaveFormat = SaveFormat.Utf8,
                         NumberOfFileHistories = 1,
-                        FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData2.tinyhand"), // Specify the file name to save.
+                        FileConfiguration = new GlobalFileConfiguration("JournalData2.tinyhand"), // Specify the file name to save.
                     });
             });
 
@@ -83,13 +88,13 @@ public partial class Program
         Console.WriteLine($"JournalData2: {journalData2.Id}");
 
         var max = 0;
-        /*foreach (var x in goshujin)
+        foreach (var x in goshujin)
         {
             Console.WriteLine(x.ToString());
             x.Count++;
 
             max = max > x.Id ? max : x.Id;
-        }*/
+        }
 
         max++;
         var data = new JournalData(max, max.ToString());
