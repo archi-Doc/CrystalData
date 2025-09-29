@@ -9,15 +9,15 @@ namespace QuickStart;
 [ValueLinkObject] // You can use ValuLink to handle a collection of objects.
 public partial class JournalData
 {
-    [Key(0, AddProperty = "Id")] // Additional property is required.
+    [Key(0)] // Additional property is required.
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    private int id;
+    public partial int Id { get; set; }
 
-    [Key(1, AddProperty = "Name")]
-    private string name = string.Empty;
+    [Key(1)]
+    public partial string Name { get; set; } = string.Empty;
 
-    [Key(2, AddProperty = "Count")]
-    private int count;
+    [Key(2)]
+    public partial int Count { get; set; }
 
     public JournalData()
     {
@@ -25,12 +25,12 @@ public partial class JournalData
 
     public JournalData(int id, string name)
     {
-        this.id = id;
-        this.name = name;
+        this.Id = id;
+        this.Name = name;
     }
 
     public override string ToString()
-        => $"Id: {this.id}, Name: {this.name}, Count: {this.count}";
+        => $"Id: {this.Id}, Name: {this.Name}, Count: {this.Count}";
 }
 
 [TinyhandObject(Structual = true)] // Enable the journaling feature.
@@ -83,15 +83,13 @@ public partial class Program
         Console.WriteLine($"JournalData2: {journalData2.Id}");
 
         var max = 0;
-        foreach (var x in goshujin)
+        /*foreach (var x in goshujin)
         {
-            var p = crystalControl.Journal.GetCurrentPosition();
             Console.WriteLine(x.ToString());
             x.Count++;
-            p = crystalControl.Journal.GetCurrentPosition();
 
             max = max > x.Id ? max : x.Id;
-        }
+        }*/
 
         max++;
         var data = new JournalData(max, max.ToString());

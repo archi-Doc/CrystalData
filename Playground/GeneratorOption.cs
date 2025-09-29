@@ -6,7 +6,7 @@ using ValueLink;
 namespace XUnitTest;
 
 [TinyhandGeneratorOption(AttachDebugger = false, GenerateToFile = false)]
-[ValueLinkGeneratorOption(AttachDebugger = false, GenerateToFile = false)]
+[ValueLinkGeneratorOption(AttachDebugger = false, GenerateToFile = true)]
 internal class GeneratorOption
 {
 }

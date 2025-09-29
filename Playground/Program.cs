@@ -8,6 +8,34 @@ using ValueLink;
 
 namespace Sandbox;
 
+[TinyhandObject(Structual = true)] // Enable the journaling feature.
+[ValueLinkObject] // You can use ValuLink to handle a collection of objects.
+public partial class JournalData
+{
+    [Key(0)] // Additional property is required.
+    [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
+    public partial int Id { get; set; }
+
+    [Key(1)]
+    public partial string Name { get; set; } = string.Empty;
+
+    [Key(2)]
+    public partial int Count { get; set; }
+
+    public JournalData()
+    {
+    }
+
+    public JournalData(int id, string name)
+    {
+        this.Id = id;
+        this.Name = name;
+    }
+
+    public override string ToString()
+        => $"Id: {this.Id}, Name: {this.Name}, Count: {this.Count}";
+}
+
 public sealed partial class CrystalSupplement
 {
     [TinyhandObject(LockObject = "lockObject")]
