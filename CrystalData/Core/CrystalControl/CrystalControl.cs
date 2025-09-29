@@ -676,7 +676,7 @@ public partial class CrystalControl
 
         // Add journal
         ulong journalPosition;
-        if (this.Journal != null)
+        if (this.Journal is not null)
         {
             journalPosition = this.Journal.AddWaypoint(); // this.Journal.GetCurrentPosition();
 
