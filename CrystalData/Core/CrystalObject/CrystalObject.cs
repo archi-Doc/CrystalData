@@ -789,6 +789,7 @@ Exit:
             return (CrystalResult.Success, default, default); // New
         }
 
+        //
         var deserializedData = data.Result.Object;
         if (this.CrystalControl.Journal is { } journal &&
             data.Waypoint.JournalPosition < storedJournalPosition)
