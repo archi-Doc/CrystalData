@@ -33,6 +33,13 @@ public partial class JournalData
         => $"Id: {this.id}, Name: {this.name}, Count: {this.count}";
 }
 
+[TinyhandObject(Structual = true)] // Enable the journaling feature.
+public partial class JournalData2
+{
+    [Key(0)]
+    public partial int Id { get; set; }
+}
+
 public partial class Program
 {
     public static async Task<UnitProduct?> JournalExample()
@@ -41,6 +48,9 @@ public partial class Program
         var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
+                // Register SimpleJournal configuration.
+                context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration("Local/JournalExample/Journal"), 256));
+
                 // Register SimpleData configuration.
                 context.AddCrystal<JournalData.GoshujinClass>(
                     new CrystalConfiguration()
@@ -50,16 +60,27 @@ public partial class Program
                         FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData.tinyhand"), // Specify the file name to save.
                     });
 
-                context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration("Local/JournalExample/Journal"), 256));
+                context.AddCrystal<JournalData2>(
+                    new CrystalConfiguration()
+                    {
+                        SaveFormat = SaveFormat.Utf8,
+                        NumberOfFileHistories = 0,
+                        FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData2.tinyhand"), // Specify the file name to save.
+                    });
             });
 
         var product = builder.Build(); // Build.
-        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var serviceProvider = product.Context.ServiceProvider;
+        var crystalControl = serviceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
 
-        var goshujin = product.Context.ServiceProvider.GetRequiredService<JournalData.GoshujinClass>(); // Retrieve a data instance from the service provider.
+        var goshujin = serviceProvider.GetRequiredService<JournalData.GoshujinClass>(); // Retrieve a data instance from the service provider.
 
         Console.WriteLine("Journal example:");
+
+        var journalData2 = serviceProvider.GetRequiredService<JournalData2>();
+        journalData2.Id++;
+        Console.WriteLine($"JournalData2: {journalData2.Id}");
 
         var max = 0;
         foreach (var x in goshujin)

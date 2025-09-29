@@ -29,13 +29,13 @@ public partial class Program
         // var product = await SecondExample();
         // var product = await SaveTimingExample();
         // var product = await ConfigurationExample();
-        // var product = await JournalExample();
+        var product = await JournalExample();
         // var product = await PathExample();
         // var product = await BackupExample();
         // var product = await ServiceProviderExample();
         // var product = await IntegratedExample();
         // var product = await DefaultExample();
-        var product = await StoragePointExample();
+        // var product = await StoragePointExample();
 
         ThreadCore.Root.Terminate();
         if (product is not null)
