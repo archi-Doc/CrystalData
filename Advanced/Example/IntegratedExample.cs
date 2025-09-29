@@ -4,7 +4,7 @@ using ValueLink;
 
 namespace QuickStart;
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public partial record IntegratedData
 {

@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-public interface ICrystal : IStructualObject, IStructualRoot, IPersistable
+public interface ICrystal : IStructuralObject, IStructuralRoot, IPersistable
 {
     CrystalControl CrystalControl { get; }
 

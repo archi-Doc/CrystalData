@@ -39,11 +39,11 @@ public static class CrystalExtensions
     /// <param name="writer">The <see cref="TinyhandWriter"/> to be retrieved.</param>
     /// <returns><c>true</c> if the writer was successfully retrieved; otherwise, <c>false</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryGetJournalWriter(this IStructualObject obj, out TinyhandWriter writer)
+    public static bool TryGetJournalWriter(this IStructuralObject obj, out TinyhandWriter writer)
     {
-        if (obj.StructualRoot is not null)
+        if (obj.StructuralRoot is not null)
         {
-            return obj.StructualRoot.TryGetJournalWriter(JournalType.Record, out writer);
+            return obj.StructuralRoot.TryGetJournalWriter(JournalType.Record, out writer);
         }
         else
         {

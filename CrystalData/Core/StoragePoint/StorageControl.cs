@@ -342,7 +342,7 @@ public partial class StorageControl : IPersistable
             storageObject.Initialize(pointId, typeIdentifier, storageMap);
             storageObject.Goshujin = storageMap.StorageObjects;
 
-            if (((IStructualObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
+            if (((IStructuralObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
                 writer.Write(JournalRecord.AddItem);
                 writer.Write(pointId);

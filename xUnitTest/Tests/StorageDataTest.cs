@@ -7,7 +7,7 @@ using Xunit;
 
 namespace xUnitTest.CrystalDataTest;
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public partial record StorageDataClass : IEquatableObject, IEquatable<StorageDataClass>
 {

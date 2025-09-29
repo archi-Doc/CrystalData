@@ -939,22 +939,13 @@ public partial class CrystalControl
             var fork = reader.Fork();
             try
             {
-                /*if (journalType == JournalType.Startingpoint)
-                {
-                }
-                else if (journalType == JournalType.Waypoint)
-                {
-                    reader.ReadUInt32();
-                    reader.ReadUInt64();
-                }
-                else */
                 if (journalType == JournalType.Record)
                 {
                     reader.Read_Locator();
                     var plane = reader.ReadUInt32();
                     if (dictionary.TryGetValue(plane, out var crystal))
                     {
-                        if (crystal.Data is IStructualObject journalObject)
+                        if (crystal.Data is IStructuralObject journalObject)
                         {
                             var currentPosition = position + (ulong)reader.Consumed;
                             if (currentPosition.CircularCompareTo(crystal.LeadingJournalPosition) >= 0)

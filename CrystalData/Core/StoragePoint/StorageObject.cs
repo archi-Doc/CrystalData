@@ -13,7 +13,7 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker, IEquatable<StorageObject>
+public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IStructuralRoot, IDataUnlocker, IEquatable<StorageObject>
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
     public const int MaxHistories = 3;
 
@@ -50,19 +50,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     private object? data; // Lock:this
     internal int size; // Lock:StorageControl
 
-    public IStructualRoot? StructualRoot
+    public IStructuralRoot? StructuralRoot
     {
         get => this;
         set { }
     }
 
-    public IStructualObject? StructualParent
+    public IStructuralObject? StructuralParent
     {
         get => default;
         set { }
     }
 
-    public int StructualKey
+    public int StructuralKey
     {
         get => -1;
         set { }
@@ -175,7 +175,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal async ValueTask<DataScope<TData>> TryLock<TData>(IStructualObject storagePoint, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(IStructuralObject storagePoint, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
         if (this.IsDeleted)
@@ -380,9 +380,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         return true;
     }
 
-    #region IStructualRoot
+    #region IStructuralRoot
 
-    bool IStructualRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
+    bool IStructuralRoot.TryGetJournalWriter(JournalType recordType, out TinyhandWriter writer)
     {
         if (this.storageMap.CrystalControl?.Journal is { } journal &&
             this.storageMap.CrystalObject is { } crystalObject)
@@ -402,7 +402,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    ulong IStructualRoot.AddJournalAndDispose(ref TinyhandWriter writer)
+    ulong IStructuralRoot.AddJournalAndDispose(ref TinyhandWriter writer)
     {
         if (this.storageMap.CrystalControl?.Journal is { } journal)
         {
@@ -414,7 +414,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    void IStructualRoot.AddToSaveQueue(int delaySeconds)
+    void IStructuralRoot.AddToSaveQueue(int delaySeconds)
     {
         // The delay time for Storage saving is configured collectively in StorageControl (CrystalControl.DefaultSaveDelaySeconds).
         /*if (this.storageMap.CrystalControl is { } crystalControl)
@@ -433,7 +433,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     #endregion
 
-    #region IStructualObject
+    #region IStructuralObject
 
     internal async Task<bool> StoreData(StoreMode storeMode)
     {
@@ -501,9 +501,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         if (!this.IsEnabled)
         {
             // Store children
-            if (dataCopy is IStructualObject structualObject)
+            if (dataCopy is IStructuralObject structuralObject)
             {
-                if (!await structualObject.StoreData(storeMode).ConfigureAwait(false))
+                if (!await structuralObject.StoreData(storeMode).ConfigureAwait(false))
                 {
                     result = false;
                 }
@@ -520,9 +520,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
 
         // Store children (code is redundant because it is placed after serialization)
-        if (dataCopy is IStructualObject structualObject2)
+        if (dataCopy is IStructuralObject structuralObject2)
         {
-            if (!await structualObject2.StoreData(storeMode).ConfigureAwait(false))
+            if (!await structuralObject2.StoreData(storeMode).ConfigureAwait(false))
             {
                 result = false;
             }
@@ -547,7 +547,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             this.storageMap.StorageControl.AddStorage(this, this.storageMap.Storage, storageId);
 
             // Journal
-            if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+            if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
                 writer.Write(JournalRecord.AddCustom);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
@@ -560,20 +560,20 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         return result;
     }
 
-    void IStructualObject.SetupStructure(IStructualObject? parent, int key)
+    void IStructuralObject.SetupStructure(IStructuralObject? parent, int key)
     {
-        ((IStructualObject)this).SetParentAndKey(parent, key);
+        ((IStructuralObject)this).SetParentAndKey(parent, key);
 
-        if (this.data is IStructualObject structualObject)
+        if (this.data is IStructuralObject structuralObject)
         {
-            structualObject.SetupStructure(this);
+            structuralObject.SetupStructure(this);
         }
     }
 
     internal Task DeleteData(DateTime forceDeleteAfter, bool writeJournal)
         => this.DeleteObject(forceDeleteAfter, true); // To record that a StoragePoint (StorageObject) has been deleted, the journal should be written except during journal replay.
 
-    bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
+    bool IStructuralObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         reader.TryPeekJournalRecord(out var record);
         if (record == JournalRecord.Key ||
@@ -582,9 +582,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             record == JournalRecord.DeleteItem)
         {// Key or Locator
             this.PrepareForJournal();
-            if (this.data is IStructualObject structualObject)
+            if (this.data is IStructuralObject structuralObject)
             {
-                return structualObject.ProcessJournalRecord(ref reader);
+                return structuralObject.ProcessJournalRecord(ref reader);
             }
             else
             {
@@ -619,7 +619,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         return false;
     }
 
-    void IStructualObject.WriteLocator(ref TinyhandWriter writer)
+    void IStructuralObject.WriteLocator(ref TinyhandWriter writer)
     {
         writer.Write_Locator();
         writer.Write(this.pointId);
@@ -736,9 +736,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             this.data = TinyhandTypeIdentifier.TryReconstruct(this.TypeIdentifier);
         }
 
-        if (this.data is IStructualObject structualObject)
+        if (this.data is IStructuralObject structuralObject)
         {
-            structualObject.SetupStructure(this);
+            structuralObject.SetupStructure(this);
         }
     }
 
@@ -759,9 +759,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         BytePool.RentMemory rentMemory = default;
         this.data = newData!;
-        if (this.data is IStructualObject structualObject)
+        if (this.data is IStructuralObject structuralObject)
         {
-            structualObject.SetupStructure(this);
+            structuralObject.SetupStructure(this);
         }
 
         if (this.IsEnabled)
@@ -784,7 +784,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
 
         if (recordJournal &&
-            ((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
+            ((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {
             if (original.IsEmpty)
             {
@@ -831,9 +831,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                 }
             }
 
-            if (dataToDelete is IStructualObject structualObject)
+            if (dataToDelete is IStructuralObject structuralObject)
             {
-                await structualObject.DeleteData(forceDeleteAfter, false).ConfigureAwait(false);
+                await structuralObject.DeleteData(forceDeleteAfter, false).ConfigureAwait(false);
             }
         }
         finally
@@ -845,7 +845,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         if (writeJournal)
         {
-            ((IStructualObject)this).AddJournalRecord(JournalRecord.Delete);
+            ((IStructuralObject)this).AddJournalRecord(JournalRecord.Delete);
         }
     }
 

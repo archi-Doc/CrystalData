@@ -8,7 +8,7 @@ using Xunit;
 
 namespace xUnitTest.CrystalDataTest;
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public sealed partial record StoragePointClass1
 {
@@ -34,7 +34,7 @@ public sealed partial record StoragePointClass1
     public StoragePoint<StoragePointClass> Class2 { get; set; } = new();
 }
 
-[TinyhandObject(Structual = false)]
+[TinyhandObject(Structural = false)]
 public partial record NoStoragePointClass : IEquatableObject, IEquatable<NoStoragePointClass>
 {
     public NoStoragePointClass(int id, string name, string descrption)
@@ -71,7 +71,7 @@ public partial record NoStoragePointClass : IEquatableObject, IEquatable<NoStora
     }
 }
 
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public sealed partial record StoragePointClass : IEquatableObject, IEquatable<StoragePointClass>
 {

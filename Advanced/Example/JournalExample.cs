@@ -5,19 +5,19 @@ using ValueLink;
 
 namespace QuickStart;
 
-[TinyhandObject(Structual = true)] // Enable the journaling feature.
+[TinyhandObject(Structural = true)] // Enable the journaling feature.
 [ValueLinkObject] // You can use ValuLink to handle a collection of objects.
 public partial class JournalData
 {
-    [Key(0, AddProperty = "Id")] // Additional property is required.
+    [Key(0)] // Additional property is required.
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    private int id;
+    public partial int Id { get; set; }
 
-    [Key(1, AddProperty = "Name")]
-    private string name = string.Empty;
+    [Key(1)]
+    public partial string Name { get; set; } = string.Empty;
 
-    [Key(2, AddProperty = "Count")]
-    private int count;
+    [Key(2)]
+    public partial int Count { get; set; }
 
     public JournalData()
     {
@@ -25,15 +25,15 @@ public partial class JournalData
 
     public JournalData(int id, string name)
     {
-        this.id = id;
-        this.name = name;
+        this.Id = id;
+        this.Name = name;
     }
 
     public override string ToString()
-        => $"Id: {this.id}, Name: {this.name}, Count: {this.count}";
+        => $"Id: {this.Id}, Name: {this.Name}, Count: {this.Count}";
 }
 
-[TinyhandObject(Structual = true)] // Enable the journaling feature.
+[TinyhandObject(Structural = true)] // Enable the journaling feature.
 public partial class JournalData2
 {
     [Key(0)]
@@ -48,8 +48,13 @@ public partial class Program
         var builder = new CrystalUnit.Builder()
             .ConfigureCrystal(context =>
             {
+                context.SetCrystalOptions(new CrystalOptions() with
+                {
+                    GlobalDirectory = new LocalDirectoryConfiguration("Local/JournalExample"),
+                });
+
                 // Register SimpleJournal configuration.
-                context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration("Local/JournalExample/Journal"), 256));
+                context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal"), 256));
 
                 // Register SimpleData configuration.
                 context.AddCrystal<JournalData.GoshujinClass>(
@@ -57,15 +62,15 @@ public partial class Program
                     {
                         SaveFormat = SaveFormat.Utf8,
                         NumberOfFileHistories = 3, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
-                        FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData.tinyhand"), // Specify the file name to save.
+                        FileConfiguration = new GlobalFileConfiguration("JournalData.tinyhand"), // Specify the file name to save.
                     });
 
                 context.AddCrystal<JournalData2>(
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 0,
-                        FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData2.tinyhand"), // Specify the file name to save.
+                        NumberOfFileHistories = 1,
+                        FileConfiguration = new GlobalFileConfiguration("JournalData2.tinyhand"), // Specify the file name to save.
                     });
             });
 

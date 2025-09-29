@@ -15,7 +15,7 @@ public partial record SimpleClass
 }
 
 // To a complex class designed for handling large-scale data in terms of both quantity and capacity.
-[TinyhandObject(Structual = true)]
+[TinyhandObject(Structural = true)]
 public partial record AdvancedClass
 {// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
     public static void Register(ICrystalConfigurationContext context)
@@ -36,7 +36,7 @@ public partial record AdvancedClass
         context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));
     }
 
-    [TinyhandObject(Structual = true)]
+    [TinyhandObject(Structural = true)]
     [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
     public partial class Point : StoragePoint<AdvancedClass>
     {
