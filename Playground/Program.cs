@@ -221,6 +221,17 @@ public partial class SpClass
     public partial string Name { get; set; }
 }
 
+[TinyhandObject(ImplicitKeyAsName = true)]
+public partial class ThirdData
+{
+    public ThirdData()
+    {
+    }
+
+    [Key(0)]
+    public string Name { get; set; } = "A";
+}
+
 internal class Program
 {
     public static async Task Main(string[] args)
@@ -275,6 +286,14 @@ internal class Program
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = storageConfiguration,
                     });
+
+                crystalContext.AddCrystal<ThirdData>(
+                    new CrystalConfiguration()
+                    {
+                        SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
+                        NumberOfFileHistories = 0, // No history file.
+                        FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                    });
             })
             .PostConfigure(context =>
             {
@@ -287,6 +306,8 @@ internal class Program
         TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
+
+        Console.WriteLine(product.Context.ServiceProvider.GetRequiredService<ThirdData>().Name);
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 

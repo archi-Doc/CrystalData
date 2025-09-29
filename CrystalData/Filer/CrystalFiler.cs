@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.IO;
+
 namespace CrystalData.Filer;
 
 public class CrystalFiler
@@ -24,6 +26,27 @@ public class CrystalFiler
         private SortedSet<Waypoint>? waypoints;
 
         #endregion
+
+        public async Task<CrystalResult> CopyTo(Output target, Waypoint waypoint)
+        {
+            if (this.rawFiler is null || target.rawFiler is null)
+            {
+                return CrystalResult.NotPrepared;
+            }
+
+            var path = this.crystalFiler.IsProtected ? this.GetFilePath(waypoint) : this.GetFilePath();
+            var r = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
+            if (r.IsFailure)
+            {
+                return r.Result;
+            }
+
+            var path2 = target.crystalFiler.IsProtected ? target.GetFilePath(waypoint) : target.GetFilePath();
+            var result = await target.rawFiler.WriteAsync(path2, 0, r.Data).ConfigureAwait(false);
+
+            r.Return();
+            return result;
+        }
 
         public Waypoint GetLatestWaypoint()
         {
@@ -439,6 +462,9 @@ public class CrystalFiler
                 result = await this.backup.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
                 if (result.Result.IsSuccess)
                 {// Backup restored
+                    // Save the loaded backup also to Main.
+                    _ = this.backup.CopyTo(this.main, result.Waypoint);
+
                     this.logger.TryGet(LogLevel.Warning)?.Log(string.Format(HashedString.Get(CrystalDataHashed.CrystalFiler.BackupLoaded), result.Path));
                 }
             }
