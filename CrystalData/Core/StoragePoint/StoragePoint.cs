@@ -29,7 +29,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public ulong PointId => this.pointId;
 
-    ref ObjectProtectionState IDataLocker<TData>.GetProtectionStateRef() => ref this.GetOrCreateStorageObject().protectionState;
+    ref byte IDataLocker<TData>.GetProtectionStateRef() => ref this.GetOrCreateStorageObject().protectionState;
 
     /// <summary>
     /// Gets the <see langword="uint"/> type identifier used by TinyhandSerializer.
@@ -109,13 +109,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
-        => this.GetOrCreateStorageObject().TryLock<TData>(acquisitionMode, timeout, cancellationToken);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken);
 
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate)
-        => this.GetOrCreateStorageObject().TryLock<TData>(acquisitionMode, ValueLinkGlobal.LockTimeout, default);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default);
 
     ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
-        => this.GetOrCreateStorageObject().TryLock<TData>(AcquisitionMode.GetOrCreate, timeout, cancellationToken);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, AcquisitionMode.GetOrCreate, timeout, cancellationToken);
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
@@ -205,11 +205,12 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <see langword="default"/>: Do not forcibly delete; wait until all operations are finished.<br/>
     /// <see cref="DateTime.UtcNow"/> or earlier: forcibly delete data without waiting.
     /// </param>
+    /// <param name="writeJournal">Indicates whether to write the deletion operation to the journal.</param>
     /// <returns>
     /// A <see cref="Task"/> representing the asynchronous delete operation.
     /// </returns>
-    public virtual Task DeleteData(DateTime forceDeleteAfter = default)
-        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter);
+    public virtual Task DeleteData(DateTime forceDeleteAfter = default, bool writeJournal = true)
+        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, writeJournal);
 
     /*void IStructualObject.SetupStructure(IStructualObject? parent, int key)
     {
@@ -242,8 +243,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
-    Task IDataLocker<TData>.DeletePoint(DateTime forceDeleteAfter)
-        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter);
+    Task IDataLocker<TData>.DeletePoint(DateTime forceDeleteAfter, bool writeJournal)
+        => this.GetOrCreateStorageObject().DeleteData(forceDeleteAfter, writeJournal);
 
     #region Tinyhand
 

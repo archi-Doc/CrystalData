@@ -49,7 +49,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             {
                 if (this.State == CrystalState.Initial)
                 {// Initial
-                    this.PrepareAndLoadInternal(false).Wait();
+                    this.PrepareAndLoadInternal(false).ConfigureAwait(false).GetAwaiter().GetResult();
                 }
                 else if (this.State == CrystalState.Deleted)
                 {// Deleted
@@ -463,13 +463,21 @@ Exit:
                 if (previousObject is not null)
                 {// Compare the previous data
                     bool compare;
-                    if (currentFormat == SaveFormat.Binary)
-                    {// Previous (previousObject), Current (currentObject/result.Data.Span): Binary
-                        compare = result.Data.Span.SequenceEqual(TinyhandSerializer.Serialize(previousObject));
+
+                    if (currentObject is IEquatableObject equatableObject)
+                    {// Compare using IEquatableObject
+                        compare = equatableObject.ObjectEquals(previousObject);
                     }
                     else
-                    {// Previous (previousObject), Current (currentObject/result.Data.Span): Utf8
-                        compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
+                    {// Compare by serializing
+                        if (currentFormat == SaveFormat.Binary)
+                        {// Previous (previousObject), Current (currentObject/result.Data.Span): Binary
+                            compare = result.Data.Span.SequenceEqual(TinyhandSerializer.Serialize(previousObject));
+                        }
+                        else
+                        {// Previous (previousObject), Current (currentObject/result.Data.Span): Utf8
+                            compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
+                        }
                     }
 
                     if (compare)
@@ -480,6 +488,13 @@ Exit:
                     {// Failure
                         logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.TestJournal.Failure, base32);
                         testResult = false;
+
+                        /*if (currentObject is StorageMap currentMap &&
+                            previousObject is StorageMap previousMap)
+                        {
+                            var sb = previousMap.Dump();
+                            var sb2 = currentMap.Dump();
+                        }*/
                     }
                 }
 
@@ -607,6 +622,9 @@ Exit:
                         else
                         {// Failure
                             success = false;
+
+                            // reader = fork;
+                            // journalObject.ProcessJournalRecord(ref reader);
                         }
                     }
                 }
@@ -812,7 +830,7 @@ Exit:
         if (this.crystalFiler == null)
         {
             this.crystalFiler = new(this.CrystalControl);
-            this.crystalFiler.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), this.CrystalConfiguration).Wait();
+            this.crystalFiler.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), this.CrystalConfiguration).ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 
@@ -824,7 +842,7 @@ Exit:
         {
             var storageConfiguration = this.CrystalConfiguration.StorageConfiguration;
             this.storage = this.CrystalControl.ResolveStorage(ref storageConfiguration);
-            this.storage.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), storageConfiguration).Wait();
+            this.storage.PrepareAndCheck(PrepareParam.NoQuery<TData>(this.CrystalControl), storageConfiguration).ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 

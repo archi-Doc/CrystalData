@@ -406,7 +406,7 @@ public partial class StorageControl : IPersistable
 
         if (fileId != 0)
         {
-            storageObject.storageMap.Storage.DeleteAsync(ref fileId).Wait();
+            storageObject.storageMap.Storage.DeleteAsync(ref fileId).ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 

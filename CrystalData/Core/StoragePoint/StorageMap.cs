@@ -2,6 +2,7 @@
 
 #pragma warning disable SA1202
 
+using System.Text;
 using CrystalData.Internal;
 using CrystalData.Journal;
 using CrystalData.Storage;
@@ -10,7 +11,7 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 [TinyhandObject(UseServiceProvider = true, ExplicitKeyOnly = true)]
-public sealed partial class StorageMap : IStructualObject
+public sealed partial class StorageMap : IStructualObject, IEquatableObject
 {
     public const string Filename = "Map";
 
@@ -49,6 +50,17 @@ public sealed partial class StorageMap : IStructualObject
         this.Journal = EmptyJournal.Default;
         this.Storage = EmptyStorage.Default;
         this.enabledStorageMap = false;
+    }
+
+    public string Dump()
+    {
+        var sb = new StringBuilder();
+        foreach (var x in this.StorageObjects.PointIdChain)
+        {
+            sb.AppendLine(x.ToString());
+        }
+
+        return sb.ToString();
     }
 
     /*
@@ -178,5 +190,28 @@ public sealed partial class StorageMap : IStructualObject
         {
             x.storageMap = this;
         }
+    }
+
+    bool IEquatableObject.ObjectEquals(object? other)
+    {
+        if (other is not StorageMap map)
+        {
+            return false;
+        }
+
+        foreach (var x in this.StorageObjects.PointIdChain)
+        {
+            if (!map.StorageObjects.PointIdChain.TryGetValue(x.PointId, out var y))
+            {
+                return false;
+            }
+
+            if (!x.Equals(y))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using CrystalData.Journal;
 using Tinyhand.IO;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace CrystalData.Internal;
 
@@ -14,14 +13,14 @@ namespace CrystalData.Internal;
 
 [TinyhandObject(ExplicitKeyOnly = true)]
 [ValueLinkObject]
-public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker
+public sealed partial class StorageObject : SemaphoreLock, IStructualObject, IStructualRoot, IDataUnlocker, IEquatable<StorageObject>
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39
     public const int MaxHistories = 3;
 
     #region FieldAndProperty
 
     internal StorageObjectState storageObjectState; // Lock:StorageControl
-    internal ObjectProtectionState protectionState;
+    internal byte protectionState;
 
     [Key(0)]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
@@ -81,7 +80,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
     public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
 
-    public bool IsDeleted => this.protectionState == ObjectProtectionState.Deleted;
+    public bool IsDeleted => ObjectProtectionStateHelper.IsObsolete(this.protectionState);
 
     #endregion
 
@@ -142,7 +141,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         if (this.data is { } data)
         {
-            if (this.protectionState == ObjectProtectionState.Deleted)
+            if (this.IsDeleted)
             {// Deleted
                 return default;
             }
@@ -158,7 +157,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         try
         {
-            if (this.protectionState == ObjectProtectionState.Deleted)
+            if (this.IsDeleted)
             {// Deleted
                 return default;
             }
@@ -176,10 +175,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal async ValueTask<DataScope<TData>> TryLock<TData>(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
+    internal async ValueTask<DataScope<TData>> TryLock<TData>(IStructualObject storagePoint, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
-        if (this.protectionState == ObjectProtectionState.Deleted)
+        if (this.IsDeleted)
         {// Deleted
             return new(DataScopeResult.Obsolete);
         }
@@ -201,7 +200,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
 
         // Unprotected -> Protected
-        if (Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Protected, ObjectProtectionState.Unprotected) != ObjectProtectionState.Unprotected)
+        if (!ObjectProtectionStateHelper.TryProtect(ref this.protectionState))
         {// Protected(?) or Deleted
             this.Exit();
             return new(DataScopeResult.Obsolete);
@@ -239,16 +238,45 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             }
         }
 
-        return new((TData)this.data, this);
+        return new((TData)this.data, this, storagePoint);
     }
 
     public void Unlock()
     {// Lock:this
         // Protected -> Unprotected
-        Interlocked.CompareExchange(ref this.protectionState, ObjectProtectionState.Unprotected, ObjectProtectionState.Protected);
+        ObjectProtectionStateHelper.TryUnprotect(ref this.protectionState);
 
         this.Exit();
     }
+
+    public bool UnlockAndDelete()
+    {// Lock:this
+        // -> Deleted
+        var deleted = ObjectProtectionStateHelper.TryMarkPendingDeletion(ref this.protectionState);
+        this.Exit();
+
+        return deleted;
+    }
+
+    public override string ToString()
+        => $"PointId={this.pointId}, TypeIdentifier={this.typeIdentifier}, {this.storageId0}, {this.storageId1}, {this.storageId2}";
+
+    public bool Equals(StorageObject? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        return this.pointId == other.pointId &&
+            this.typeIdentifier == other.typeIdentifier &&
+            this.storageId0.Equals(ref other.storageId0) &&
+            this.storageId1.Equals(ref other.storageId1) &&
+            this.storageId2.Equals(ref other.storageId2);
+    }
+
+    public override int GetHashCode()
+        => (int)this.pointId;
 
     internal void DeleteLatestStorageForTest()
     {
@@ -260,19 +288,22 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
     {
         using (this.EnterScope())
         {
-            if (this.protectionState != ObjectProtectionState.Unprotected)
-            {
+            if (!ObjectProtectionStateHelper.TryProtect(ref this.protectionState))
+            {// Protected or Deleted
                 return;
             }
 
             this.SetDataInternal(data, true, default);
+
+            ObjectProtectionStateHelper.TryUnprotect(ref this.protectionState);
         }
     }
 
     internal async Task<bool> TestJournal(SimpleJournal journal)
     {
         var storage = this.storageMap.Storage;
-        object? data = default;
+        object? previousData = default;
+
         for (var i = MaxHistories - 1; i >= 0; i--)
         {
             var storageId = i switch
@@ -290,6 +321,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             var fileId = storageId.FileId;
             var result = await storage.GetAsync(ref fileId).ConfigureAwait(false);
+            object? currentData;
             try
             {
                 if (result.IsFailure ||
@@ -298,41 +330,50 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
                     return false;
                 }
 
-                if (data is not null)
+                currentData = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                if (currentData is null)
+                {
+                    return false;
+                }
+
+                if (previousData is not null)
                 {// Compare with previous data
-                    var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, data);
-                    var isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
-                    rentMemory.Return();
+                    bool isEqual;
+                    if (previousData is IEquatableObject equatableObject)
+                    {// Use IEquatableObject if possible
+                        isEqual = equatableObject.ObjectEquals(currentData);
+                    }
+                    else
+                    {// Otherwise, compare serialized data
+                        var (_, rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.TypeIdentifier, previousData);
+                        isEqual = rentMemory.Span.SequenceEqual(result.Data.Span);
+                        rentMemory.Return();
+                    }
+
                     if (!isEqual)
-                    {
+                    {// Different data
                         return false;
                     }
-                }
-
-                data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
-                if (data is null)
-                {
-                    return false;
-                }
-
-                var upplerLimit = i switch
-                {
-                    0 => 0ul,
-                    1 => this.storageId0.JournalPosition,
-                    2 => this.storageId1.JournalPosition,
-                    _ => throw new InvalidOperationException(),
-                };
-
-                var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
-                data = await journal.RestoreData(storageId.JournalPosition, upplerLimit, data, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
-                if (data is null)
-                {
-                    return false;
                 }
             }
             finally
             {
                 result.Return();
+            }
+
+            var upplerLimit = i switch
+            {
+                0 => 0ul,
+                1 => this.storageId0.JournalPosition,
+                2 => this.storageId1.JournalPosition,
+                _ => throw new InvalidOperationException(),
+            };
+
+            var plane = this.storageMap.CrystalObject is { } crystalObject ? crystalObject.Plane : 0;
+            previousData = await journal.RestoreData(storageId.JournalPosition, upplerLimit, currentData, this.TypeIdentifier, plane, this.PointId).ConfigureAwait(false);
+            if (previousData is null)
+            {
+                return false;
             }
         }
 
@@ -508,7 +549,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
             // Journal
             if (((IStructualObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                writer.Write(JournalRecord.AddItem);
+                writer.Write(JournalRecord.AddCustom);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
                 root.AddJournalAndDispose(ref writer);
             }
@@ -529,13 +570,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    internal Task DeleteData(DateTime forceDeleteAfter)
-        => this.DeleteObject(true, forceDeleteAfter);
+    internal Task DeleteData(DateTime forceDeleteAfter, bool writeJournal)
+        => this.DeleteObject(forceDeleteAfter, true); // To record that a StoragePoint (StorageObject) has been deleted, the journal should be written except during journal replay.
 
     bool IStructualObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (reader.TryReadJournalRecord_PeekIDelegated(out var record))
-        {//AddItem
+        reader.TryPeekJournalRecord(out var record);
+        if (record == JournalRecord.Key ||
+            record == JournalRecord.Locator ||
+            record == JournalRecord.AddItem ||
+            record == JournalRecord.DeleteItem)
+        {// Key or Locator
             this.PrepareForJournal();
             if (this.data is IStructualObject structualObject)
             {
@@ -549,16 +594,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         if (record == JournalRecord.Value)
         {
+            reader.Advance(1);
             this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
         else if (record == JournalRecord.Delete)
         {// Delete storage
-            this.DeleteObject(false, default).Wait();
+            reader.Advance(1);
+            this.DeleteObject(default, false).ConfigureAwait(false).GetAwaiter().GetResult();
             return true;
         }
-        else if (record == JournalRecord.AddItem)
+        else if (record == JournalRecord.AddCustom)
         {
+            reader.Advance(1);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
             if (storageId > this.storageId0)
             {
@@ -763,7 +811,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
         }
     }
 
-    private async Task DeleteObject(bool recordJournal, DateTime forceDeleteAfter)
+    private async Task DeleteObject(DateTime forceDeleteAfter, bool writeJournal)
     {
         await this.EnterAsync().ConfigureAwait(false);
         try
@@ -785,7 +833,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
             if (dataToDelete is IStructualObject structualObject)
             {
-                await structualObject.DeleteData(forceDeleteAfter).ConfigureAwait(false);
+                await structualObject.DeleteData(forceDeleteAfter, false).ConfigureAwait(false);
             }
         }
         finally
@@ -795,7 +843,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructualObject, ISt
 
         this.storageControl.EraseStorage(this);
 
-        if (recordJournal)
+        if (writeJournal)
         {
             ((IStructualObject)this).AddJournalRecord(JournalRecord.Delete);
         }

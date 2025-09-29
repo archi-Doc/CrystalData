@@ -529,3 +529,16 @@ var builder = new CrystalControl.Builder()
     });
 ```
 
+
+
+## StoragePoint
+
+
+
+| **Class**                                | Persistence | Element  | Data control | Exclusive control |
+| ---------------------------------------- | ----------- | -------- | ------------ | ----------------- |
+| **SptClass.GoshujinClass**               | Parent      | SptClass | Parent       | Goshujin          |
+| **StoragePoint<SptClass.GoshujinClass>** | Storage     | SptClass | StoragePoint | Goshujin          |
+| **SptPoint.GoshujinClass**               | Parent      | SptPoint | Parent       | SptPoint          |
+| **StoragePoint<SptPoint.GoshujinClass>** | Storage     | SptPoint | StoragePoint | SptPoint          |
+
