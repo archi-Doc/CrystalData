@@ -1,8 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
@@ -221,6 +218,17 @@ public partial class SpClass
     public partial string Name { get; set; }
 }
 
+[TinyhandObject(ImplicitKeyAsName = true)]
+public partial class ThirdData
+{
+    public ThirdData()
+    {
+    }
+
+    [Key(0)]
+    public string Name { get; set; } = "A";
+}
+
 internal class Program
 {
     public static async Task Main(string[] args)
@@ -243,7 +251,7 @@ internal class Program
                 });
 
                 // Journal
-                //crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage")/*,
@@ -275,6 +283,14 @@ internal class Program
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = storageConfiguration,
                     });
+
+                crystalContext.AddCrystal<ThirdData>(
+                    new CrystalConfiguration()
+                    {
+                        SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
+                        NumberOfFileHistories = 0, // No history file.
+                        FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                    });
             })
             .PostConfigure(context =>
             {
@@ -288,18 +304,17 @@ internal class Program
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
+        Console.WriteLine(product.Context.ServiceProvider.GetRequiredService<ThirdData>().Name);
+
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
-        Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
+        /*Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
         Console.WriteLine($"Estimated size: SemaphoreSlim {EstimateSize.Constructor(() => new SemaphoreSlim(0))} bytes");
         Console.WriteLine($"Estimated size: FirstData {EstimateSize.Class<FirstData>()} bytes");
         Console.WriteLine($"Estimated size: SizeTestClass {EstimateSize.Class<SizeTestClass>()} bytes");
         Console.WriteLine($"Estimated size: StoragePoint<DoubleClass> {EstimateSize.Class<StoragePoint<DoubleClass>>()} bytes");
         Console.WriteLine($"Estimated size: StorageObject {EstimateSize.Constructor(() => CrystalData.Internal.StorageObject.UnsafeConstructor())} bytes");
-        Console.WriteLine($"Estimated size: StorageId {EstimateSize.Struct<StorageId>()} bytes");
-        // Console.WriteLine($"Estimated size: StorageObjec2 {EstimateSize.Class<StorageObjec2>()} bytes");
-        // Console.WriteLine($"Estimated size: StoragePoint<> {EstimateSize.Struct<StoragePoint>()} bytes");
-        // Console.WriteLine($"Estimated size: SpSecondClass {SizeMatters.EstimateClass<SpSecondClass>()} bytes");
+        Console.WriteLine($"Estimated size: StorageId {EstimateSize.Struct<StorageId>()} bytes");*/
 
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
@@ -335,19 +350,6 @@ internal class Program
             }
         }
 
-        // await Task.Delay(3000);
-
-        /*var mem = GC.GetTotalMemory(false);
-        var bb = new StorageObject[10_000_000];
-        for (int i = 0; i < bb.Length; i++)
-        {
-            bb[i] = new StorageObject();
-        }
-
-        var mem2 = GC.GetTotalMemory(false);
-        Console.WriteLine($"Memory {mem2 / 1000000}, {(mem2 - mem) / 1_000_000}");*/
-
-        // data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
         var doubleClass = await data.DoubleStorage.TryGet();
         if (doubleClass is not null)
         {
