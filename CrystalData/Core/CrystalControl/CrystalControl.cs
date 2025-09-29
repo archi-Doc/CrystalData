@@ -939,15 +939,6 @@ public partial class CrystalControl
             var fork = reader.Fork();
             try
             {
-                /*if (journalType == JournalType.Startingpoint)
-                {
-                }
-                else if (journalType == JournalType.Waypoint)
-                {
-                    reader.ReadUInt32();
-                    reader.ReadUInt64();
-                }
-                else */
                 if (journalType == JournalType.Record)
                 {
                     reader.Read_Locator();

@@ -64,7 +64,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 0,
+                        NumberOfFileHistories = 1,
                         FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData2.tinyhand"), // Specify the file name to save.
                     });
             });
@@ -85,8 +85,10 @@ public partial class Program
         var max = 0;
         foreach (var x in goshujin)
         {
+            var p = crystalControl.Journal.GetCurrentPosition();
             Console.WriteLine(x.ToString());
             x.Count++;
+            p = crystalControl.Journal.GetCurrentPosition();
 
             max = max > x.Id ? max : x.Id;
         }
