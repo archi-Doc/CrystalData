@@ -457,6 +457,7 @@ public partial class CrystalControl
             return result;
         }
 
+        //
         this.IsPrepared = true;
         if (this.CrystalSupplement.IsRip)
         {// Rip success
@@ -676,7 +677,7 @@ public partial class CrystalControl
 
         // Add journal
         ulong journalPosition;
-        if (this.Journal != null)
+        if (this.Journal is not null)
         {
             journalPosition = this.Journal.AddWaypoint(); // this.Journal.GetCurrentPosition();
 
