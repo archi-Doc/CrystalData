@@ -1,8 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
@@ -254,7 +251,7 @@ internal class Program
                 });
 
                 // Journal
-                //crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
+                crystalContext.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
 
                 var storageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage")/*,
@@ -311,16 +308,13 @@ internal class Program
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
-        Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
+        /*Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
         Console.WriteLine($"Estimated size: SemaphoreSlim {EstimateSize.Constructor(() => new SemaphoreSlim(0))} bytes");
         Console.WriteLine($"Estimated size: FirstData {EstimateSize.Class<FirstData>()} bytes");
         Console.WriteLine($"Estimated size: SizeTestClass {EstimateSize.Class<SizeTestClass>()} bytes");
         Console.WriteLine($"Estimated size: StoragePoint<DoubleClass> {EstimateSize.Class<StoragePoint<DoubleClass>>()} bytes");
         Console.WriteLine($"Estimated size: StorageObject {EstimateSize.Constructor(() => CrystalData.Internal.StorageObject.UnsafeConstructor())} bytes");
-        Console.WriteLine($"Estimated size: StorageId {EstimateSize.Struct<StorageId>()} bytes");
-        // Console.WriteLine($"Estimated size: StorageObjec2 {EstimateSize.Class<StorageObjec2>()} bytes");
-        // Console.WriteLine($"Estimated size: StoragePoint<> {EstimateSize.Struct<StoragePoint>()} bytes");
-        // Console.WriteLine($"Estimated size: SpSecondClass {SizeMatters.EstimateClass<SpSecondClass>()} bytes");
+        Console.WriteLine($"Estimated size: StorageId {EstimateSize.Struct<StorageId>()} bytes");*/
 
         Console.WriteLine($"Load {data.ToString()}");
         data.Id += 1;
@@ -356,19 +350,6 @@ internal class Program
             }
         }
 
-        // await Task.Delay(3000);
-
-        /*var mem = GC.GetTotalMemory(false);
-        var bb = new StorageObject[10_000_000];
-        for (int i = 0; i < bb.Length; i++)
-        {
-            bb[i] = new StorageObject();
-        }
-
-        var mem2 = GC.GetTotalMemory(false);
-        Console.WriteLine($"Memory {mem2 / 1000000}, {(mem2 - mem) / 1_000_000}");*/
-
-        // data.DoubleStorage.Set(await data.DoubleStorage.TryGet() + 0.1);
         var doubleClass = await data.DoubleStorage.TryGet();
         if (doubleClass is not null)
         {
