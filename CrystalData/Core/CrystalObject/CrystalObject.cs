@@ -803,7 +803,7 @@ Exit:
             var journalPosition = journal.GetCurrentPosition();
             if (await journal.RestoreData(data.Waypoint.JournalPosition, journalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
             {
-                this.LeadingJournalPosition = journalPosition;
+                this.LeadingJournalPosition = journalPosition; // To prevent double loading when ReadJournal is called later, update LeadingJournalPosition.
                 deserializedData = restoredData;
 
                 this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
