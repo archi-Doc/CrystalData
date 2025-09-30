@@ -100,7 +100,14 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     Waypoint ICrystalInternal.Waypoint => this.waypoint;
 
-    ulong ICrystalInternal.LeadingJournalPosition => this.leadingJournalPosition;
+    public ulong LeadingJournalPosition
+    {
+        get => this.leadingJournalPosition;
+        set
+        {
+            this.leadingJournalPosition = CrystalExtensions.CircularMax(this.leadingJournalPosition, value);
+        }
+    }
 
     IStructuralRoot? IStructuralObject.StructuralRoot { get; set; }
 
@@ -370,7 +377,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
-            this.leadingJournalPosition =
+            this.LeadingJournalPosition =
             this.CrystalControl.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
@@ -389,7 +396,7 @@ Exit:
         this.CrystalControl.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
         using (this.semaphore.EnterScope())
         {
-            this.leadingJournalPosition = this.CrystalControl.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
+            this.LeadingJournalPosition = this.CrystalControl.CrystalSupplement.SetLeadingJournalPosition(ref currentWaypoint, startingPosition);
             if (storeMode != StoreMode.StoreOnly)
             {// Unload
                 this.data = null;
@@ -735,7 +742,7 @@ Exit:
         {// Loaded
             this.data = data;
             this.waypoint = loadResult.Waypoint;
-            this.leadingJournalPosition = this.CrystalControl.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
+            this.LeadingJournalPosition = this.CrystalControl.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
             if (this.CrystalConfiguration.HasFileHistories)
             {
                 if (this.waypoint.IsValid)
@@ -789,14 +796,14 @@ Exit:
             return (CrystalResult.Success, default, default); // New
         }
 
-        //
         var deserializedData = data.Result.Object;
         if (this.CrystalControl.Journal is { } journal &&
             data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
-            // Read journal (LeadingJournalPosition -> StoredJournalPosition)
-            if (await journal.RestoreData(data.Waypoint.JournalPosition, 0ul, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
+            var journalPosition = journal.GetCurrentPosition();
+            if (await journal.RestoreData(data.Waypoint.JournalPosition, journalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
             {
+                this.LeadingJournalPosition = journalPosition;
                 deserializedData = restoredData;
 
                 this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);

@@ -457,7 +457,6 @@ public partial class CrystalControl
             return result;
         }
 
-        //
         this.IsPrepared = true;
         if (this.CrystalSupplement.IsRip)
         {// Rip success

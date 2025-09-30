@@ -69,6 +69,28 @@ public static class CrystalExtensions
         => result != CrystalResult.Success;
 
     /// <summary>
+    /// Returns the minimum of two <see langword="ulong"/> values, considering cyclical wrap-around.
+    /// </summary>
+    /// <param name="value1">The first value to compare.</param>
+    /// <param name="value2">The second value to compare.</param>
+    /// <returns>
+    /// The value that is considered minimum in a cyclical comparison.
+    /// </returns>
+    public static ulong CircularMin(ulong value1, ulong value2)
+        => CircularCompareTo(value1, value2) < 0 ? value1 : value2;
+
+    /// <summary>
+    /// Returns the maximum of two <see langword="ulong"/> values, considering cyclical wrap-around.
+    /// </summary>
+    /// <param name="value1">The first value to compare.</param>
+    /// <param name="value2">The second value to compare.</param>
+    /// <returns>
+    /// The value that is considered maximum in a cyclical comparison.
+    /// </returns>
+    public static ulong CircularMax(ulong value1, ulong value2)
+        => CircularCompareTo(value1, value2) >= 0 ? value1 : value2;
+
+    /// <summary>
     /// Compares this value with a specified <see langword="ulong"/> value in a situation where the variables are cyclical (i.e., they reset to zero after reaching their maximum value).
     /// </summary>
     /// <param name="value1">The first value to compare.</param>
