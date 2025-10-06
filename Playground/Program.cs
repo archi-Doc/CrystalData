@@ -246,7 +246,7 @@ public partial class SpClass
     public partial string Name { get; set; }
 }
 
-[TinyhandObject(ImplicitKeyAsName = true)]
+[TinyhandObject(ImplicitMemberNameAsKey = true)]
 public partial class ThirdData
 {
     public ThirdData()

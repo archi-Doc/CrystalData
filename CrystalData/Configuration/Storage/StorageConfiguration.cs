@@ -73,6 +73,6 @@ public abstract partial record StorageConfiguration
     /// Gets the number of file histories (snapshots).<br/>
     /// Default value is 1.
     /// </summary>
-    [KeyAsName]
+    [MemberNameAsKey]
     public int NumberOfHistoryFiles { get; init; } = 1;
 }

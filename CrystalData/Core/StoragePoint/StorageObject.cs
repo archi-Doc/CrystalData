@@ -11,7 +11,7 @@ namespace CrystalData.Internal;
 #pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
 #pragma warning disable SA1401 // Fields should be private
 
-[TinyhandObject(ExplicitKeyOnly = true)]
+[TinyhandObject(ExplicitKeysOnly = true)]
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IStructuralRoot, IDataUnlocker, IEquatable<StorageObject>
 {// object:(16), protectionState:4, pointId:8, typeIdentifier:4, storageId:24x3, storageMap:8, onMemoryPrevious:8, onMemoryNext:8, saveQueueTime:4, saveQueuePrevious:8, saveQueueNext:8, data:8, size:4, Goshujin:8, Link:4+4, SemaphoreLock:39

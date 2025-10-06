@@ -16,7 +16,7 @@ namespace CrystalData;
 /// Use keys starting from <b>1 or greater</b> instead.
 /// </summary>
 /// <typeparam name="TData">The type of data.</typeparam>
-[TinyhandObject(ExplicitKeyOnly = true, ReservedKeyCount = 1)]
+[TinyhandObject(ExplicitKeysOnly = true, ReservedKeyCount = 1)]
 public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructuralObject, IDataLocker<TData>
     where TData : class
 {// object:16, ulong:8, StorageObject:8, Structural: 20

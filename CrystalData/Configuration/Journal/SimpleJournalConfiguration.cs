@@ -31,16 +31,16 @@ public partial record SimpleJournalConfiguration : JournalConfiguration
         }
     }
 
-    [KeyAsName]
+    [MemberNameAsKey]
     public DirectoryConfiguration DirectoryConfiguration { get; protected set; }
 
-    [KeyAsName]
+    [MemberNameAsKey]
     public DirectoryConfiguration? BackupDirectoryConfiguration { get; init; }
 
-    [KeyAsName]
+    [MemberNameAsKey]
     public int JournalCapacityInMBs { get; protected set; }
 
-    [KeyAsName]
+    [MemberNameAsKey]
     public int SaveIntervalInMilliseconds { get; protected set; }
 
     [IgnoreMember]
