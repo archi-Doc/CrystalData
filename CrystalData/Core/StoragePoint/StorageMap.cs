@@ -10,7 +10,7 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-[TinyhandObject(UseServiceProvider = true, ExplicitKeyOnly = true)]
+[TinyhandObject(UseServiceProvider = true, ExplicitKeysOnly = true)]
 public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 {
     public const string Filename = "Map";

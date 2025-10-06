@@ -2,7 +2,7 @@
 
 namespace CrystalData;
 
-[TinyhandObject(ImplicitKeyAsName = true, EnumAsString = true)]
+[TinyhandObject(ImplicitMemberNameAsKey = true, EnumAsString = true)]
 public sealed partial record CrystalConfiguration
 {
     public static readonly CrystalConfiguration Default = new();
