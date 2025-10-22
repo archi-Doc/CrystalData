@@ -999,7 +999,9 @@ public partial class CrystalControl
         var releaseTasks = new Task[this.Options.ConcurrentUnload];
         for (var i = 0; i < this.Options.ConcurrentUnload; i++)
         {
+            Console.WriteLine(i);//
             releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+            Console.WriteLine(i);//
         }
 
         Console.WriteLine("12");//
