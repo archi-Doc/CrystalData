@@ -188,7 +188,9 @@ public partial class SimpleJournal : IJournal
     {
         if (this.task is { } task)
         {// Wait for the task to complete; the journal is written upon termination.
+            Console.WriteLine("21");//
             task.Terminate();
+            Console.WriteLine("22");//
             await task.WaitForTerminationAsync(-1).ConfigureAwait(false);
         }
 
@@ -201,6 +203,7 @@ public partial class SimpleJournal : IJournal
             }
         }
 
+        Console.WriteLine("23");//
         this.logger.TryGet()?.Log($"Terminated - {this.memoryUsage}");
     }
 

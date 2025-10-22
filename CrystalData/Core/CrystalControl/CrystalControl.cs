@@ -508,11 +508,13 @@ public partial class CrystalControl
     {
         this.StorageControl.Rip();
 
+        Console.WriteLine("10");//
         await this.Store(true, StoreMode.TryRelease, cancellationToken).ConfigureAwait(false);
 
         // Terminate journal
         if (this.Journal is { } journal)
         {
+            Console.WriteLine("20");//
             await journal.Terminate().ConfigureAwait(false);
         }
 
@@ -993,15 +995,18 @@ public partial class CrystalControl
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
+        Console.WriteLine("11");//
         var releaseTasks = new Task[this.Options.ConcurrentUnload];
         for (var i = 0; i < this.Options.ConcurrentUnload; i++)
         {
             releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
         }
 
+        Console.WriteLine("12");//
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
         // Since storages are modified in the preceding step, persist storages here.
+        Console.WriteLine("13");//
         goshujin.Clear();
         var storages = this.GetStorageArray();
         foreach (var x in storages)
@@ -1009,21 +1014,26 @@ public partial class CrystalControl
             goshujin.Add(new(x));
         }
 
+        Console.WriteLine("14");//
         for (var i = 0; i < this.Options.ConcurrentUnload; i++)
         {
             releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
         }
 
+        Console.WriteLine("15");//
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
         if (this.Journal is { } journal)
         {// Journal
+            Console.WriteLine("16");//
             await journal.StoreData().ConfigureAwait(false);
         }
 
+        Console.WriteLine("17");//
         await this.CrystalSupplement.Store(terminate).ConfigureAwait(false);
 
         // Flush filers
+        Console.WriteLine("18");//
         var tasks = new List<Task>();
         using (this.lockObject.EnterScope())
         {
@@ -1047,6 +1057,7 @@ public partial class CrystalControl
             }
         }
 
+        Console.WriteLine("19");//
         await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
