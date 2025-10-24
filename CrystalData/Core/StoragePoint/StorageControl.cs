@@ -29,7 +29,7 @@ public partial class StorageControl : IPersistable
     private readonly Lock lowestLockObject;
 
     private StorageMap[] storageMaps;
-    private bool isRip;
+    private UnitState unitState;
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
     private StorageObject? saveQueueHead;
@@ -39,7 +39,7 @@ public partial class StorageControl : IPersistable
 
     internal ILogger? Logger { get; set; }
 
-    public bool IsRip => this.isRip;
+    public bool IsRip => this.unitState == UnitState.Rip;
 
     public long MemoryUsageLimit { get; private set; } = CrystalOptions.DefaultMemoryUsageLimit;
 
@@ -88,7 +88,7 @@ public partial class StorageControl : IPersistable
         this.storageMaps = [];
     }
 
-    public void Rip() => this.isRip = true;
+    public void Rip() => this.unitState = UnitState.Rip;
 
     public void AddStorageMap(StorageMap storageMap)
     {
@@ -106,9 +106,11 @@ public partial class StorageControl : IPersistable
         this.Logger = crystalControl.UnitLogger.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalControl.Options.MemoryUsageLimit;
         this.SaveInterval = crystalControl.Options.SaveInterval;
+
+        this.unitState = UnitState.Active;
     }
 
-    internal void ResurrectForTesting() => this.isRip = false;
+    internal void ResurrectForTesting() => this.unitState = UnitState.Active;
 
     internal void SetStorageSize(StorageObject node, int newSize)
     {
