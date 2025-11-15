@@ -18,7 +18,7 @@
 
 ## Requirements
 
-**Visual Studio 2022** or later.
+**Visual Studio 2026** or later.
 
 
 
