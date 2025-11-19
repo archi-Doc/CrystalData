@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="Advanced/Advanced.csproj" />
+  <Project Path="CrystalData/CrystalData.csproj" />
+  <Project Path="Playground/Playground.csproj" />
+  <Project Path="QuickStart/QuickStart.csproj" />
+  <Project Path="xUnitTest/xUnitTest.csproj" />
+</Solution>
