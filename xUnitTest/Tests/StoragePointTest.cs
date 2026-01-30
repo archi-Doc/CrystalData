@@ -162,7 +162,7 @@ public class StoragePointTest
         // await crystal.CrystalControl.StoreAndRelease();
 
         g.StringStorage.Set("Test String2");
-        await crystal.CrystalControl.StoreAndRelease();
+        await crystal.CrystalControl.StoreAndRelease(TestContext.Current.CancellationToken);
 
         st = await g.StringStorage.TryGet();
         st.Is("Test String2");
