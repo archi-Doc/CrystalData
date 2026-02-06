@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Arc;
 using CrystalData.Filer;
 using CrystalData.Journal;
 using CrystalData.Storage;
