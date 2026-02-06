@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Arc;
 using CrystalData.Filer;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand.IO;
@@ -105,7 +106,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         get => this.leadingJournalPosition;
         set
         {
-            this.leadingJournalPosition = CrystalExtensions.CircularMax(this.leadingJournalPosition, value);
+            this.leadingJournalPosition = Arc.BaseHelper.CircularMax(this.leadingJournalPosition, value);
         }
     }
 

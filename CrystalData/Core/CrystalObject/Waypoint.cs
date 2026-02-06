@@ -2,6 +2,7 @@
 
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using Arc;
 
 namespace CrystalData;
 
