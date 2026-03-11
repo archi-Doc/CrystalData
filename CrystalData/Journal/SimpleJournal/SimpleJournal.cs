@@ -102,7 +102,7 @@ public partial class SimpleJournal : IJournal
             this.task.Start();
         }
 
-        this.logger.TryGet()?.Log($"Prepared: {this.books.PositionChain.First?.Position} - {this.books.PositionChain.Last?.NextPosition} ({this.books.PositionChain.Count})");
+        this.logger.GetWriter()?.Write($"Prepared: {this.books.PositionChain.First?.Position} - {this.books.PositionChain.Last?.NextPosition} ({this.books.PositionChain.Count})");
 
         await this.Merge(false).ConfigureAwait(false);
 
@@ -129,7 +129,7 @@ public partial class SimpleJournal : IJournal
             if (memory.Length > this.SimpleJournalConfiguration.MaxRecordLength)
             {
                 // throw new InvalidOperationException($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
-                this.logger.TryGet(LogLevel.Error)?.Log($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
+                this.logger.GetWriter(LogLevel.Error)?.Write($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
                 return ((IJournal)this).GetCurrentPosition();
             }
 
@@ -201,7 +201,7 @@ public partial class SimpleJournal : IJournal
             }
         }
 
-        this.logger.TryGet()?.Log($"Terminated - {this.memoryUsage}");
+        this.logger.GetWriter()?.Write($"Terminated - {this.memoryUsage}");
     }
 
     ulong IJournal.GetStartingPosition()
@@ -493,7 +493,7 @@ Load:
 
         if (await Book.MergeBooks(this, start, end, owner.AsReadOnly(0, lastLength)).ConfigureAwait(false))
         {// Success
-            this.logger.TryGet()?.Log($"Merged: {start} - {end}");
+            this.logger.GetWriter()?.Write($"Merged: {start} - {end}");
         }
     }
 

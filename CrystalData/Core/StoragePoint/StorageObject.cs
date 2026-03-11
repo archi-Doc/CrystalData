@@ -693,11 +693,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
                 if (restoredData is not null)
                 {// Successfully restored
                     data = restoredData;
-                    this.storageControl.Logger?.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
+                    this.storageControl.Logger?.GetWriter(LogLevel.Warning)?.Write(CrystalDataHashed.StorageControl.StorageReconstructed, storageInfo);
                 }
                 else
                 {// Could not restore
-                    this.storageControl.Logger?.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
+                    this.storageControl.Logger?.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.StorageControl.StorageNotReconstructed, storageInfo);
                 }
             }
 

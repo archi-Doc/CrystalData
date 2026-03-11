@@ -4,12 +4,12 @@ namespace CrystalData;
 
 internal static class LoggerHelper
 {
-    public static void Log(this ILogWriter logger, ulong hash)
-        => logger.Log(HashedString.Get(hash));
+    public static void Write(this LogWriter writer, ulong hash)
+        => writer.Write(HashedString.Get(hash));
 
-    public static void Log(this ILogWriter logger, ulong hash, object obj1)
-        => logger.Log(HashedString.Get(hash, obj1));
+    public static void Write(this LogWriter writer, ulong hash, object obj1)
+        => writer.Write(HashedString.Get(hash, obj1));
 
-    public static void Log(this ILogWriter logger, ulong hash, object obj1, object obj2)
-        => logger.Log(HashedString.Get(hash, obj1, obj2));
+    public static void Write(this LogWriter writer, ulong hash, object obj1, object obj2)
+        => writer.Write(HashedString.Get(hash, obj1, obj2));
 }
