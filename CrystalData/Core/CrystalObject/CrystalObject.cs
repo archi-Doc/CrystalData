@@ -367,7 +367,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         this.CrystalControl.UpdateWaypoint(this, ref currentWaypoint, hash);
 
-        // this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Debug)?.Log("Saved");
+        // this.CrystalControl.UnitLogger.GetLogger<TData>().GetWriter(LogLevel.Debug)?.Write("Saved");
         var result = await filer.Save(rentMemory.ReadOnly, currentWaypoint).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {// Write error
@@ -434,7 +434,7 @@ Exit:
                 return testResult;
             }
 
-            var logger = this.CrystalControl.UnitLogger.GetLogger<TData>();
+            var logger = this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>();
             for (var i = 0; i < waypoints.Length; i++)
             {// waypoint[i] -> waypoint[i + 1]
                 var base32 = waypoints[i].ToBase32();
@@ -443,7 +443,7 @@ Exit:
                 var result = await main.LoadWaypoint(waypoints[i]).ConfigureAwait(false);
                 if (result.IsFailure)
                 {// Loading error
-                    logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.TestJournal.LoadingFailure, base32);
+                    logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.LoadingFailure, base32);
                     testResult = false;
                     break;
                 }
@@ -453,7 +453,7 @@ Exit:
                 if (currentObject is null)
                 {// Deserialization error
                     result.Return();
-                    logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.TestJournal.DeserializationFailure, base32);
+                    logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.DeserializationFailure, base32);
                     testResult = false;
                     break;
                 }
@@ -490,11 +490,11 @@ Exit:
 
                     if (compare)
                     {// Success
-                        logger.TryGet(LogLevel.Information)?.Log(CrystalDataHashed.TestJournal.Success, base32);
+                        logger.GetWriter(LogLevel.Information)?.Write(CrystalDataHashed.TestJournal.Success, base32);
                     }
                     else
                     {// Failure
-                        logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.TestJournal.Failure, base32);
+                        logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.Failure, base32);
                         testResult = false;
 
                         /*if (currentObject is StorageMap currentMap &&
@@ -731,7 +731,7 @@ Exit:
         {
             if (loadResult.Waypoint.JournalPosition.CircularCompareTo(journal.GetCurrentPosition()) > 0)
             {// loadResult.Waypoint.JournalPosition > journal.GetCurrentPosition()
-                this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalDataQueryDefault.InconsistentJournal, this.CrystalConfiguration.FileConfiguration.Path);
+                this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>().GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.CrystalDataQueryDefault.InconsistentJournal, this.CrystalConfiguration.FileConfiguration.Path);
 
                 // Wayback
                 await this.crystalFiler.Delete(loadResult.Waypoint).ConfigureAwait(false);
@@ -807,11 +807,11 @@ Exit:
                 this.LeadingJournalPosition = journalPosition; // To prevent double loading when ReadJournal is called later, update LeadingJournalPosition.
                 deserializedData = restoredData;
 
-                this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalObject.RestoreSuccess);
+                this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>().GetWriter(LogLevel.Warning)?.Write(CrystalDataHashed.CrystalObject.RestoreSuccess);
             }
             else
             {
-                this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(LogLevel.Error)?.Log(CrystalDataHashed.CrystalObject.RestoreFailure);
+                this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>().GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.CrystalObject.RestoreFailure);
             }
         }
 
@@ -892,8 +892,8 @@ Exit:
 
     private void LogWaypoint(string prefix)
     {
-        var logger = this.CrystalControl.UnitLogger.GetLogger<TData>();
-        logger.TryGet(LogLevel.Error)?.Log($"{prefix}, {this.waypoint.ToString()}");
+        var logger = this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>();
+        logger.GetWriter(LogLevel.Error)?.Write($"{prefix}, {this.waypoint.ToString()}");
     }
 
     private void PrepareCrystalConfiguration()
@@ -971,5 +971,5 @@ Exit:
         this.SetTimeForDataSaving(this.saveIntervalInSeconds);
     }
 
-    private ILogWriter? TryGetLogger(LogLevel logLevel = LogLevel.Information) => this.CrystalControl.UnitLogger.GetLogger<TData>().TryGet(logLevel);
+    private LogWriter? TryGetLogger(LogLevel logLevel = LogLevel.Information) => this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>().GetWriter(logLevel);
 }

@@ -385,7 +385,7 @@ public class CrystalFiler
     {
         this.CrystalControl = crystalControl;
         this.configuration = CrystalConfiguration.Default;
-        this.logger = this.CrystalControl.UnitLogger.GetLogger<CrystalFiler>();
+        this.logger = this.CrystalControl.LogUnit.RootLogService.GetLogger<CrystalFiler>();
     }
 
     public async Task<CrystalResult> PrepareAndCheck(PrepareParam param, CrystalConfiguration configuration)
@@ -465,7 +465,7 @@ public class CrystalFiler
                     // Save the loaded backup also to Main.
                     _ = this.backup.CopyTo(this.main, result.Waypoint);
 
-                    this.logger.TryGet(LogLevel.Warning)?.Log(string.Format(HashedString.Get(CrystalDataHashed.CrystalFiler.BackupLoaded), result.Path));
+                    this.logger.GetWriter(LogLevel.Warning)?.Write(string.Format(HashedString.Get(CrystalDataHashed.CrystalFiler.BackupLoaded), result.Path));
                 }
             }
 

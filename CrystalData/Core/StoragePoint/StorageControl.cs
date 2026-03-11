@@ -103,7 +103,7 @@ public partial class StorageControl : IPersistable
     internal void Initialize(CrystalControl crystalControl)
     {
         this.CrystalControl = crystalControl;
-        this.Logger = crystalControl.UnitLogger.GetLogger<StorageControl>();
+        this.Logger = crystalControl.LogUnit.RootLogService.GetLogger<StorageControl>();
         this.MemoryUsageLimit = crystalControl.Options.MemoryUsageLimit;
         this.SaveInterval = crystalControl.Options.SaveInterval;
 

@@ -44,9 +44,9 @@ public partial class Program
         }
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
-        if (product?.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
+        if (product?.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {// Flush the buffered logs and then shut down the logger.
-            await unitLogger.FlushAndTerminate();
+            await logUnit.FlushAndTerminate();
         }
 
         ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).

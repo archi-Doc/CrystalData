@@ -48,7 +48,7 @@ public partial class CrystalControl
 
     internal ICrystalDataQuery QueryContinue { get; }
 
-    internal UnitLogger UnitLogger { get; }
+    internal LogUnit LogUnit { get; }
 
     internal ILogger Logger { get; }
 
@@ -67,11 +67,11 @@ public partial class CrystalControl
 
     #endregion
 
-    public CrystalControl(CrystalControlConfiguration configuration, CrystalOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<CrystalControl> logger, UnitLogger unitLogger, IStorageKey storageKey)
+    public CrystalControl(CrystalControlConfiguration configuration, CrystalOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<CrystalControl> logger, LogUnit logUnit, IStorageKey storageKey)
     {
         this.UpdateTime();
         this.configuration = configuration;
-        this.UnitLogger = unitLogger;
+        this.LogUnit = logUnit;
         this.ServiceProvider = serviceProvider;
 
         // Options
@@ -461,7 +461,7 @@ public partial class CrystalControl
         this.IsPrepared = true;
         if (this.CrystalSupplement.IsRip)
         {// Rip success
-            this.Logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.RipSuccess);
+            this.Logger.GetWriter()?.Write(CrystalDataHashed.CrystalSupplement.RipSuccess);
 
             if (loadCrystals)
             {// Load all crystals
@@ -470,7 +470,7 @@ public partial class CrystalControl
         }
         else
         {// Rip failure -> Read journal
-            this.Logger.TryGet(LogLevel.Warning)?.Log(CrystalDataHashed.CrystalSupplement.RipFailure);
+            this.Logger.GetWriter(LogLevel.Warning)?.Write(CrystalDataHashed.CrystalSupplement.RipFailure);
 
             // Load all crystals
             await this.LoadAllCrystals(useQuery).ConfigureAwait(false);
@@ -517,7 +517,7 @@ public partial class CrystalControl
             await journal.Terminate().ConfigureAwait(false);
         }
 
-        this.Logger.TryGet()?.Log($"Terminated - {this.StorageControl.MemoryUsage}");
+        this.Logger.GetWriter()?.Write($"Terminated - {this.StorageControl.MemoryUsage}");
     }
 
     /// <summary>
@@ -849,7 +849,7 @@ public partial class CrystalControl
                     }
                 }
 
-                var simpleJournal = new SimpleJournal(this, simpleJournalConfiguration, this.UnitLogger.GetLogger<SimpleJournal>());
+                var simpleJournal = new SimpleJournal(this, simpleJournalConfiguration, this.LogUnit.RootLogService.GetLogger<SimpleJournal>());
                 this.Journal = simpleJournal;
                 this.JournalConfiguration = simpleJournalConfiguration;
             }
@@ -903,10 +903,10 @@ public partial class CrystalControl
                 position = journalResult.NextPosition;
             }
 
-            this.Logger.TryGet(LogLevel.Debug)?.Log($"Journal read {startPosition} - {endPosition}");
+            this.Logger.GetWriter(LogLevel.Debug)?.Write($"Journal read {startPosition} - {endPosition}");
             if (failure)
             {
-                this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.ReadFailure);
+                this.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Journal.ReadFailure);
             }
 
             if (restored.Count > 0)
@@ -920,7 +920,7 @@ public partial class CrystalControl
                     }
                 }
 
-                this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.Restored, sb.ToString());
+                this.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Journal.Restored, sb.ToString());
             }
         }
     }
@@ -932,7 +932,7 @@ public partial class CrystalControl
         {
             if (!reader.TryReadJournal(out var length, out var journalType))
             {
-                this.Logger.TryGet(LogLevel.Error)?.Log(CrystalDataHashed.Journal.Corrupted);
+                this.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Journal.Corrupted);
                 return;
             }
 
@@ -952,7 +952,7 @@ public partial class CrystalControl
                             {// currentPosition >= crystal.LeadingJournalPosition
                                 if (journalObject.ProcessJournalRecord(ref reader))
                                 {// Success
-                                    // this.logger.TryGet(LogLevel.Debug)?.Log($"Journal read, Plane: {plane}, Length: {length} => {crystal.GetType().FullName}");
+                                    // this.logger.GetWriter(LogLevel.Debug)?.Write($"Journal read, Plane: {plane}, Length: {length} => {crystal.GetType().FullName}");
                                     restored.Add(plane);
                                 }
                                 else
@@ -1057,7 +1057,7 @@ public partial class CrystalControl
     {
         foreach (var x in this.crystals.GetPlaneKeyValue())
         {
-            this.Logger.TryGet(LogLevel.Debug)?.Log($"Plane: {x.Key} = {x.Value.GetType().FullName}");
+            this.Logger.GetWriter(LogLevel.Debug)?.Write($"Plane: {x.Key} = {x.Value.GetType().FullName}");
         }
     }
 

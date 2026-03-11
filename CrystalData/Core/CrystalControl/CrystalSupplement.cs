@@ -246,7 +246,7 @@ public sealed partial class CrystalSupplement
     internal CrystalSupplement(CrystalControl crystalControl)
     {
         this.crystalControl = crystalControl;
-        this.logger = this.crystalControl.UnitLogger.GetLogger<CrystalSupplement>();
+        this.logger = this.crystalControl.LogUnit.RootLogService.GetLogger<CrystalSupplement>();
     }
 
     public bool TryGetStoredJournalPosition<TData>(FileConfiguration fileConfiguration, out ulong journalPosition)
@@ -319,7 +319,7 @@ public sealed partial class CrystalSupplement
                 {
                     this.data = deserializeResult.Data;
                     this.IsSupplementLoaded = true;
-                    this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadSuccess, pathAndRip);
+                    this.logger.GetWriter()?.Write(CrystalDataHashed.CrystalSupplement.LoadSuccess, pathAndRip);
                     return true;
                 }
             }
@@ -328,7 +328,7 @@ public sealed partial class CrystalSupplement
                 fileResult.Return();
             }
 
-            this.logger.TryGet()?.Log(CrystalDataHashed.CrystalSupplement.LoadFailure, pathAndRip);
+            this.logger.GetWriter()?.Write(CrystalDataHashed.CrystalSupplement.LoadFailure, pathAndRip);
             return false;
         }
     }

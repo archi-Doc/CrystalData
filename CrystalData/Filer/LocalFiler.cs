@@ -48,7 +48,7 @@ TryWrite:
                     using (var handle = File.OpenHandle(filePath, mode: FileMode.OpenOrCreate, access: FileAccess.Write))
                     {
                         await RandomAccess.WriteAsync(handle, work.WriteData.Memory, work.Offset, worker.CancellationToken).ConfigureAwait(false);
-                        worker.logger?.TryGet(LogLevel.Debug)?.Log($"Written[{work.WriteData.Memory.Length}] {work.Path}");
+                        worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Written[{work.WriteData.Memory.Length}] {work.Path}");
 
                         if (work.Truncate)
                         {
@@ -82,7 +82,7 @@ TryWrite:
                             return;
                         }
 
-                        worker.logger?.TryGet(LogLevel.Debug)?.Log($"Directory created: {directoryPath}");
+                        worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Directory created: {directoryPath}");
                     }
                     else
                     {
@@ -99,7 +99,7 @@ TryWrite:
                 }
                 catch
                 {
-                    worker.logger?.TryGet(LogLevel.Warning)?.Log($"Retry {work.Path}");
+                    worker.logger?.GetWriter(LogLevel.Warning)?.Write($"Retry {work.Path}");
                     goto TryWrite;
                 }
             }
@@ -144,14 +144,14 @@ TryWrite:
                         {
                         }
 
-                        worker.logger?.TryGet(LogLevel.Error)?.Log($"Read error and deleted: {work.Path}");
+                        worker.logger?.GetWriter(LogLevel.Error)?.Write($"Read error and deleted: {work.Path}");
                         work.Result = CrystalResult.FileOperationError;
                         return;
                     }
 
                     work.Result = CrystalResult.Success;
                     work.ReadData = memoryOwner;
-                    worker.logger?.TryGet(LogLevel.Debug)?.Log($"Read[{memoryOwner.Memory.Length}] {work.Path}");
+                    worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read[{memoryOwner.Memory.Length}] {work.Path}");
                     return;
                 }
             }
@@ -163,7 +163,7 @@ TryWrite:
             catch
             {
                 work.Result = CrystalResult.FileOperationError;
-                worker.logger?.TryGet(LogLevel.Error)?.Log($"Read exception {work.Path}");
+                worker.logger?.GetWriter(LogLevel.Error)?.Write($"Read exception {work.Path}");
             }
             finally
             {
@@ -174,7 +174,7 @@ TryWrite:
             try
             {
                 File.Delete(filePath);
-                worker.logger?.TryGet(LogLevel.Debug)?.Log($"Deleted: {work.Path}");
+                worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Deleted: {work.Path}");
                 work.Result = CrystalResult.Success;
             }
             catch
@@ -261,7 +261,7 @@ TryWrite:
         this.CrystalControl = param.CrystalControl;
         if (this.CrystalControl.Options.EnableFilerLogger)
         {
-            this.logger ??= this.CrystalControl.UnitLogger.GetLogger<LocalFiler>();
+            this.logger ??= this.CrystalControl.LogUnit.RootLogService.GetLogger<LocalFiler>();
         }
 
         var directoryPath = Path.GetDirectoryName(PathHelper.GetRootedFile(this.CrystalControl.Options.DataDirectory, configuration.Path));
@@ -278,7 +278,7 @@ TryWrite:
 
             if (!accessible)
             {
-                this.logger?.TryGet(LogLevel.Fatal)?.Log(CrystalDataHashed.LocalFiler.FailedToAccess, directoryPath);
+                this.logger?.GetWriter(LogLevel.Fatal)?.Write(CrystalDataHashed.LocalFiler.FailedToAccess, directoryPath);
             }
         }
 

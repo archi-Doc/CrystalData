@@ -78,7 +78,7 @@ TryWrite:
                         var response = await worker.client.PutObjectAsync(request, worker.CancellationToken).ConfigureAwait(false);
                         if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
                         {
-                            worker.logger?.TryGet(LogLevel.Debug)?.Log($"Written {filePath}, {work.WriteData.Memory.Length}");
+                            worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Written {filePath}, {work.WriteData.Memory.Length}");
                             work.Result = CrystalResult.Success;
                             return;
                         }
@@ -94,7 +94,7 @@ TryWrite:
                 }
 
                 // Retry
-                worker.logger?.TryGet(LogLevel.Warning)?.Log($"Retry {filePath}");
+                worker.logger?.GetWriter(LogLevel.Warning)?.Write($"Retry {filePath}");
                 goto TryWrite;
             }
             finally
@@ -121,7 +121,7 @@ TryWrite:
                         response.ResponseStream.CopyTo(ms);
                         work.Result = CrystalResult.Success;
                         work.ReadData = BytePool.RentMemory.CreateFrom(ms.ToArray());
-                        worker.logger?.TryGet(LogLevel.Debug)?.Log($"Read {filePath}, {work.ReadData.Memory.Length}");
+                        worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read {filePath}, {work.ReadData.Memory.Length}");
                         return;
                     }
                 }
@@ -139,7 +139,7 @@ TryWrite:
             }
 
             work.Result = CrystalResult.FileOperationError;
-            worker.logger?.TryGet(LogLevel.Error)?.Log($"Read exception {filePath}");
+            worker.logger?.GetWriter(LogLevel.Error)?.Write($"Read exception {filePath}");
         }
         else if (work.Type == FilerWork.WorkType.Delete)
         {// Delete
@@ -247,12 +247,12 @@ RepeatList:
         this.CrystalControl = param.CrystalControl;
         if (this.CrystalControl.Options.EnableFilerLogger)
         {
-            this.logger ??= this.CrystalControl.UnitLogger.GetLogger<S3Filer>();
+            this.logger ??= this.CrystalControl.LogUnit.RootLogService.GetLogger<S3Filer>();
         }
 
         if (!this.CrystalControl.StorageKey.TryGetKey(this.bucket, out var accessKeyPair))
         {// No access key
-            this.logger?.TryGet(LogLevel.Fatal)?.Log(CrystalDataHashed.S3Filer.NoAccessKey, this.bucket);
+            this.logger?.GetWriter(LogLevel.Fatal)?.Write(CrystalDataHashed.S3Filer.NoAccessKey, this.bucket);
             return CrystalResult.NoAccess;
         }
 
@@ -298,7 +298,7 @@ RepeatList:
         return CrystalResult.Success;
 
 NoAccess:
-        this.logger?.TryGet(LogLevel.Fatal)?.Log(CrystalDataHashed.S3Filer.FailedToAccess, this.bucket, directoryPath);
+        this.logger?.GetWriter(LogLevel.Fatal)?.Write(CrystalDataHashed.S3Filer.FailedToAccess, this.bucket, directoryPath);
         return CrystalResult.NoAccess;
     }
 
