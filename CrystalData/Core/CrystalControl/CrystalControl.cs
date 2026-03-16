@@ -1003,7 +1003,7 @@ public partial class CrystalControl
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
         // Since storages are modified in the preceding step, persist storages here.
-        goshujin.Clear();
+        goshujin.ClearAll();
         var storages = this.GetStorageArray();
         foreach (var x in storages)
         {
