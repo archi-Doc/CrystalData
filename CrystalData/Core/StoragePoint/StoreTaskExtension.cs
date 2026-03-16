@@ -104,7 +104,7 @@ internal partial class ReleaseTask : IEquatable<ReleaseTask>
 
     public DateTime FirstProcessed { get; set; }
 
-    [Link(Type = ChainType.Ordered)]
+    [Link(Primary = true, Type = ChainType.Ordered)]
     public DateTime LastProcessed { get; set; }
 
     #endregion

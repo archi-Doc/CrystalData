@@ -237,7 +237,7 @@ public partial class SimpleJournal : IJournal
                 x.DeleteInternal();
             }
 
-            this.books.Clear();
+            this.books.ClearChains();
 
             using (this.lockRecordBuffer.EnterScope())
             {
