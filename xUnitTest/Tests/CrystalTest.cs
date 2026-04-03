@@ -57,7 +57,7 @@ public class CrystalTest
 
         using (var borrowers = await creditData.Borrowers.TryLock())
         {
-            using (var w2 = borrowers.Data!.TryLock(22, AcquisitionMode.Create)!)
+            using (var w2 = borrowers.Data!.TryLock(22, AcquisitionMode.CreateOnly)!)
             {
                 w2.Commit();
             }
@@ -96,7 +96,7 @@ public class CrystalTest
 
         using (var borrowers = await creditData.Borrowers.TryLock())
         {
-            using (var w2 = borrowers.Data!.TryLock(22, AcquisitionMode.Create)!)
+            using (var w2 = borrowers.Data!.TryLock(22, AcquisitionMode.CreateOnly)!)
             {
                 w2.Commit();
             }

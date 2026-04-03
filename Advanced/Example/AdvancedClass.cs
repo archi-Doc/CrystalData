@@ -77,7 +77,7 @@ public partial record AdvancedClass
             }
         }
 
-        var sc = g.Find(3, AcquisitionMode.Get);
+        var sc = g.Find(3, AcquisitionMode.GetOnly);
     }
 
     [Key(0)]

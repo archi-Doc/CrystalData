@@ -101,10 +101,18 @@ public partial class Class4
         var id = this.Goshujin.Count;
         using (var dataScope = await this.Goshujin.TryLock(id, AcquisitionMode.GetOrCreate))
         {
+            if (dataScope.IsValid)
+            {
+                dataScope.Data.Id = id;
+            }
         }
 
-        using (var dataScope = await this.Goshujin.TryLock(1, AcquisitionMode.GetOrCreate))
+        using (var dataScope = await this.Goshujin.TryLock(1, AcquisitionMode.GetOnly))
         {
+            if (dataScope.IsValid)
+            {
+                Console.WriteLine($"1: {dataScope.Data}");
+            }
         }
 
         var ids = this.Goshujin.IdChain.Keys;

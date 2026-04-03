@@ -229,7 +229,7 @@ public class StoragePointTest4
     private async Task Decrement(int id)
     {
         // var deleted = false;
-        using (var dataScope = this.g.TryLock(id, AcquisitionMode.Get).Result)
+        using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOnly).Result)
         {
             if (dataScope.IsValid)
             {

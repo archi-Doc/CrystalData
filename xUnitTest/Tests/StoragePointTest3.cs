@@ -405,7 +405,7 @@ public class StoragePointTest3
                     }
                 }
 
-                (await dataScope.Data.SptStorage.Delete(21)).Is(DataScopeResult.Success);
+                (await dataScope.Data.SptStorage.Delete(21)).Is(DataScopeResult.Deleted);
             }
         }
 

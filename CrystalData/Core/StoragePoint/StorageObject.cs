@@ -217,7 +217,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
         if (this.data is not null)
         {// Data loaded
-            if (acquisitionMode == AcquisitionMode.Create)
+            if (acquisitionMode == AcquisitionMode.CreateOnly)
             {
                 this.Exit();
                 return new(DataScopeResult.AlreadyExists);
@@ -227,7 +227,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         }
         else
         {// Data not loaded
-            if (acquisitionMode == AcquisitionMode.Get)
+            if (acquisitionMode == AcquisitionMode.GetOnly)
             {// Get only
                 this.Exit();
                 return new(DataScopeResult.NotFound);
