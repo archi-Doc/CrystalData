@@ -1,9 +1,8 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
 namespace QuickStart.Evolution;
 
+#pragma warning disable SA1204 // Static elements should appear before instance elements
 #pragma warning disable SA1402 // File may only contain a single type
 
 [TinyhandObject(LockObject = "syncObject")]
