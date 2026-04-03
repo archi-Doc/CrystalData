@@ -178,6 +178,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     internal async ValueTask<DataScope<TData>> TryLock<TData>(IStructuralObject storagePoint, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
         where TData : class
     {
+        var result = DataScopeResult.Retrieved;
+
         if (this.IsDeleted)
         {// Deleted
             return new(DataScopeResult.Obsolete);
@@ -217,7 +219,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
         if (this.data is not null)
         {// Data loaded
-            if (acquisitionMode == AcquisitionMode.Create)
+            if (acquisitionMode == AcquisitionMode.CreateOnly)
             {
                 this.Exit();
                 return new(DataScopeResult.AlreadyExists);
@@ -227,7 +229,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         }
         else
         {// Data not loaded
-            if (acquisitionMode == AcquisitionMode.Get)
+            if (acquisitionMode == AcquisitionMode.GetOnly)
             {// Get only
                 this.Exit();
                 return new(DataScopeResult.NotFound);
@@ -235,10 +237,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             else
             {// Create or GetOrCreate -> Reconstruct
                 this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
+                result = DataScopeResult.Created;
             }
         }
 
-        return new((TData)this.data, this, storagePoint);
+        return new(result, (TData)this.data, this, storagePoint);
     }
 
     public void Unlock()

@@ -184,12 +184,12 @@ public partial class SpClassPoint : StoragePoint<SpClass>
 
 public static class Helper
 {// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
-    /*public static ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode = AcquisitionMode.Get, CancellationToken cancellationToken = default)
+    /*public static ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode = AcquisitionMode.GetOnly, CancellationToken cancellationToken = default)
         => Find(storagePoint, key, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
 
     public static async ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        using (var scope = await storagePoint.TryLock(AcquisitionMode.Get, timeout, cancellationToken).ConfigureAwait(false))
+        using (var scope = await storagePoint.TryLock(AcquisitionMode.GetOnly, timeout, cancellationToken).ConfigureAwait(false))
         {
             if (scope.Data is { } g) return g.FindFirst(key, acquisitionMode);
             else return default;
@@ -226,7 +226,7 @@ public static class Helper
 
     public static async Task<DataScopeResult> Delete(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken, DateTime forceDeleteAfter = default)
     {
-        using (var scope = await storagePoint.TryLock(AcquisitionMode.Get, timeout, cancellationToken).ConfigureAwait(false))
+        using (var scope = await storagePoint.TryLock(AcquisitionMode.GetOnly, timeout, cancellationToken).ConfigureAwait(false))
         {
             if (scope.Data is { } g) return await g.Delete(key, forceDeleteAfter).ConfigureAwait(false);
             else return scope.Result;

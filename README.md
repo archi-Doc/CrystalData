@@ -574,7 +574,8 @@ public partial class Class1
 ### Class2
 
  If a member is large and you want to persist it independently, or if you want to isolate locking, use `StoragePoint<T>`.
- These members are stored in a separate storage from the class (the class only references the StoragePoint Id).
+
+ These members are stored in a separate storage from the class (the class only references the **StoragePoint** Id).
 
 ```csharp
 [TinyhandObject(Structural = true)]
@@ -611,8 +612,8 @@ public partial class Class2
 
 ### Class3
 
- **Class3** simply holds a collection of **Class1**.
- The entire collection is persisted within **Class3**.
+ **Class3** simply holds a collection of **Class1**, so the entire collection is persisted within **Class3**.
+
  Use locking if necessary.
 
 ```csharp
@@ -637,10 +638,13 @@ public partial class Class3
 ### Class4
 
  If you want each element of a **Class1** collection to be persisted independently and also have independent locking, use **ValueLink**'s **ReadCommitted** and `StoragePoint<T>`.
+
  First, create a **Class1Point** class that holds **Class1** (= `StoragePoint<Class1>`).
+
  The code below may look complex, but considering what it does, it is not that complicated.
 
 ```csharp
+
 ```
 
 
