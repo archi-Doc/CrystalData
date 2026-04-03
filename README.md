@@ -644,7 +644,40 @@ public partial class Class3
  The code below may look complex, but considering what it does, it is not that complicated.
 
 ```csharp
+[TinyhandObject]
+[ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
+public partial class Class1Point : StoragePoint<Class1>
+{
+    [Key(1)]
+    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
+    public int Id { get; private set; }
 
+    public Class1Point()
+    {
+    }
+}
+
+[TinyhandObject(Structural = true)]
+public partial class Class4
+{
+    [Key(0)]
+    public Class1Point.GoshujinClass Goshujin { get; set; } = new();
+
+    public async Task Test()
+    {
+        var id = this.Goshujin.Count;
+        using (var dataScope = await this.Goshujin.TryLock(id, AcquisitionMode.GetOrCreate))
+        {
+            if (dataScope.IsCreated)
+            {
+                dataScope.Data.Id = id;
+            }
+        }
+
+        var ids = this.Goshujin.IdChain.Keys;
+        Console.WriteLine($"Class4: {string.Join(',', ids.Select(x => x.ToString()))}");
+    }
+}
 ```
 
 
