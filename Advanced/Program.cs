@@ -6,7 +6,6 @@ global using CrystalData;
 global using Microsoft.Extensions.DependencyInjection;
 global using Tinyhand;
 global using ValueLink;
-using QuickStart.Evolution;
 
 namespace QuickStart;
 
@@ -37,7 +36,7 @@ public partial class Program
         // var product = await IntegratedExample();
         // var product = await DefaultExample();
         // var product = await StoragePointExample();
-        var product = await EvolutionExample.Program();
+        var product = await QuickStart.Evolution.EvolutionExample.Program();
 
         ThreadCore.Root.Terminate();
         if (product is not null)

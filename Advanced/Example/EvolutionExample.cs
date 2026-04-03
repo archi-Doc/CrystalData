@@ -90,7 +90,7 @@ public partial class Class1Point : StoragePoint<Class1>
     }
 }
 
-[TinyhandObject]
+[TinyhandObject(Structural = true)]
 public partial class Class4
 {
     [Key(0)]
