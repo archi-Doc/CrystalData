@@ -531,14 +531,124 @@ var builder = new CrystalControl.Builder()
 
 
 
-## StoragePoint
+## StoragePoint: Evolution of locking and deletion logic
+
+ This section explains, step by step, the locking and deletion logic for classes that are subject to data persistence (i.e., **CrystalData** targets).
+
+### Class1
+
+ This is the simplest example class. Use locking if necessary.
+
+```csharp
+[TinyhandObject(LockObject = "syncObject")]
+[ValueLinkObject]
+public partial class Class1
+{
+    [Key(0)]
+    [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
+    public int Id { get; set; }
+
+    private readonly Lock syncObject = new();
+
+    public Class1(int id)
+    {
+        this.Id = id;
+    }
+
+    public void Test()
+    {
+        using (this.syncObject.EnterScope())
+        {
+            this.Id++;
+            Console.WriteLine($"Class1: {this}");
+        }
+    }
+
+    public override string ToString()
+        => this.Id.ToString();
+}
+```
 
 
 
-| **Class**                                | Persistence | Element  | Data control | Exclusive control |
-| ---------------------------------------- | ----------- | -------- | ------------ | ----------------- |
-| **SptClass.GoshujinClass**               | Parent      | SptClass | Parent       | Goshujin          |
-| **StoragePoint<SptClass.GoshujinClass>** | Storage     | SptClass | StoragePoint | Goshujin          |
-| **SptPoint.GoshujinClass**               | Parent      | SptPoint | Parent       | SptPoint          |
-| **StoragePoint<SptPoint.GoshujinClass>** | Storage     | SptPoint | StoragePoint | SptPoint          |
+### Class2
+
+ If a member is large and you want to persist it independently, or if you want to isolate locking, use `StoragePoint<T>`.
+ These members are stored in a separate storage from the class (the class only references the StoragePoint Id).
+
+```csharp
+[TinyhandObject(Structural = true)]
+public partial class Class2
+{
+    [Key(0)]
+    public StoragePoint<Class1> Member1 { get; set; } = new();
+
+    [Key(1)]
+    public StoragePoint<byte[]> Member2 { get; set; } = new();
+
+    public async Task Test()
+    {
+        using (var dataScope = await this.Member1.TryLock())
+        {
+            if (dataScope.IsValid)
+            {
+                dataScope.Data.Id++;
+            }
+        }
+
+        var data = await this.Member2.TryGet();
+        var newData = new byte[(data is null ? 0 : data.Length) + 100];
+        this.Member2.Set(newData);
+
+        var class1 = await this.Member1.TryGet();
+        data = await this.Member2.TryGet();
+        Console.WriteLine($"Class2: {class1?.Id},{(data is null ? 0 : data.Length)}");
+    }
+}
+```
+
+
+
+### Class3
+
+ **Class3** simply holds a collection of **Class1**.
+ The entire collection is persisted within **Class3**.
+ Use locking if necessary.
+
+```csharp
+[TinyhandObject]
+public partial class Class3
+{
+    [Key(0)]
+    public Class1.GoshujinClass Goshujin { get; set; } = new();
+
+    public void Test()
+    {
+        var c = new Class1(this.Goshujin.Count);
+        c.Goshujin = this.Goshujin;
+
+        Console.WriteLine($"Class3: {string.Join(',', this.Goshujin.Select(x => x.ToString()))}");
+    }
+}
+```
+
+
+
+### Class4
+
+ If you want each element of a **Class1** collection to be persisted independently and also have independent locking, use **ValueLink**'s **ReadCommitted** and `StoragePoint<T>`.
+ First, create a **Class1Point** class that holds **Class1** (= `StoragePoint<Class1>`).
+ The code below may look complex, but considering what it does, it is not that complicated.
+
+```csharp
+```
+
+
+
+| **Class**                                   | Persistence | Element     | Data control | Exclusive control |
+| ------------------------------------------- | ----------- | ----------- | ------------ | ----------------- |
+| **Class1.GoshujinClass**                    | Parent      | Class1      | Parent       | Goshujin          |
+| **StoragePoint<Class1.GoshujinClass>**      | Storage     | Class1      | StoragePoint | StoragePoint      |
+| **Class1Point.GoshujinClass**               | Parent      | Class1Point | Parent       | StoragePoint      |
+| **StoragePoint<Class1Point.GoshujinClass>** | Storage     | Class1Point | StoragePoint | StoragePoint x 2  |
 
