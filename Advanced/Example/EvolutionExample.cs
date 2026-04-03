@@ -77,7 +77,7 @@ public partial class Class3
     }
 }
 
-[TinyhandObject(Structural = true)]
+[TinyhandObject]
 [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
 public partial class Class1Point : StoragePoint<Class1>
 {
@@ -85,7 +85,7 @@ public partial class Class1Point : StoragePoint<Class1>
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     public int Id { get; private set; }
 
-    public Class1Point(int id)
+    public Class1Point()
     {
     }
 }
@@ -98,12 +98,13 @@ public partial class Class4
 
     public async Task Test()
     {
-        var count = this.Goshujin.Count;
-        using (var dataScope = await this.Goshujin.TryLock(count, AcquisitionMode.GetOrCreate))
+        var id = this.Goshujin.Count;
+        using (var dataScope = await this.Goshujin.TryLock(id, AcquisitionMode.GetOrCreate))
         {
-            if (dataScope.IsValid)
-            {
-            }
+        }
+
+        using (var dataScope = await this.Goshujin.TryLock(1, AcquisitionMode.GetOrCreate))
+        {
         }
 
         var ids = this.Goshujin.IdChain.Keys;
