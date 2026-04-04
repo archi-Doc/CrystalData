@@ -76,10 +76,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     internal StorageControl storageControl => this.storageMap.StorageControl;
 
-    public bool IsEnabled => this.storageMap.IsEnabled;
+    internal bool IsEnabled => this.storageMap.IsEnabled;
 
-    public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
+    /// <summary>
+    /// Gets a value indicating whether the in-memory <c>data</c> is pinned.
+    /// </summary>
+    internal bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
 
+    /// <summary>
+    /// Gets a value indicating whether this object has been invalidated.
+    /// </summary>
+    internal bool IsInvalidated => this.storageObjectState.HasFlag(StorageObjectState.Invalidated);
+
+    /// <summary>
+    /// Gets a value indicating whether this object is deleted/obsolete according to its protection state.
+    /// </summary>
     public bool IsDeleted => ObjectProtectionStateHelper.IsObsolete(this.protectionState);
 
     #endregion

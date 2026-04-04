@@ -37,7 +37,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>
-    /// Gets a value indicating whether storage is enabled.
+    /// Gets a value indicating whether this <see cref="StorageObject"/> is associated with an enabled <see cref="StorageMap"/>.
     /// </summary>
     public bool IsEnabled => this.GetOrCreateStorageObject().IsEnabled;
 
@@ -48,6 +48,16 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public bool IsLocked => this.storageObject?.IsLocked == true;
 
     public bool IsDeleted => this.storageObject?.IsDeleted == true;
+
+    /// <summary>
+    /// Gets a value indicating whether the in-memory <c>data</c> is pinned.
+    /// </summary>
+    public bool IsPinned => this.storageObject?.IsPinned == true;
+
+    /// <summary>
+    /// Gets a value indicating whether this object has been invalidated.
+    /// </summary>
+    public bool IsInvalidated => this.storageObject?.IsInvalidated == true;
 
     #endregion
 
@@ -133,6 +143,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </returns>
     public ValueTask<TData> PinData()
         => this.GetOrCreateStorageObject().PinData<TData>();
+
+    public ValueTask<TData> InvalidateData()
+        => this.GetOrCreateStorageObject().InvalidateData<TData>();
 
     /// <summary>
     /// Adds this storage point to the save queue.<br/>
