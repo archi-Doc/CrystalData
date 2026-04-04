@@ -128,6 +128,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         return (TData)this.data;
     }
 
+    internal void InvalidateObject()
+        => this.storageControl.InvalidateObject(this);
+
+    internal void ValidateObject()
+        => this.storageControl.ValidateObject(this);
+
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
     {
         if (options.IsSignatureMode)

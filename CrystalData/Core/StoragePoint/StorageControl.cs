@@ -732,4 +732,20 @@ public partial class StorageControl : IPersistable
             }
         }
     }
+
+    internal void InvalidateObject(StorageObject node)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            node.storageObjectState |= StorageObjectState.Invalidated;
+        }
+    }
+
+    internal void ValidateObject(StorageObject node)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            node.storageObjectState &= ~StorageObjectState.Invalidated;
+        }
+    }
 }

@@ -144,8 +144,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public ValueTask<TData> PinData()
         => this.GetOrCreateStorageObject().PinData<TData>();
 
-    public ValueTask<TData> InvalidateData()
-        => this.GetOrCreateStorageObject().InvalidateData<TData>();
+    public void InvalidateData()
+        => this.GetOrCreateStorageObject().InvalidateObject();
+
+    public void ValidateData()
+        => this.GetOrCreateStorageObject().ValidateObject();
 
     /// <summary>
     /// Adds this storage point to the save queue.<br/>
