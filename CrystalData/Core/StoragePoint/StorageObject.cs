@@ -86,7 +86,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     /// <summary>
     /// Gets a value indicating whether this object has been invalidated.
     /// </summary>
-    internal bool IsInvalidated => this.storageObjectState.HasFlag(StorageObjectState.Invalidated);
+    internal bool IsInvalidated => this.storageObjectState.HasFlag(StorageObjectState.Invalid);
 
     /// <summary>
     /// Gets a value indicating whether this object is deleted/obsolete according to its protection state.
@@ -126,6 +126,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         this.storageControl.PinObject(this);
 
         return (TData)this.data;
+    }
+
+    internal void SetState(StorageObjectState state)
+    {
     }
 
     internal void InvalidateObject()

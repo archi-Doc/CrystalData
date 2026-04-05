@@ -737,7 +737,7 @@ public partial class StorageControl : IPersistable
     {
         using (this.lowestLockObject.EnterScope())
         {
-            node.storageObjectState |= StorageObjectState.Invalidated;
+            node.storageObjectState |= StorageObjectState.Invalid;
         }
     }
 
@@ -745,7 +745,7 @@ public partial class StorageControl : IPersistable
     {
         using (this.lowestLockObject.EnterScope())
         {
-            node.storageObjectState &= ~StorageObjectState.Invalidated;
+            node.storageObjectState &= ~StorageObjectState.Invalid;
         }
     }
 }
