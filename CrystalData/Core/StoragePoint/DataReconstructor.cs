@@ -5,11 +5,6 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
-internal interface IReconstructor
-{
-    bool ReadValueRecord(ref TinyhandReader reader);
-}
-
 public static class JournalExtensions
 {
     public static Task<object?> RestoreData<TData>(this IJournal journal, ulong startPosition, ulong upperLimit, TData data, uint plane, ulong pointId = 0)
