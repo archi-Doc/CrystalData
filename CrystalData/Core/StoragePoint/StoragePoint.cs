@@ -144,15 +144,6 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public ValueTask<TData> PinData()
         => this.GetOrCreateStorageObject().PinData<TData>();
 
-    public void SetState(StorageObjectState state)
-        => this.GetOrCreateStorageObject().SetState(state);
-
-    public void InvalidateData()
-        => this.GetOrCreateStorageObject().InvalidateObject();
-
-    public void ValidateData()
-        => this.GetOrCreateStorageObject().ValidateObject();
-
     /// <summary>
     /// Adds this storage point to the save queue.<br/>
     /// The save queue is used to schedule data persistence operations.
