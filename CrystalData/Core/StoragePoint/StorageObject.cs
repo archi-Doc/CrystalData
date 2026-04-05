@@ -643,12 +643,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     DataControlState IDataUnlocker.GetControlState()
     {
-        throw new NotImplementedException();
+        return this.dataControlState;
     }
 
     void IDataUnlocker.SetControlState(DataControlState state)
     {
-        throw new NotImplementedException();
+        this.storageControl.SetDataControlState(this, state);
     }
 
     private async Task PrepareAndLoadInternal<TData>()

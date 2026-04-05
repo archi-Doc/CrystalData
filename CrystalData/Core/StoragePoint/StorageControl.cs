@@ -732,4 +732,22 @@ public partial class StorageControl : IPersistable
             }
         }
     }
+
+    internal void SetDataControlState(StorageObject node, DataControlState newState)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            var oldState = node.dataControlState;
+
+            node.dataControlState = newState;
+            /*if (!node.IsPinned)
+            {
+                node.dataControlState |= DataControlState.Pinned;
+
+                this.ReleaseInternal(node, false);
+                node.onMemoryNext = this.pinnedHead;
+                this.pinnedHead = node;
+            }*/
+        }
+    }
 }
