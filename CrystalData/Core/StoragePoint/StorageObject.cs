@@ -19,7 +19,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     #region FieldAndProperty
 
-    internal StorageObjectState storageObjectState; // Lock:StorageControl
+    internal DataControlState dataControlState; // Lock:StorageControl
     internal byte protectionState;
 
     [Key(0)]
@@ -76,10 +76,21 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     internal StorageControl storageControl => this.storageMap.StorageControl;
 
-    public bool IsEnabled => this.storageMap.IsEnabled;
+    internal bool IsEnabled => this.storageMap.IsEnabled;
 
-    public bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
+    /// <summary>
+    /// Gets a value indicating whether the in-memory <c>data</c> is pinned.
+    /// </summary>
+    internal bool IsPinned => this.dataControlState.HasFlag(DataControlState.Pinned);
 
+    /// <summary>
+    /// Gets a value indicating whether this object is not lockable.
+    /// </summary>
+    internal bool IsNotLockable => this.dataControlState.HasFlag(DataControlState.NotLockable);
+
+    /// <summary>
+    /// Gets a value indicating whether this object is deleted/obsolete according to its protection state.
+    /// </summary>
     public bool IsDeleted => ObjectProtectionStateHelper.IsObsolete(this.protectionState);
 
     #endregion
@@ -199,6 +210,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         {
             this.Exit();
             return new(DataScopeResult.Rip);
+        }
+
+        if (this.IsNotLockable)
+        {
+            this.Exit();
+            return new(DataScopeResult.NotLockable);
         }
 
         // Unprotected -> Protected
@@ -629,6 +646,16 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     }
 
     #endregion
+
+    DataControlState IDataUnlocker.GetControlState()
+    {
+        return this.dataControlState;
+    }
+
+    void IDataUnlocker.SetControlState(DataControlState state)
+    {
+        this.storageControl.SetDataControlState(this, state);
+    }
 
     private async Task PrepareAndLoadInternal<TData>()
         where TData : class

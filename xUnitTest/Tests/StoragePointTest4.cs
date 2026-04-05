@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using CrystalData;
 using Tinyhand;
 using ValueLink;
@@ -227,8 +228,7 @@ public class StoragePointTest4
     }
 
     private async Task Decrement(int id)
-    {
-        // var deleted = false;
+    {//
         using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOnly).Result)
         {
             if (dataScope.IsValid)

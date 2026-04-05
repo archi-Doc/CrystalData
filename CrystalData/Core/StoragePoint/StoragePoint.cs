@@ -37,7 +37,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public uint TypeIdentifier => TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     /// <summary>
-    /// Gets a value indicating whether storage is enabled.
+    /// Gets a value indicating whether this <see cref="StorageObject"/> is associated with an enabled <see cref="StorageMap"/>.
     /// </summary>
     public bool IsEnabled => this.GetOrCreateStorageObject().IsEnabled;
 
@@ -48,6 +48,16 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public bool IsLocked => this.storageObject?.IsLocked == true;
 
     public bool IsDeleted => this.storageObject?.IsDeleted == true;
+
+    /// <summary>
+    /// Gets a value indicating whether the in-memory <c>data</c> is pinned.
+    /// </summary>
+    public bool IsPinned => this.storageObject?.IsPinned == true;
+
+    /// <summary>
+    /// Gets a value indicating whether this object is not lockable.
+    /// </summary>
+    public bool IsNotLockable => this.storageObject?.IsNotLockable == true;
 
     #endregion
 
@@ -114,8 +124,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate)
         => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default);
 
-    ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(TimeSpan timeout, CancellationToken cancellationToken)
-        => this.GetOrCreateStorageObject().TryLock<TData>(this, AcquisitionMode.GetOrCreate, timeout, cancellationToken);
+    ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken);
 
     /// <summary>
     /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
