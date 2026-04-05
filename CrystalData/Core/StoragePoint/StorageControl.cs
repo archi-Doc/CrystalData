@@ -724,7 +724,7 @@ public partial class StorageControl : IPersistable
         {
             if (!node.IsPinned)
             {
-                node.storageObjectState |= StorageObjectState.Pinned;
+                node.dataControlState |= DataControlState.Pinned;
 
                 this.ReleaseInternal(node, false);
                 node.onMemoryNext = this.pinnedHead;

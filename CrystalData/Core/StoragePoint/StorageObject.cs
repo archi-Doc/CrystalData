@@ -19,7 +19,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     #region FieldAndProperty
 
-    internal StorageObjectState storageObjectState; // Lock:StorageControl
+    internal DataControlState dataControlState; // Lock:StorageControl
     internal byte protectionState;
 
     [Key(0)]
@@ -81,12 +81,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     /// <summary>
     /// Gets a value indicating whether the in-memory <c>data</c> is pinned.
     /// </summary>
-    internal bool IsPinned => this.storageObjectState.HasFlag(StorageObjectState.Pinned);
+    internal bool IsPinned => this.dataControlState.HasFlag(DataControlState.Pinned);
 
     /// <summary>
     /// Gets a value indicating whether this object has been invalidated.
     /// </summary>
-    internal bool IsInvalidated => this.storageObjectState.HasFlag(StorageObjectState.Invalid);
+    internal bool IsInvalidated => this.dataControlState.HasFlag(DataControlState.Invalid);
 
     /// <summary>
     /// Gets a value indicating whether this object is deleted/obsolete according to its protection state.
@@ -126,10 +126,6 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         this.storageControl.PinObject(this);
 
         return (TData)this.data;
-    }
-
-    internal void SetState(StorageObjectState state)
-    {
     }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
