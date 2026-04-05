@@ -645,6 +645,16 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     #endregion
 
+    DataControlState IDataUnlocker.GetControlState()
+    {
+        throw new NotImplementedException();
+    }
+
+    void IDataUnlocker.SetControlState(DataControlState state)
+    {
+        throw new NotImplementedException();
+    }
+
     private async Task PrepareAndLoadInternal<TData>()
         where TData : class
     {// Lock:this
