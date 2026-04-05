@@ -578,34 +578,113 @@ public partial class StorageControl : IPersistable
         return true;
     }*/
 
+    private void AddToMemoryList(StorageObject node)
+    {
+        if (this.onMemoryHead is null)
+        {// First node
+            this.onMemoryHead = node;
+            node.onMemoryNext = node;
+            node.onMemoryPrevious = node;
+            return;
+        }
+
+        node.onMemoryNext = this.onMemoryHead;
+        node.onMemoryPrevious = this.onMemoryHead!.onMemoryPrevious;
+        this.onMemoryHead.onMemoryPrevious!.onMemoryNext = node;
+        this.onMemoryHead.onMemoryPrevious = node;
+        this.onMemoryHead = node;
+    }
+
+    private void AddToPinnedList(StorageObject node)
+    {
+        if (this.pinnedHead is null)
+        {// First node
+            this.pinnedHead = node;
+            node.onMemoryNext = node;
+            node.onMemoryPrevious = node;
+            return;
+        }
+
+        node.onMemoryNext = this.pinnedHead;
+        node.onMemoryPrevious = this.pinnedHead!.onMemoryPrevious;
+        this.pinnedHead.onMemoryPrevious!.onMemoryNext = node;
+        this.pinnedHead.onMemoryPrevious = node;
+        this.pinnedHead = node;
+    }
+
+    private void RemoveFromMemoryList(StorageObject node)
+    {
+        if (node.onMemoryPrevious is null || node.onMemoryNext is null)
+        {
+            return;
+        }
+
+        if (node.storageMap.IsEnabled)
+        {
+            this.memoryUsage -= node.Size;
+        }
+
+        node.size = 0;
+
+        if (node.onMemoryNext == node)
+        {
+            this.onMemoryHead = null;
+        }
+        else
+        {
+            node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
+            node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
+            if (this.onMemoryHead == node)
+            {
+                this.onMemoryHead = node.onMemoryNext;
+            }
+        }
+
+        node.onMemoryPrevious = default;
+        node.onMemoryNext = default;
+    }
+
+    private void RemoveFromPinnedList(StorageObject node)
+    {
+        if (node.onMemoryPrevious is null || node.onMemoryNext is null)
+        {
+            return;
+        }
+
+        if (node.storageMap.IsEnabled)
+        {
+            this.memoryUsage -= node.Size;
+        }
+
+        node.size = 0;
+
+        if (node.onMemoryNext == node)
+        {
+            this.pinnedHead = null;
+        }
+        else
+        {
+            node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
+            node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
+            if (this.pinnedHead == node)
+            {
+                this.pinnedHead = node.onMemoryNext;
+            }
+        }
+
+        node.onMemoryPrevious = default;
+        node.onMemoryNext = default;
+    }
+
     private void ReleaseInternal(StorageObject node, bool removeFromStorageMap)
     {
-        // OnMemory list (Least recently used list).
-        if (node.onMemoryPrevious is not null && node.onMemoryNext is not null)
-        {// Pinned objects also use OnMemoryList, but onMemoryPrevious will always be null.
-            if (node.storageMap.IsEnabled)
-            {
-                this.memoryUsage -= node.Size;
-            }
-
-            node.size = 0;
-
-            if (node.onMemoryNext == node)
-            {
-                this.onMemoryHead = null;
-            }
-            else
-            {
-                node.onMemoryNext.onMemoryPrevious = node.onMemoryPrevious;
-                node.onMemoryPrevious.onMemoryNext = node.onMemoryNext;
-                if (this.onMemoryHead == node)
-                {
-                    this.onMemoryHead = node.onMemoryNext;
-                }
-            }
-
-            node.onMemoryPrevious = default;
-            node.onMemoryNext = default;
+        if (node.IsPinned)
+        {
+            this.RemoveFromPinnedList(node);
+        }
+        else
+        {
+            this.RemoveFromMemoryList(node);
         }
 
         // ToSave list.
@@ -722,24 +801,8 @@ public partial class StorageControl : IPersistable
     {
         using (this.lowestLockObject.EnterScope())
         {
-            if (!node.IsPinned)
-            {
-                node.dataControlState |= DataControlState.Pinned;
+            this.ChangeDataControlStateInternal(node, node.dataControlState | DataControlState.Pinned);
 
-                this.ReleaseInternal(node, false);
-                node.onMemoryNext = this.pinnedHead;
-                this.pinnedHead = node;
-            }
-        }
-    }
-
-    internal void SetDataControlState(StorageObject node, DataControlState newState)
-    {
-        using (this.lowestLockObject.EnterScope())
-        {
-            var oldState = node.dataControlState;
-
-            node.dataControlState = newState;
             /*if (!node.IsPinned)
             {
                 node.dataControlState |= DataControlState.Pinned;
@@ -749,5 +812,37 @@ public partial class StorageControl : IPersistable
                 this.pinnedHead = node;
             }*/
         }
+    }
+
+    internal void SetDataControlState(StorageObject node, DataControlState newState)
+    {
+        using (this.lowestLockObject.EnterScope())
+        {
+            this.ChangeDataControlStateInternal(node, newState);
+        }
+    }
+
+    internal void ChangeDataControlStateInternal(StorageObject node, DataControlState newState)
+    {
+        var oldState = node.dataControlState;
+
+        if (!oldState.HasFlag(DataControlState.Pinned))
+        {
+            if (newState.HasFlag(DataControlState.Pinned))
+            {// Unpinned -> Pinned
+                this.RemoveFromMemoryList(node);
+                this.AddToPinnedList(node);
+            }
+        }
+        else
+        {
+            if (!newState.HasFlag(DataControlState.Pinned))
+            {// Pinned -> Unpinned
+                this.RemoveFromPinnedList(node);
+                this.AddToMemoryList(node);
+            }
+        }
+
+        node.dataControlState = newState;
     }
 }
