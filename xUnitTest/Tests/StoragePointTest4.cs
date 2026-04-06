@@ -209,6 +209,37 @@ public class StoragePointTest4
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
 
+    [Fact]
+    public async Task Test2()
+    {
+        var g = new SptPoint2.GoshujinClass();
+        using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOrCreate, TestContext.Current.CancellationToken))
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Result.Is(DataScopeResult.Created);
+            dataScope.SetControlState(DataControlState.NotLockable);
+        }
+
+        using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOnly, TestContext.Current.CancellationToken))
+        {
+            dataScope.IsValid.IsFalse();
+            dataScope.Result.Is(DataScopeResult.NotLockable);
+        }
+
+        using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOnlyIgnoreState, TestContext.Current.CancellationToken))
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Result.Is(DataScopeResult.Retrieved);
+            dataScope.SetControlState(DataControlState.Default);
+        }
+
+        using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOnly, TestContext.Current.CancellationToken))
+        {
+            dataScope.IsValid.IsTrue();
+            dataScope.Result.Is(DataScopeResult.Retrieved);
+        }
+    }
+
     private int GetRandomId()
         => this.random.Next(1, MaxId + 1);
 
@@ -228,7 +259,7 @@ public class StoragePointTest4
     }
 
     private async Task Decrement(int id)
-    {//
+    {
         using (var dataScope = this.g.TryLock(id, AcquisitionMode.GetOnly).Result)
         {
             if (dataScope.IsValid)
