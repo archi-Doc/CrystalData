@@ -212,7 +212,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             return new(DataScopeResult.Rip);
         }
 
-        if (this.IsNotLockable)
+        if (this.IsNotLockable &&
+            acquisitionMode != AcquisitionMode.GetOnlyIgnoreState)
         {
             this.Exit();
             return new(DataScopeResult.NotLockable);
