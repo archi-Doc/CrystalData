@@ -115,20 +115,21 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <param name="cancellationToken">
     /// A <see cref="CancellationToken"/> to observe while waiting to acquire the lock.
     /// </param>
+    /// <param name="factory">An optional factory function to create the data instance if it does not exist.</param>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
     /// </returns>
-    public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
-        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken);
+    public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default, Func<IStructuralObject, TData>? factory = default)
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken, factory);
 
-    public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate)
-        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default);
+    public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate, Func<IStructuralObject, TData>? factory = default)
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default, factory);
 
-    ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken)
-        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken);
+    ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken, Func<IStructuralObject, TData>? factory)
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken, factory);
 
     /// <summary>
-    /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode)"/>.<br/>
+    /// Releases the lock previously acquired by <see cref="TryLock(AcquisitionMode, Func{IStructuralObject, TData}?)"/>.<br/>
     /// To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.
     /// </summary>
     public void Unlock() => this.GetOrCreateStorageObject().Unlock();
