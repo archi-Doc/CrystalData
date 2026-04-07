@@ -335,8 +335,9 @@ internal class Program
 
         var thirdData = product.Context.ServiceProvider.GetRequiredService<ThirdData>();
         var thirdName = await thirdData.Name.TryGet() ?? string.Empty;
+        thirdName = thirdName + thirdName.Length;
         Console.WriteLine(thirdName);
-        thirdData.Name.Set(thirdName + "a");
+        thirdData.Name.Set(thirdName);
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
