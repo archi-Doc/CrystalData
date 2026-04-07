@@ -274,6 +274,7 @@ internal class Program
                 // CrystalOptions
                 crystalContext.SetCrystalOptions(new CrystalOptions() with
                 {
+                    // DefaultSaveFormat = SaveFormat.Utf8,
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
                     DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global/Backup")),
@@ -337,11 +338,11 @@ internal class Program
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
-        var thirdData = product.Context.ServiceProvider.GetRequiredService<ThirdData>();
+        /*var thirdData = product.Context.ServiceProvider.GetRequiredService<ThirdData>();
         var thirdName = await thirdData.Name.TryGet() ?? string.Empty;
         thirdName = thirdName + thirdName.Length;
         Console.WriteLine(thirdName);
-        thirdData.Name.Set(thirdName);
+        thirdData.Name.Set(thirdName);*/
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
