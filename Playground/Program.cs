@@ -343,8 +343,6 @@ internal class Program
         Console.WriteLine(thirdName);
         thirdData.Name.Set(thirdName);
 
-        _ = thirdData.Name.TryLock(AcquisitionMode.GetOnly);
-
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         /*Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
