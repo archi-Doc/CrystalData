@@ -58,7 +58,7 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
         {
             value.storageUsage = reader.ReadInt64();
 
-            var count = reader.ReadMapHeader();
+            var count = reader.ReadMapHeader2();
             value.fileToSize = new(count);
             for (var i = 0; i < count; i++)
             {
