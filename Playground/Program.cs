@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
@@ -341,6 +342,8 @@ internal class Program
         thirdName = thirdName + thirdName.Length;
         Console.WriteLine(thirdName);
         thirdData.Name.Set(thirdName);
+
+        _ = thirdData.Name.TryLock(AcquisitionMode.GetOnly);
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
