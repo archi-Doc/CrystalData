@@ -246,7 +246,7 @@ public partial class SpClass
     public partial string Name { get; set; }
 }
 
-[TinyhandObject(ImplicitMemberNameAsKey = true)]
+[TinyhandObject(ImplicitMemberNameAsKey = true, Structural = true)]
 public partial class ThirdData
 {
     public ThirdData()
@@ -254,7 +254,7 @@ public partial class ThirdData
     }
 
     [Key(0)]
-    public string Name { get; set; } = "A";
+    public StoragePoint<string> Name { get; set; } = new();
 }
 
 internal class Program
@@ -318,6 +318,7 @@ internal class Program
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                        StorageConfiguration = storageConfiguration,
                     });
             })
             .PostConfigure(context =>
@@ -332,7 +333,10 @@ internal class Program
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
-        Console.WriteLine(product.Context.ServiceProvider.GetRequiredService<ThirdData>().Name);
+        var thirdData = product.Context.ServiceProvider.GetRequiredService<ThirdData>();
+        var thirdName = await thirdData.Name.TryGet() ?? string.Empty;
+        Console.WriteLine(thirdName);
+        thirdData.Name.Set(thirdName + "a");
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 

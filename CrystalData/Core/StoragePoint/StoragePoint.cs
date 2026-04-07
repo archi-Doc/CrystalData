@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using CrystalData.Internal;
 using Tinyhand.IO;
 
@@ -325,16 +326,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             return this.storageObject;
         }
 
-        var storageMap = StorageMap.Disabled;
-        if (((IStructuralObject)this).StructuralRoot is ICrystal crystal)
-        {
-            storageMap = crystal.Storage.StorageMap;
-        }
-        else if (((IStructuralObject)this).StructuralRoot is StorageObject storageObject)
-        {
-            storageMap = storageObject.storageMap;
-        }
-
+        var storageMap = this.GetStorageMap();
         var previousPointId = this.pointId;
         storageMap.StorageControl.GetOrCreate<TData>(ref this.pointId, ref this.storageObject, storageMap);
         this.storageObject.SetTypeIdentifier<TData>(); // If the TypeIdentifier is changed, serialization becomes impossible, so update it.
@@ -348,5 +340,22 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
 
         return this.storageObject;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private StorageMap GetStorageMap()
+    {
+        if (((IStructuralObject)this).StructuralRoot is ICrystal crystal)
+        {
+            return crystal.Storage.StorageMap;
+        }
+        else if (((IStructuralObject)this).StructuralRoot is StorageObject storageObject)
+        {
+            return storageObject.storageMap;
+        }
+        else
+        {
+            return StorageMap.Disabled;
+        }
     }
 }
