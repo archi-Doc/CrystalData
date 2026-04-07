@@ -327,7 +327,7 @@ public partial class StorageControl : IPersistable
                 }
 
                 typeIdentifier = storageObject.TypeIdentifier;
-                pointId = storageObject.PointId;
+                pointId = RandomVault.Default.NextUInt64(); // storageObject.PointId;
                 storageObject.Goshujin = default;
             }
 

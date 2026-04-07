@@ -272,6 +272,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         }
         else
         {// StorageObject (In-class or Storage disabled)
+            if (v.pointId == 0)
+            {
+                var storageMap = v.GetStorageMap();
+                if (storageMap.IsEnabled)
+                {// Assign a new PointId and move it to the appropriate StorageMap.
+                    storageMap.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, storageMap);
+                }
+            }
+
             v.storageObject.SerializeStoragePoint(ref writer, options);
         }
     }
