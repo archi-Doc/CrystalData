@@ -498,7 +498,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         }
         else if (storeMode == StoreMode.ForceRelease)
         {
-            await this.EnterAsync().ConfigureAwait(false);
+            var entered = this.TryEnter();
+            // await this.EnterAsync().ConfigureAwait(false);
             try
             {
                 this.storageControl.Release(this, false); // Release
@@ -515,7 +516,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             }
             finally
             {
-                this.Exit();
+                if (entered)
+                {
+                    this.Exit();
+                }
             }
         }
         else

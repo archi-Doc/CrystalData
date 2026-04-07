@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
@@ -246,7 +247,7 @@ public partial class SpClass
     public partial string Name { get; set; }
 }
 
-[TinyhandObject(ImplicitMemberNameAsKey = true)]
+[TinyhandObject(ImplicitMemberNameAsKey = true, Structural = true)]
 public partial class ThirdData
 {
     public ThirdData()
@@ -254,7 +255,7 @@ public partial class ThirdData
     }
 
     [Key(0)]
-    public string Name { get; set; } = "A";
+    public StoragePoint<string> Name { get; set; } = new();
 }
 
 internal class Program
@@ -289,6 +290,9 @@ internal class Program
                     NumberOfHistoryFiles = 2,
                 };
 
+                var storageConfiguration2 = new SimpleStorageConfiguration(
+                    new GlobalDirectoryConfiguration("MainStorage2"));
+
                 // Register FirstData configuration.
                 crystalContext.AddCrystal<FirstData>(
                     new CrystalConfiguration()
@@ -318,6 +322,7 @@ internal class Program
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
+                        StorageConfiguration = storageConfiguration2,
                     });
             })
             .PostConfigure(context =>
@@ -332,7 +337,11 @@ internal class Program
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
-        Console.WriteLine(product.Context.ServiceProvider.GetRequiredService<ThirdData>().Name);
+        var thirdData = product.Context.ServiceProvider.GetRequiredService<ThirdData>();
+        var thirdName = await thirdData.Name.TryGet() ?? string.Empty;
+        thirdName = thirdName + thirdName.Length;
+        Console.WriteLine(thirdName);
+        thirdData.Name.Set(thirdName);
 
         var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
 
