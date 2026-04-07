@@ -289,6 +289,9 @@ internal class Program
                     NumberOfHistoryFiles = 2,
                 };
 
+                var storageConfiguration2 = new SimpleStorageConfiguration(
+                    new GlobalDirectoryConfiguration("MainStorage2"));
+
                 // Register FirstData configuration.
                 crystalContext.AddCrystal<FirstData>(
                     new CrystalConfiguration()
@@ -318,7 +321,7 @@ internal class Program
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         NumberOfFileHistories = 0, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
-                        StorageConfiguration = storageConfiguration,
+                        StorageConfiguration = storageConfiguration2,
                     });
             })
             .PostConfigure(context =>
