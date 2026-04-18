@@ -4,7 +4,7 @@
 
 namespace CrystalData.Filer;
 
-public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
+public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 {
     public const int DefaultConcurrentTasks = 4;
 
@@ -45,7 +45,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletionAsync().ConfigureAwait(false);
+        await this.WaitForCompletion(-1).ConfigureAwait(false);
         if (terminate)
         {
             this.Dispose();
@@ -59,7 +59,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        this.AddLast(new(path, offset, dataToBeShared, truncate));
+        this.Add(new(path, offset, dataToBeShared, truncate));
         return CrystalResult.Started;
     }
 
@@ -72,8 +72,8 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
     async Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(string path, long offset, int length, TimeSpan timeToWait)
     {
         var work = new FilerWork(path, offset, length);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
+        this.Add(work);
+        await work.Task.WaitAsync(timeToWait).ConfigureAwait(false);
         return new(work.Result, work.ReadData.ReadOnly);
     }
 
