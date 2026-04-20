@@ -2,6 +2,8 @@
 
 #pragma warning disable SA1124 // Do not use regions
 
+using System.Collections.Concurrent;
+
 namespace CrystalData.Filer;
 
 public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
@@ -12,19 +14,6 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         : base(ThreadCore.Root, null, poolCapacity)
     {
         this.NumberOfConcurrentTasks = DefaultConcurrentTasks;
-        this.SetCanStartConcurrentlyDelegate((workInterface, workingList) =>
-        {// Lock IO order
-            var path = workInterface.Work.Path;
-            foreach (var x in workingList)
-            {
-                if (x.Work.Path == path)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        });
     }
 
     public override string ToString()
@@ -36,7 +25,25 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     protected CrystalControl? CrystalControl { get; set; }
 
+    private ConcurrentDictionary<string, Task> pathToTask = new();
+
     #endregion
+
+    public new async Task Add(FilerWork work)
+    {//
+        while (true)
+        {
+            var task = this.pathToTask.GetOrAdd(work.Path, work.Task);
+            if (task == work.Task)
+            {
+                break;
+            }
+
+            await task.ConfigureAwait(false);
+        }
+
+        ((ReusableJobWorker<FilerWork>)this).Add(work);
+    }
 
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
