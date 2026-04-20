@@ -60,7 +60,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         }
 
         var job = this.Rent(true);
-        job.Initialize(path, offset, dataToBeShared, truncate)
+        job.Initialize(path, offset, dataToBeShared, truncate);
         this.Add(job);
         return CrystalResult.Started;
     }
@@ -92,8 +92,8 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(path, offset, dataToBeShared, truncate);
         this.Add(job);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return work.Result;
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return job.Result;
     }
 
     async Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeToWait)
@@ -101,8 +101,8 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.Delete, path);
         this.Add(job);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return work.Result;
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return job.Result;
     }
 
     async Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
@@ -111,8 +111,8 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(workType, path);
         this.Add(job);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return work.Result;
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return job.Result;
     }
 
     async Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeToWait)
@@ -120,8 +120,8 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.List, path);
         this.Add(job);
-        await job.WaitA(timeToWait).ConfigureAwait(false);
-        if (work.OutputObject is List<PathInformation> list)
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        if (job.OutputObject is List<PathInformation> list)
         {
             return list;
         }
