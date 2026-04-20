@@ -8,8 +8,8 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 {
     public const int DefaultConcurrentTasks = 4;
 
-    public FilerBase(WorkDelegate process)
-        : base(null, process, true)
+    public FilerBase(int poolCapacity = 32)
+        : base(ThreadCore.Root, null, poolCapacity)
     {
         this.NumberOfConcurrentTasks = DefaultConcurrentTasks;
         this.SetCanStartConcurrentlyDelegate((workInterface, workingList) =>
@@ -78,7 +78,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(path, offset, length);
         this.Add(job);
-        await job.Task.WaitAsync(timeToWait).ConfigureAwait(false);//
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
         return new(job.Result, job.ReadData.ReadOnly);
     }
 
