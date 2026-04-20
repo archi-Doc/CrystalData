@@ -59,22 +59,27 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        this.Add(new(path, offset, dataToBeShared, truncate));
+        var job = this.Rent(true);
+        job.Initialize(path, offset, dataToBeShared, truncate)
+        this.Add(job);
         return CrystalResult.Started;
     }
 
     CrystalResult IFiler.DeleteAndForget(string path)
     {
-        this.AddLast(new(FilerWork.WorkType.Delete, path));
+        var job = this.Rent(true);
+        job.Initialize(FilerWork.WorkType.Delete, path);
+        this.Add(job);
         return CrystalResult.Started;
     }
 
     async Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(string path, long offset, int length, TimeSpan timeToWait)
     {
-        var work = new FilerWork(path, offset, length);
-        this.Add(work);
-        await work.Task.WaitAsync(timeToWait).ConfigureAwait(false);
-        return new(work.Result, work.ReadData.ReadOnly);
+        var job = this.Rent();
+        job.Initialize(path, offset, length);
+        this.Add(job);
+        await job.Task.WaitAsync(timeToWait).ConfigureAwait(false);//
+        return new(job.Result, job.ReadData.ReadOnly);
     }
 
     async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
@@ -84,16 +89,18 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        var work = new FilerWork(path, offset, dataToBeShared, truncate);
-        var workInterface = this.AddLast(work);
+        var job = this.Rent();
+        job.Initialize(path, offset, dataToBeShared, truncate);
+        this.Add(job);
         await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
         return work.Result;
     }
 
     async Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeToWait)
     {
-        var work = new FilerWork(FilerWork.WorkType.Delete, path);
-        var workInterface = this.AddLast(work);
+        var job = this.Rent();
+        job.Initialize(FilerWork.WorkType.Delete, path);
+        this.Add(job);
         await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
         return work.Result;
     }
@@ -101,17 +108,19 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     async Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
     {
         var workType = recursive ? FilerWork.WorkType.DeleteDirectory : FilerWork.WorkType.DeleteEmptyDirectory;
-        var work = new FilerWork(workType, path);
-        var workInterface = this.AddLast(work);
+        var job = this.Rent();
+        job.Initialize(workType, path);
+        this.Add(job);
         await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
         return work.Result;
     }
 
     async Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeToWait)
     {
-        var work = new FilerWork(FilerWork.WorkType.List, path);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
+        var job = this.Rent();
+        job.Initialize(FilerWork.WorkType.List, path);
+        this.Add(job);
+        await job.WaitA(timeToWait).ConfigureAwait(false);
         if (work.OutputObject is List<PathInformation> list)
         {
             return list;
