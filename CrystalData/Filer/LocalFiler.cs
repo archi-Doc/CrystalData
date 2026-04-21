@@ -23,7 +23,7 @@ public class LocalFiler : FilerBase, IFiler
         return AddStorageResult.Success;
     }
 
-    protected override async Task ProcessJob(FilerWork work)
+    protected override async Task ProcessJob(FilerWork work, CancellationToken cancellationToken)
     {
         var worker = (LocalFiler)this;
         var tryCount = 0;

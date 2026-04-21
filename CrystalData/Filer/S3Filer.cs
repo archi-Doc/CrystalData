@@ -46,7 +46,7 @@ public class S3Filer : FilerBase, IFiler
 
     #endregion
 
-    protected override async Task ProcessJob(FilerWork work)
+    protected override async Task ProcessJob(FilerWork work, CancellationToken cancellationToken)
     {
         var worker = (S3Filer)this;
         if (worker.client == null)

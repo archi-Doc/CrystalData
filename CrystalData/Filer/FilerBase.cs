@@ -13,7 +13,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     public FilerBase(int poolCapacity = 32)
         : base(ThreadCore.Root, null, poolCapacity)
     {
-        this.NumberOfConcurrentTasks = DefaultConcurrentTasks;
+        this.MaxConcurrentTasks = DefaultConcurrentTasks;
     }
 
     public override string ToString()
@@ -68,7 +68,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
         var job = this.Rent(true);
         job.Initialize(path, offset, dataToBeShared, truncate);
-        this.Add(job);
+        _ = this.Add(job);
         return CrystalResult.Started;
     }
 
@@ -76,7 +76,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     {
         var job = this.Rent(true);
         job.Initialize(FilerWork.WorkType.Delete, path);
-        this.Add(job);
+        _ = this.Add(job);
         return CrystalResult.Started;
     }
 
@@ -84,7 +84,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     {
         var job = this.Rent();
         job.Initialize(path, offset, length);
-        this.Add(job);
+        await this.Add(job).ConfigureAwait(false);
         await job.WaitAsync(timeToWait).ConfigureAwait(false);
         return new(job.Result, job.ReadData.ReadOnly);
     }
@@ -98,7 +98,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
         var job = this.Rent();
         job.Initialize(path, offset, dataToBeShared, truncate);
-        this.Add(job);
+        await this.Add(job).ConfigureAwait(false);
         await job.WaitAsync(timeToWait).ConfigureAwait(false);
         return job.Result;
     }
@@ -107,7 +107,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     {
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.Delete, path);
-        this.Add(job);
+        await this.Add(job).ConfigureAwait(false);
         await job.WaitAsync(timeToWait).ConfigureAwait(false);
         return job.Result;
     }
@@ -117,7 +117,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var workType = recursive ? FilerWork.WorkType.DeleteDirectory : FilerWork.WorkType.DeleteEmptyDirectory;
         var job = this.Rent();
         job.Initialize(workType, path);
-        this.Add(job);
+        await this.Add(job).ConfigureAwait(false);
         await job.WaitAsync(timeToWait).ConfigureAwait(false);
         return job.Result;
     }
@@ -126,7 +126,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     {
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.List, path);
-        this.Add(job);
+        await this.Add(job).ConfigureAwait(false);
         await job.WaitAsync(timeToWait).ConfigureAwait(false);
         if (job.OutputObject is List<PathInformation> list)
         {

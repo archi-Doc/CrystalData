@@ -77,4 +77,9 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
     public override string ToString()
         => $"{this.Type.ToString()}:{this.Path}";
+
+    public override void OnJobFinished()
+    {
+        this.wor
+    }
 }
