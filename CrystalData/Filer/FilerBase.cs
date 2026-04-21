@@ -137,4 +137,9 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
             return new List<PathInformation>();
         }
     }
+
+    protected override void OnJobFinished(FilerWork job)
+    {
+        var result = this.pathToTask.TryRemove(new(job.Path, job.Task));
+    }
 }
