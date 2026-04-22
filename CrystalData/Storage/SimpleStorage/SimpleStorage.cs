@@ -16,7 +16,7 @@ internal partial class SimpleStorage : IStorage
     public SimpleStorage(CrystalControl crystalControl)
     {
         this.crystalControl = crystalControl;
-        this.timeout = TimeSpan.MinValue;
+        this.timeout = Timeout.InfiniteTimeSpan;
         this.storageMap = StorageMap.Disabled;
     }
 

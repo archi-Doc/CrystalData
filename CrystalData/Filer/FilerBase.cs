@@ -30,7 +30,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     #endregion
 
     public new async Task Add(FilerWork work)
-    {//
+    {
         while (true)
         {
             var task = this.pathToTask.GetOrAdd(work.Path, work.Task);

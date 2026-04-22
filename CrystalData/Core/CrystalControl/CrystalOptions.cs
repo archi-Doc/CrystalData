@@ -10,7 +10,7 @@ public partial record class CrystalOptions
 
     public CrystalOptions()
     {
-        this.FilerTimeout = TimeSpan.MinValue; // TimeSpan.FromSeconds(3);
+        this.FilerTimeout = TimeSpan.FromSeconds(3); // await this.Add(job).ConfigureAwait(false);
         this.TimeoutUntilForcedRelease = TimeSpan.FromSeconds(10);
     }
 
