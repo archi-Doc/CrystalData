@@ -50,19 +50,19 @@ public interface IFiler
     #region InfiniteTimeout
 
     Task<CrystalMemoryOwnerResult> ReadAsync(string path, long offset, int length)
-        => this.ReadAsync(path, offset, length, TimeSpan.MinValue);
+        => this.ReadAsync(path, offset, length, Timeout.InfiniteTimeSpan);
 
     Task<CrystalResult> WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true)
-        => this.WriteAsync(path, offset, dataToBeShared, TimeSpan.MinValue, truncate);
+        => this.WriteAsync(path, offset, dataToBeShared, Timeout.InfiniteTimeSpan, truncate);
 
     Task<CrystalResult> DeleteAsync(string path)
-        => this.DeleteAsync(path, TimeSpan.MinValue);
+        => this.DeleteAsync(path, Timeout.InfiniteTimeSpan);
 
     Task<CrystalResult> DeleteDirectoryAsync(string path, bool recursive)
-        => this.DeleteDirectoryAsync(path, recursive, TimeSpan.MinValue);
+        => this.DeleteDirectoryAsync(path, recursive, Timeout.InfiniteTimeSpan);
 
     Task<List<PathInformation>> ListAsync(string path)
-    => this.ListAsync(path, TimeSpan.MinValue);
+    => this.ListAsync(path, Timeout.InfiniteTimeSpan);
 
     #endregion
 }

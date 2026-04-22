@@ -2,29 +2,18 @@
 
 #pragma warning disable SA1124 // Do not use regions
 
+using System.Collections.Concurrent;
+
 namespace CrystalData.Filer;
 
-public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
+public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 {
     public const int DefaultConcurrentTasks = 4;
 
-    public FilerBase(WorkDelegate process)
-        : base(null, process, true)
+    public FilerBase(int poolCapacity = 32)
+        : base(ThreadCore.Root, null, poolCapacity)
     {
-        this.NumberOfConcurrentTasks = DefaultConcurrentTasks;
-        this.SetCanStartConcurrentlyDelegate((workInterface, workingList) =>
-        {// Lock IO order
-            var path = workInterface.Work.Path;
-            foreach (var x in workingList)
-            {
-                if (x.Work.Path == path)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        });
+        this.MaxConcurrentTasks = DefaultConcurrentTasks;
     }
 
     public override string ToString()
@@ -36,7 +25,25 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
 
     protected CrystalControl? CrystalControl { get; set; }
 
+    private ConcurrentDictionary<string, Task> pathToTask = new();
+
     #endregion
+
+    public new async Task Add(FilerWork work)
+    {
+        while (true)
+        {
+            var task = this.pathToTask.GetOrAdd(work.Path, work.Task);
+            if (task == work.Task)
+            {
+                break;
+            }
+
+            await task.ConfigureAwait(false);
+        }
+
+        ((ReusableJobWorker<FilerWork>)this).Add(work);
+    }
 
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
@@ -45,7 +52,7 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletionAsync().ConfigureAwait(false);
+        await this.WaitForCompletion().ConfigureAwait(false);
         if (terminate)
         {
             this.Dispose();
@@ -59,22 +66,27 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        this.AddLast(new(path, offset, dataToBeShared, truncate));
+        var job = this.Rent(ReusableJobFlags.ReturnToPoolOnCompletion);
+        job.Initialize(path, offset, dataToBeShared, truncate);
+        _ = this.Add(job);
         return CrystalResult.Started;
     }
 
     CrystalResult IFiler.DeleteAndForget(string path)
     {
-        this.AddLast(new(FilerWork.WorkType.Delete, path));
+        var job = this.Rent(ReusableJobFlags.ReturnToPoolOnCompletion);
+        job.Initialize(FilerWork.WorkType.Delete, path);
+        _ = this.Add(job);
         return CrystalResult.Started;
     }
 
     async Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(string path, long offset, int length, TimeSpan timeToWait)
     {
-        var work = new FilerWork(path, offset, length);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return new(work.Result, work.ReadData.ReadOnly);
+        var job = this.Rent();
+        job.Initialize(path, offset, length);
+        await this.Add(job).ConfigureAwait(false);
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return new(job.Result, job.ReadData.ReadOnly);
     }
 
     async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
@@ -84,35 +96,39 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        var work = new FilerWork(path, offset, dataToBeShared, truncate);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return work.Result;
+        var job = this.Rent();
+        job.Initialize(path, offset, dataToBeShared, truncate);
+        await this.Add(job).ConfigureAwait(false);
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return job.Result;
     }
 
     async Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeToWait)
     {
-        var work = new FilerWork(FilerWork.WorkType.Delete, path);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return work.Result;
+        var job = this.Rent();
+        job.Initialize(FilerWork.WorkType.Delete, path);
+        await this.Add(job).ConfigureAwait(false);
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return job.Result;
     }
 
     async Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
     {
         var workType = recursive ? FilerWork.WorkType.DeleteDirectory : FilerWork.WorkType.DeleteEmptyDirectory;
-        var work = new FilerWork(workType, path);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        return work.Result;
+        var job = this.Rent();
+        job.Initialize(workType, path);
+        await this.Add(job).ConfigureAwait(false);
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        return job.Result;
     }
 
     async Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeToWait)
     {
-        var work = new FilerWork(FilerWork.WorkType.List, path);
-        var workInterface = this.AddLast(work);
-        await workInterface.WaitForCompletionAsync(timeToWait).ConfigureAwait(false);
-        if (work.OutputObject is List<PathInformation> list)
+        var job = this.Rent();
+        job.Initialize(FilerWork.WorkType.List, path);
+        await this.Add(job).ConfigureAwait(false);
+        await job.WaitAsync(timeToWait).ConfigureAwait(false);
+        if (job.OutputObject is List<PathInformation> list)
         {
             return list;
         }
@@ -120,5 +136,10 @@ public abstract class FilerBase : TaskWorker<FilerWork>, IFiler
         {
             return new List<PathInformation>();
         }
+    }
+
+    protected override void OnJobFinished(FilerWork job)
+    {
+        var result = this.pathToTask.TryRemove(new(job.Path, job.Task));
     }
 }

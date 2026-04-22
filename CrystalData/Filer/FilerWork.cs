@@ -2,7 +2,7 @@
 
 namespace CrystalData.Filer;
 
-public class FilerWork : IEquatable<FilerWork>
+public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 {
     public enum WorkType
     {
@@ -14,25 +14,29 @@ public class FilerWork : IEquatable<FilerWork>
         List,
     }
 
-    public WorkType Type { get; }
+    public WorkType Type { get; private set; }
 
     public CrystalResult Result { get; internal set; } = CrystalResult.NotStarted;
 
-    public string Path { get; }
+    public string Path { get; private set; } = string.Empty;
 
-    public long Offset { get; }
+    public long Offset { get; private set; }
 
-    public int Length { get; }
+    public int Length { get; private set; }
 
-    public bool Truncate { get; }
+    public bool Truncate { get; private set; }
 
-    public BytePool.RentReadOnlyMemory WriteData { get; }
+    public BytePool.RentReadOnlyMemory WriteData { get; private set; }
 
     public BytePool.RentMemory ReadData { get; internal set; }
 
     public object? OutputObject { get; internal set; }
 
-    public FilerWork(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    public FilerWork()
+    {
+    }
+
+    public void Initialize(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
     {// Write
         this.Type = WorkType.Write;
         this.Path = path;
@@ -41,7 +45,7 @@ public class FilerWork : IEquatable<FilerWork>
         this.WriteData = dataToBeShared.IncrementAndShare();
     }
 
-    public FilerWork(string path, long offset, int length)
+    public void Initialize(string path, long offset, int length)
     {// Read
         this.Type = WorkType.Read;
         this.Path = path;
@@ -49,7 +53,7 @@ public class FilerWork : IEquatable<FilerWork>
         this.Length = length;
     }
 
-    public FilerWork(WorkType workType, string path)
+    public void Initialize(WorkType workType, string path)
     {// Delete/List
         this.Type = workType;
         this.Path = path;

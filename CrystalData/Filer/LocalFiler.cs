@@ -8,7 +8,7 @@ namespace CrystalData.Filer;
 public class LocalFiler : FilerBase, IFiler
 {
     public LocalFiler()
-        : base(Process)
+        : base()
     {
     }
 
@@ -23,9 +23,9 @@ public class LocalFiler : FilerBase, IFiler
         return AddStorageResult.Success;
     }
 
-    public static async Task Process(TaskWorker<FilerWork> w, FilerWork work)
+    protected override async Task OnJobProcessing(FilerWork work, CancellationToken cancellationToken)
     {
-        var worker = (LocalFiler)w;
+        var worker = (LocalFiler)this;
         var tryCount = 0;
 
         var filePath = CrystalControl.GetRootedFile(worker.CrystalControl, work.Path);

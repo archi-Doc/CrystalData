@@ -14,7 +14,7 @@ public class S3Filer : FilerBase, IFiler
     private const string WriteTestFile = "Write.test";
 
     public S3Filer()
-        : base(Process)
+        : base()
     {
     }
 
@@ -46,9 +46,9 @@ public class S3Filer : FilerBase, IFiler
 
     #endregion
 
-    public static async Task Process(TaskWorker<FilerWork> w, FilerWork work)
+    protected override async Task OnJobProcessing(FilerWork work, CancellationToken cancellationToken)
     {
-        var worker = (S3Filer)w;
+        var worker = (S3Filer)this;
         if (worker.client == null)
         {
             work.Result = CrystalResult.NotPrepared;
@@ -304,7 +304,7 @@ NoAccess:
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletionAsync().ConfigureAwait(false);
+        await this.WaitForCompletion().ConfigureAwait(false);
         if (terminate)
         {
             this.client?.Dispose();
