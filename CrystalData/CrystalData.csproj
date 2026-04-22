@@ -23,11 +23,11 @@
 
   <ItemGroup>
     <PackageReference Include="Arc.Collections" Version="1.33.0" />
-    <PackageReference Include="Arc.Threading" Version="0.43.0" />
+    <PackageReference Include="Arc.Threading" Version="0.43.2" />
     <PackageReference Include="Arc.Crypto" Version="1.44.0" />
     <PackageReference Include="Arc.Unit" Version="0.38.0" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.21.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageReference Include="Tinyhand" Version="0.136.2" />
     <PackageReference Include="ValueLink" Version="0.115.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">

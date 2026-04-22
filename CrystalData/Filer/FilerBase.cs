@@ -52,7 +52,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletion(-1).ConfigureAwait(false);
+        await this.WaitForCompletion().ConfigureAwait(false);
         if (terminate)
         {
             this.Dispose();
@@ -66,7 +66,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        var job = this.Rent(true);
+        var job = this.Rent(ReusableJobFlags.ReturnToPoolOnCompletion);
         job.Initialize(path, offset, dataToBeShared, truncate);
         _ = this.Add(job);
         return CrystalResult.Started;
@@ -74,7 +74,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     CrystalResult IFiler.DeleteAndForget(string path)
     {
-        var job = this.Rent(true);
+        var job = this.Rent(ReusableJobFlags.ReturnToPoolOnCompletion);
         job.Initialize(FilerWork.WorkType.Delete, path);
         _ = this.Add(job);
         return CrystalResult.Started;
