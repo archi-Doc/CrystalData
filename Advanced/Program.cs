@@ -44,7 +44,7 @@ public partial class Program
             await product.Context.ServiceProvider.GetRequiredService<CrystalControl>().StoreAndRip();
         }
 
-        await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
+        await ThreadCore.Root.WaitForTermination(); // Wait for the termination infinitely.
         if (product?.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {// Flush the buffered logs and then shut down the logger.
             await logUnit.FlushAndTerminate();
