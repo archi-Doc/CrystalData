@@ -189,7 +189,7 @@ public partial class SimpleJournal : IJournal
         if (this.task is { } task)
         {// Wait for the task to complete; the journal is written upon termination.
             task.Terminate();
-            await task.WaitForTerminationAsync(-1).ConfigureAwait(false);
+            await task.WaitForTermination().ConfigureAwait(false);
         }
 
         using (this.lockBooks.EnterScope())
