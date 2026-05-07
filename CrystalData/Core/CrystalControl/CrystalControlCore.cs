@@ -24,7 +24,7 @@ public partial class CrystalControl
         }
 
         private static async Task Process(object? parameter)
-        {
+        {//
             var core = (CrystalControlCore)parameter!;
             var crystalControl = core.crystalControl;
             var storageControl = core.storageControl;

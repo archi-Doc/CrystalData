@@ -11,7 +11,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     public const int DefaultConcurrentTasks = 4;
 
     public FilerBase(ExecutionRoot root, int poolCapacity = 32)
-        : base(root.IndependentGroup, null, poolCapacity)
+        : base(root.GetCrystalDataGroup(), null, poolCapacity)
     {
         this.MaxConcurrentTasks = DefaultConcurrentTasks;
     }

@@ -9,7 +9,7 @@ public partial class SimpleJournal
         private readonly SimpleJournal simpleJournal;
 
         public SimpleJournalTask(ExecutionRoot root, SimpleJournal simpleJournal)
-            : base(root.IndependentGroup, Process, ExecutionCoreOptions.DelayedStart)
+            : base(root.GetCrystalDataGroup(), Process, ExecutionCoreOptions.DelayedStart)
         {
             this.simpleJournal = simpleJournal;
         }
