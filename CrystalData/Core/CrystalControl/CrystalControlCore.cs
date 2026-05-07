@@ -16,8 +16,8 @@ public partial class CrystalControl
         private StorageObject[] tempArray = new StorageObject[SaveBatchSize];
         private ICrystalInternal[] tempArray2 = new ICrystalInternal[SaveBatchSize];
 
-        public CrystalControlCore(CrystalControl crystalControl)
-            : base(null, Process, false)
+        public CrystalControlCore(ExecutionRoot root, CrystalControl crystalControl)
+            : base(root.IndependentGroup, Process, ExecutionCoreOptions.DelayedStart)
         {
             this.crystalControl = crystalControl;
             this.storageControl = crystalControl.StorageControl;

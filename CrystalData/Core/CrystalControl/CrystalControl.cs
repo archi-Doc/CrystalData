@@ -26,6 +26,8 @@ public partial class CrystalControl
 
     #region FieldAndProperty
 
+    public ExecutionRoot Root { get; }
+
     public bool IsPrepared { get; private set; }
 
     public int SystemTimeInSeconds { get; private set; } // System time in seconds
@@ -67,9 +69,10 @@ public partial class CrystalControl
 
     #endregion
 
-    public CrystalControl(CrystalControlConfiguration configuration, CrystalOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<CrystalControl> logger, LogUnit logUnit, IStorageKey storageKey)
+    public CrystalControl(ExecutionRoot root, CrystalControlConfiguration configuration, CrystalOptions options, StorageControl storageControl, ICrystalDataQuery query, IServiceProvider serviceProvider, ILogger<CrystalControl> logger, LogUnit logUnit, IStorageKey storageKey)
     {
         this.UpdateTime();
+        this.Root = root;
         this.configuration = configuration;
         this.LogUnit = logUnit;
         this.ServiceProvider = serviceProvider;
@@ -95,7 +98,7 @@ public partial class CrystalControl
         this.Query = query;
         this.QueryContinue = new CrystalDataQueryNo();
         this.Logger = logger;
-        this.crystalControlCore = new(this);
+        this.crystalControlCore = new(this.Root, this);
         this.StorageKey = storageKey;
 
         foreach (var x in this.configuration.CrystalConfigurations)
@@ -227,7 +230,7 @@ public partial class CrystalControl
             {// Local file
                 if (this.localFiler == null)
                 {
-                    this.localFiler ??= new LocalFiler();
+                    this.localFiler ??= new LocalFiler(this.Root);
                 }
 
                 return (this.localFiler, configuration);
@@ -236,7 +239,7 @@ public partial class CrystalControl
             {// S3 file
                 if (!this.bucketToS3Filer.TryGetValue(s3Configuration.Bucket, out var filer))
                 {
-                    filer = new S3Filer(s3Configuration.Bucket);
+                    filer = new S3Filer(this.Root, s3Configuration.Bucket);
                     this.bucketToS3Filer.TryAdd(s3Configuration.Bucket, filer);
                 }
 
@@ -267,7 +270,7 @@ public partial class CrystalControl
             {// Local directory
                 if (this.localFiler == null)
                 {
-                    this.localFiler ??= new LocalFiler();
+                    this.localFiler ??= new LocalFiler(this.Root);
                 }
 
                 return (this.localFiler, configuration);
@@ -276,7 +279,7 @@ public partial class CrystalControl
             {// S3 directory
                 if (!this.bucketToS3Filer.TryGetValue(s3Configuration.Bucket, out var filer))
                 {
-                    filer = new S3Filer(s3Configuration.Bucket);
+                    filer = new S3Filer(this.Root, s3Configuration.Bucket);
                     this.bucketToS3Filer.TryAdd(s3Configuration.Bucket, filer);
                 }
 
@@ -449,7 +452,7 @@ public partial class CrystalControl
         }
 
         await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
-        this.crystalControlCore.Start();
+        this.crystalControlCore.SendSignal(ExecutionSignal.Start);
 
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);

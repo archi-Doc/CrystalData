@@ -10,8 +10,8 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 {
     public const int DefaultConcurrentTasks = 4;
 
-    public FilerBase(int poolCapacity = 32)
-        : base(null, null, poolCapacity)
+    public FilerBase(ExecutionRoot root, int poolCapacity = 32)
+        : base(root.IndependentGroup, null, poolCapacity)
     {
         this.MaxConcurrentTasks = DefaultConcurrentTasks;
     }
