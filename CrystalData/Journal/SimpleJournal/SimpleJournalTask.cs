@@ -6,8 +6,10 @@ public partial class SimpleJournal
 {
     private class SimpleJournalTask : TaskCore
     {
-        public SimpleJournalTask(SimpleJournal simpleJournal)
-            : base(null, Process, false)
+        private readonly SimpleJournal simpleJournal;
+
+        public SimpleJournalTask(ExecutionRoot root, SimpleJournal simpleJournal)
+            : base(root.GetCrystalDataGroup(), Process, ExecutionCoreOptions.DelayedStart)
         {
             this.simpleJournal = simpleJournal;
         }
@@ -22,7 +24,5 @@ public partial class SimpleJournal
 
             await core.simpleJournal.StoreJournalAsync(false, StoreMode.StoreOnly, default).ConfigureAwait(false);
         }
-
-        private SimpleJournal simpleJournal;
     }
 }

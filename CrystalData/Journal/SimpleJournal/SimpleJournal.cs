@@ -98,8 +98,8 @@ public partial class SimpleJournal : IJournal
 
         if (this.task is null)
         {
-            this.task = new(this);
-            this.task.Start();
+            this.task = new(this.crystalControl.Root, this);
+            this.task.SendSignal(ExecutionSignal.Start);
         }
 
         this.logger.GetWriter()?.Write($"Prepared: {this.books.PositionChain.First?.Position} - {this.books.PositionChain.Last?.NextPosition} ({this.books.PositionChain.Count})");
@@ -188,7 +188,7 @@ public partial class SimpleJournal : IJournal
     {
         if (this.task is { } task)
         {// Wait for the task to complete; the journal is written upon termination.
-            task.Terminate();
+            task.RequestTermination();
             await task.WaitForTermination().ConfigureAwait(false);
         }
 

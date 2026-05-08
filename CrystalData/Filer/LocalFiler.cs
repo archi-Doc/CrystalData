@@ -7,8 +7,8 @@ namespace CrystalData.Filer;
 
 public class LocalFiler : FilerBase, IFiler
 {
-    public LocalFiler()
-        : base()
+    public LocalFiler(ExecutionRoot root)
+        : base(root)
     {
     }
 

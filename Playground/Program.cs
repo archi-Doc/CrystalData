@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.CompilerServices;
+using Arc.Threading;
 using Arc.Unit;
 using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
@@ -333,9 +334,9 @@ internal class Program
         Waypoint.TryParse("0000000000005SGVMCUTZ68JYJZ9U57F0000000", out var wp);
         Waypoint.TryParse("0000000000007PBGGE9WTK99N1Z9U57F0000000", out var wp1);
 
-        var product = builder.Build(); // Build.
-        TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
-        var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
+        var unit = builder.Build(); // Build.
+        TinyhandSerializer.ServiceProvider = unit.Context.ServiceProvider;
+        var crystalControl = unit.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
         await crystalControl.PrepareAndLoad(); // Prepare resources for storage operations and read data from files.
 
         /*var thirdData = product.Context.ServiceProvider.GetRequiredService<ThirdData>();
@@ -344,7 +345,7 @@ internal class Program
         Console.WriteLine(thirdName);
         thirdData.Name.Set(thirdName);*/
 
-        var data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
+        var data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
 
         /*Console.WriteLine($"Estimated size: SemaphoreLock {EstimateSize.Class<SemaphoreLock>()} bytes");
         Console.WriteLine($"Estimated size: SemaphoreSlim {EstimateSize.Constructor(() => new SemaphoreSlim(0))} bytes");
@@ -366,18 +367,18 @@ internal class Program
 
         Console.WriteLine($"Save {data.ToString()}");
 
-        var crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
         crystal.AddToSaveQueue(2);
         // await Task.Delay(10_000);
 
-        data = product.Context.ServiceProvider.GetRequiredService<FirstData>();
+        data = unit.Context.ServiceProvider.GetRequiredService<FirstData>();
         Console.WriteLine($"Data {data.ToString()}");
 
-        crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
-        var crystal2 = product.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
+        crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<FirstData>>();
+        var crystal2 = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SecondData>>();
         // await crystal2.PrepareAndLoad(false);
 
-        var data2 = product.Context.ServiceProvider.GetRequiredService<SecondData>();
+        var data2 = unit.Context.ServiceProvider.GetRequiredService<SecondData>();
         var classStorage = data2.ClassStorage;
         using (var d = await classStorage.TryLock(AcquisitionMode.GetOrCreate))
         {
@@ -465,5 +466,8 @@ internal class Program
         // await crystalControl.StoreAndRelease();
         await crystalControl.StoreAndRip();
         Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
+
+        unit.Context.Root.RequestTermination();
+        await unit.Context.Root.WaitForTermination(TerminationOptions.IncludeIndependent);
     }
 }

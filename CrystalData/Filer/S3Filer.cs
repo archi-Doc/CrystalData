@@ -13,13 +13,13 @@ public class S3Filer : FilerBase, IFiler
 {// Vault: S3Bucket/BucketName "AccessKeyId=SecretAccessKey"
     private const string WriteTestFile = "Write.test";
 
-    public S3Filer()
-        : base()
+    public S3Filer(ExecutionRoot root)
+        : base(root)
     {
     }
 
-    public S3Filer(string bucket)
-        : this()
+    public S3Filer(ExecutionRoot root, string bucket)
+        : this(root)
     {
         this.bucket = bucket;
     }

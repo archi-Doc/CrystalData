@@ -7,6 +7,9 @@ using Tinyhand.IO;
 
 public static class CrystalExtensions
 {
+    public const bool GroupIndependence = true;
+    public const string GroupName = "CrystalData";
+
     /// <summary>
     /// Converts the <see cref="SaveFormat"/> to its corresponding file extension.
     /// </summary>
@@ -67,4 +70,7 @@ public static class CrystalExtensions
     /// <returns><c>true</c> if the result is not <see cref="CrystalResult.Success"/>; otherwise, <c>false</c>.</returns>
     public static bool IsFailure(this CrystalResult result)
         => result != CrystalResult.Success;
+
+    internal static ExecutionGroup GetCrystalDataGroup(this ExecutionRoot root)
+        => root.IndependentGroup.GetOrAddGroup(GroupIndependence, GroupName);
 }

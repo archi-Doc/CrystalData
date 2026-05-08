@@ -6,24 +6,29 @@ global using CrystalData;
 global using Microsoft.Extensions.DependencyInjection;
 global using Tinyhand;
 global using ValueLink;
+using Arc;
 
 namespace QuickStart;
 
 public partial class Program
 {
+    private static ExecutionRoot? root;
+
     public static async Task Main(string[] args)
     {
-        AppDomain.CurrentDomain.ProcessExit += (s, e) =>
-        {// Console window closing or process terminated.
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-            ThreadCore.Root.TerminationEvent.WaitOne(2000); // Wait until the termination process is complete (#1).
-        };
+        AppCloseHandler.Set(() =>
+        {// Closing the console window or terminating the process.
+            root?.RequestTermination(); // Send a termination signal to the root.
+            root?.WaitForTermination(TimeSpan.FromSeconds(2)).Wait();
+        });
 
         Console.CancelKeyPress += (s, e) =>
-        {// Ctrl+C pressed
+        {// Ctrl+C pressed.
             e.Cancel = true;
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+            root?.RequestTermination(); // Send a termination signal to the root.
         };
+
+        root = new();
 
         // var product = await FirstExample();
         // var product = await SecondExample();
@@ -38,18 +43,16 @@ public partial class Program
         // var product = await StoragePointExample();
         var product = await QuickStart.Evolution.EvolutionExample.Program();
 
-        ThreadCore.Root.Terminate();
+        root.RequestTermination();
         if (product is not null)
         {// Save all data managed by CrystalData.
             await product.Context.ServiceProvider.GetRequiredService<CrystalControl>().StoreAndRip();
         }
 
-        await ThreadCore.Root.WaitForTermination(); // Wait for the termination infinitely.
+        await root.WaitForTermination(); // Wait for the termination infinitely.
         if (product?.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {// Flush the buffered logs and then shut down the logger.
             await logUnit.FlushAndTerminate();
         }
-
-        ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
     }
 }
