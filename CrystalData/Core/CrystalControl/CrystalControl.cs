@@ -520,6 +520,9 @@ public partial class CrystalControl
             await journal.Terminate().ConfigureAwait(false);
         }
 
+        // Terminate CrystalControl
+        this.crystalControlCore.Dispose();
+
         this.Logger.GetWriter()?.Write($"Terminated - {this.StorageControl.MemoryUsage}");
     }
 

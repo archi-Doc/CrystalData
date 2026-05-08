@@ -6,7 +6,7 @@ namespace CrystalData;
 
 public partial class CrystalControl
 {
-    private class CrystalControlCore : TaskCore
+    private class CrystalControlCore : TaskCore<CrystalControlCore>
     {
         private const int IntervalInMilliseconds = 100;
         private const int SaveBatchSize = 32;
@@ -17,19 +17,18 @@ public partial class CrystalControl
         private ICrystalInternal[] tempArray2 = new ICrystalInternal[SaveBatchSize];
 
         public CrystalControlCore(ExecutionRoot root, CrystalControl crystalControl)
-            : base(root.IndependentGroup, Process, ExecutionCoreOptions.DelayedStart)
+            : base(root.GetCrystalDataGroup(), Process, ExecutionCoreOptions.DelayedStart)
         {
             this.crystalControl = crystalControl;
             this.storageControl = crystalControl.StorageControl;
         }
 
-        private static async Task Process(object? parameter)
-        {//
-            var core = (CrystalControlCore)parameter!;
+        private static async Task Process(CrystalControlCore core)
+        {
             var crystalControl = core.crystalControl;
             var storageControl = core.storageControl;
 
-            while (!core.IsTerminated)
+            while (core.CanContinue)
             {
                 var timeUpdated = crystalControl.UpdateTime();
                 var delayFlag = true;
