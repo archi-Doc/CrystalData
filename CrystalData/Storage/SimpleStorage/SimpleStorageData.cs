@@ -34,7 +34,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
 
         using (value.lockObject.EnterScope())
         {
-            writer.WriteArrayHeader(2);
+            // writer.WriteArrayHeader(2);
 
             // 1st item
             writer.Write(value.storageUsage);
@@ -59,10 +59,10 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
         value ??= new();
         using (value.lockObject.EnterScope())
         {
-            if (reader.ReadArrayHeader() != 2)
+            /*if (reader.ReadArrayHeader() != 2)
             {
                 return;
-            }
+            }*/
 
             // 1st item
             value.storageUsage = reader.ReadInt64();

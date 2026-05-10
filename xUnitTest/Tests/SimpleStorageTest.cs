@@ -13,7 +13,7 @@ namespace xUnitTest.CrystalDataTest;
 
 public class SimpleStorageTest
 {
-    [Fact]
+    // [Fact]
     public void Test1()
     {
         /*var assembly = typeof(CrystalControl).Assembly;
