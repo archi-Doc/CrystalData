@@ -1,13 +1,12 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Drawing;
 using System.Runtime.CompilerServices;
 using Tinyhand.IO;
 
 namespace CrystalData.Storage;
 
 [TinyhandObject(Structural = true)]
-internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal
+public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal, ITinyhandBracketTest
 {
     public SimpleStorageData()
     {
@@ -35,8 +34,12 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
 
         using (value.lockObject.EnterScope())
         {
+            // writer.WriteArrayHeader(2);
+
+            // 1st item
             writer.Write(value.storageUsage);
 
+            // 2nd item
             writer.WriteMapHeader(value.fileToSize.Count);
             foreach (var x in value.fileToSize)
             {
@@ -56,8 +59,15 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
         value ??= new();
         using (value.lockObject.EnterScope())
         {
+            /*if (reader.ReadArrayHeader() != 2)
+            {
+                return;
+            }*/
+
+            // 1st item
             value.storageUsage = reader.ReadInt64();
 
+            // 2nd item
             var count = reader.ReadMapHeader2();
             value.fileToSize = new(count);
             for (var i = 0; i < count; i++)
@@ -157,6 +167,31 @@ internal partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageDa
                 return file;
             }
         }
+    }
+
+    public bool EqualsForTest(SimpleStorageData? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (this.storageUsage != other.storageUsage ||
+            this.fileToSize.Count != other.fileToSize.Count)
+        {
+            return false;
+        }
+
+        foreach (var x in this.fileToSize)
+        {
+            if (!other.fileToSize.TryGetValue(x.Key, out var size) ||
+                size != x.Value)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     bool ITinyhandCustomJournal.ReadCustomRecord(ref TinyhandReader reader)
