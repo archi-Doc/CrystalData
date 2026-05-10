@@ -14,7 +14,7 @@ namespace CrystalData;
 /// <typeparam name="TIdentifier">The type of the identifier.</typeparam>
 /// <typeparam name="TDatum">The type of the data.</typeparam>
 [TinyhandObject]
-public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerializable<MonoData<TIdentifier, TDatum>>
+public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerializable<MonoData<TIdentifier, TDatum>>, ITinyhandBracketTest
 {
     [TinyhandObject]
     [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
