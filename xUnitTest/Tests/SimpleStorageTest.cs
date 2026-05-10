@@ -13,7 +13,7 @@ namespace xUnitTest.CrystalDataTest;
 
 public class SimpleStorageTest
 {
-    /* [Fact]
+    [Fact]
     public void Test1()
     {
         var data = new SimpleStorageData();
@@ -33,5 +33,5 @@ public class SimpleStorageTest
         st = TinyhandSerializer.SerializeToString(data);
         data2 = TinyhandSerializer.DeserializeFromString<SimpleStorageData>(st);
         data.EqualsForTest(data2).IsTrue();
-    }*/
+    }
 }
