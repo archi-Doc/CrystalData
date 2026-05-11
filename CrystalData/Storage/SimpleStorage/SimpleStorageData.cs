@@ -6,7 +6,7 @@ using Tinyhand.IO;
 namespace CrystalData.Storage;
 
 [TinyhandObject(Structural = true)]
-public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal, ITinyhandBracketTest
+public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal
 {
     public SimpleStorageData()
     {
