@@ -1,64 +1,106 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 #pragma warning disable SA1519 // Braces should not be omitted from multi-line child statement
 
 namespace CrystalData;
 
-internal class GaloisField
+public class GaloisField
 {
     public const int Max = 256;
     public const int Mask = Max - 1;
     public const int FieldGenPoly = 301; // 301 > 285 > 435
 
+    private static readonly GaloisField DefaultField = new(FieldGenPoly);
+    private static readonly Dictionary<int, GaloisField> FieldCache = new();
+    private static readonly object FieldCacheLock = new();
+
     public static GaloisField Get(int fieldGenPoly)
     {
-        GaloisField? field;
-        if (!fieldCache.TryGetValue(fieldGenPoly, out field))
+        if (fieldGenPoly == FieldGenPoly)
         {
-            field = new GaloisField(fieldGenPoly);
-            fieldCache[fieldGenPoly] = field;
+            return DefaultField;
         }
 
-        return field;
-    }
+        lock (FieldCacheLock)
+        {
+            if (!FieldCache.TryGetValue(fieldGenPoly, out var field))
+            {
+                field = new GaloisField(fieldGenPoly);
+                FieldCache.Add(fieldGenPoly, field);
+            }
 
-    private static Dictionary<int, GaloisField> fieldCache = new();
+            return field;
+        }
+    }
 
     private GaloisField(int fieldGenPoly)
     {
-        this.GF = new byte[Max];
-        this.GFI = new byte[Max];
-        this.GF[0] = (byte)Mask;
-        this.GFI[Mask] = 0;
+        var gf = new byte[Max];
+        var gfi = new byte[Max];
 
-        var y = 1;
+        gf[0] = Mask;
+        gfi[Mask] = 0;
+
+        var value = 1;
+
         unchecked
         {
-            for (var x = 0; x < Mask; x++)
+            for (var exponent = 0; exponent < Mask; exponent++)
             {
-                this.GF[y] = (byte)x;
-                this.GFI[x] = (byte)y;
-                y <<= 1;
-                if (y >= Max)
+                gf[value] = (byte)exponent;
+                gfi[exponent] = (byte)value;
+
+                value <<= 1;
+                if (value >= Max)
                 {
-                    y = (y ^ fieldGenPoly) & Mask;
+                    value = (value ^ fieldGenPoly) & Mask;
                 }
             }
         }
 
-        this.Multi = new byte[Max * Max];
-        this.Div = new byte[Max * Max];
-        for (var a = 0; a < Max; a++)
+        this.GF = gf;
+        this.GFI = gfi;
+
+        var multi = new byte[Max * Max];
+        var div = new byte[Max * Max];
+
+        // Row/column zero is already initialized to zero.
+        for (var a = 1; a < Max; a++)
         {
-            for (var b = 0; b < Max; b++)
+            var logA = gf[a];
+            var row = a << 8;
+
+            for (var b = 1; b < Max; b++)
             {
-                var i = (a * Max) + b;
-                this.Multi[i] = this.InternalMulti(a, b);
-                this.Div[i] = this.InternalDiv(a, b);
+                var logB = gf[b];
+
+                var productExponent = logA + logB;
+                if (productExponent >= Mask)
+                {
+                    productExponent -= Mask;
+                }
+
+                multi[row | b] = gfi[productExponent];
+
+                var quotientExponent = logA - logB;
+                if (quotientExponent < 0)
+                {
+                    quotientExponent += Mask;
+                }
+
+                div[row | b] = gfi[quotientExponent];
             }
         }
+
+        this.Multi = multi;
+        this.Div = div;
     }
 
     public byte[] GF { get; }
@@ -69,6 +111,7 @@ internal class GaloisField
 
     public byte[] Div { get; }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal byte InternalMulti(int a, int b)
     {
         if (a == 0 || b == 0)
@@ -76,43 +119,30 @@ internal class GaloisField
             return 0;
         }
 
-        var c = this.GF[a] + this.GF[b];
-        return this.GFI[c % Mask];
-
-        /*if (c < Mask)
+        var exponent = this.GF[a] + this.GF[b];
+        if (exponent >= Mask)
         {
-            return this.GFI[c];
+            exponent -= Mask;
         }
-        else
-        {
-            return this.GFI[c - Mask];
-        }*/
+
+        return this.GFI[exponent];
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal byte InternalDiv(int a, int b)
     {
-        if (a == 0)
-        {
-            return 0;
-        }
-        else if (b == 0)
+        if (a == 0 || b == 0)
         {
             return 0;
         }
 
-        var c = this.GF[a] - this.GF[b];
-        return this.GFI[(c + Mask) % Mask];
-
-        /*var gfa = this.GF[a];
-        var gfb = this.GF[b];
-        if (gfb <= gfa)
+        var exponent = this.GF[a] - this.GF[b];
+        if (exponent < 0)
         {
-            return this.GFI[gfa - gfb];
+            exponent += Mask;
         }
-        else
-        {
-            return this.GFI[GaloisField.Mask + gfa - gfb];
-        }*/
+
+        return this.GFI[exponent];
     }
 }
 
@@ -127,21 +157,25 @@ public class RsCoder : IDisposable
     /// <param name="dataSize">The Number of blocks of data to be split.</param>
     /// <param name="checkSize">The Number of blocks of checksum.</param>
     /// <param name="fieldGenPoly">Field generator polymoninal (default 301).</param>
-    public RsCoder(int dataSize = DefaultDataSize, int checkSize = DefaultCheckSize, int fieldGenPoly = GaloisField.FieldGenPoly)
+    public RsCoder(
+        int dataSize = DefaultDataSize,
+        int checkSize = DefaultCheckSize,
+        int fieldGenPoly = GaloisField.FieldGenPoly)
     {
-        this.DataSize = dataSize;
         if (dataSize < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(dataSize));
         }
 
-        this.CheckSize = checkSize;
         if (checkSize < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(dataSize));
+            throw new ArgumentOutOfRangeException(nameof(checkSize));
         }
 
+        this.DataSize = dataSize;
+        this.CheckSize = checkSize;
         this.TotalSize = dataSize + checkSize;
+
         if (this.TotalSize >= GaloisField.Max)
         {
             throw new ArgumentOutOfRangeException();
@@ -153,7 +187,7 @@ public class RsCoder : IDisposable
         this.GenerateEF();
     }
 
-    internal GaloisField GaloisField { get; }
+    public GaloisField GaloisField { get; }
 
     public int TotalSize { get; }
 
@@ -173,376 +207,610 @@ public class RsCoder : IDisposable
 
     public unsafe void Encode(byte[] source, int length)
     {
-        var nm = this.TotalSize;
+        ArgumentNullException.ThrowIfNull(source);
+
+        if ((uint)length > (uint)source.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length));
+        }
+
         var n = this.DataSize;
-        var m = this.CheckSize;
-        var multi = this.GaloisField.Multi;
 
         if ((length % n) != 0)
         {
-            throw new InvalidDataException("Length of source data must be a multiple of RsCoder.DataSize.");
+            throw new InvalidDataException(
+                "Length of source data must be a multiple of RsCoder.DataSize.");
         }
 
-        this.EncodedBufferLength = length / n;
-        this.EnsureEncodeBuffer(this.EncodedBufferLength);
+        var m = this.CheckSize;
+        var destinationLength = length / n;
+
+        this.EncodedBufferLength = destinationLength;
+        this.EnsureEncodeBuffer(destinationLength);
+
         var destination = this.rentEncodeBuffer!;
-        var destinationLength = this.EncodedBufferLength;
         var ef = this.rentEF!;
+        var multi = this.GaloisField.Multi;
 
-        /*encode core (original)
-        Span<byte> b = source;
-        for (var x = 0; x < destinationLength; x++)
+        // Most common configuration.
+        if (n == 8 && m == 4)
         {
-            for (var y = 0; y < n; y++)
-            {// data
-                destination[y][x] = b[y];
-            }
-
-            for (var y = 0; y < m; y++)
+            fixed (byte* ps = source, pef = ef, pm = multi)
+            fixed (
+                byte* pd0 = destination[0],
+                pd1 = destination[1],
+                pd2 = destination[2],
+                pd3 = destination[3],
+                pd4 = destination[4],
+                pd5 = destination[5],
+                pd6 = destination[6],
+                pd7 = destination[7],
+                pc0 = destination[8],
+                pc1 = destination[9],
+                pc2 = destination[10],
+                pc3 = destination[11])
             {
-                var d = 0;
-                for (var z = 0; z < n; z++)
-                {
-                    d ^= multi[b[z], ef[(y * n) + z]];
-                }
+                var p = ps;
 
-                destination[n + y][x] = (byte)d;
+                var e0 = pef;
+                var e1 = pef + 8;
+                var e2 = pef + 16;
+                var e3 = pef + 24;
+
+                for (var x = 0; x < destinationLength; x++)
+                {
+                    var b0 = p[0];
+                    var b1 = p[1];
+                    var b2 = p[2];
+                    var b3 = p[3];
+                    var b4 = p[4];
+                    var b5 = p[5];
+                    var b6 = p[6];
+                    var b7 = p[7];
+
+                    pd0[x] = b0;
+                    pd1[x] = b1;
+                    pd2[x] = b2;
+                    pd3[x] = b3;
+                    pd4[x] = b4;
+                    pd5[x] = b5;
+                    pd6[x] = b6;
+                    pd7[x] = b7;
+
+                    pc0[x] = (byte)(
+                        pm[(b0 << 8) | e0[0]] ^
+                        pm[(b1 << 8) | e0[1]] ^
+                        pm[(b2 << 8) | e0[2]] ^
+                        pm[(b3 << 8) | e0[3]] ^
+                        pm[(b4 << 8) | e0[4]] ^
+                        pm[(b5 << 8) | e0[5]] ^
+                        pm[(b6 << 8) | e0[6]] ^
+                        pm[(b7 << 8) | e0[7]]);
+
+                    pc1[x] = (byte)(
+                        pm[(b0 << 8) | e1[0]] ^
+                        pm[(b1 << 8) | e1[1]] ^
+                        pm[(b2 << 8) | e1[2]] ^
+                        pm[(b3 << 8) | e1[3]] ^
+                        pm[(b4 << 8) | e1[4]] ^
+                        pm[(b5 << 8) | e1[5]] ^
+                        pm[(b6 << 8) | e1[6]] ^
+                        pm[(b7 << 8) | e1[7]]);
+
+                    pc2[x] = (byte)(
+                        pm[(b0 << 8) | e2[0]] ^
+                        pm[(b1 << 8) | e2[1]] ^
+                        pm[(b2 << 8) | e2[2]] ^
+                        pm[(b3 << 8) | e2[3]] ^
+                        pm[(b4 << 8) | e2[4]] ^
+                        pm[(b5 << 8) | e2[5]] ^
+                        pm[(b6 << 8) | e2[6]] ^
+                        pm[(b7 << 8) | e2[7]]);
+
+                    pc3[x] = (byte)(
+                        pm[(b0 << 8) | e3[0]] ^
+                        pm[(b1 << 8) | e3[1]] ^
+                        pm[(b2 << 8) | e3[2]] ^
+                        pm[(b3 << 8) | e3[3]] ^
+                        pm[(b4 << 8) | e3[4]] ^
+                        pm[(b5 << 8) | e3[5]] ^
+                        pm[(b6 << 8) | e3[6]] ^
+                        pm[(b7 << 8) | e3[7]]);
+
+                    p += 8;
+                }
             }
 
-            b = b.Slice(n);
-        }*/
+            return;
+        }
 
-        // encode core (n = 4, 8, other)
+        if (n == 4 && m == 4)
+        {
+            fixed (byte* ps = source, pef = ef, pm = multi)
+            fixed (
+                byte* pd0 = destination[0],
+                pd1 = destination[1],
+                pd2 = destination[2],
+                pd3 = destination[3],
+                pc0 = destination[4],
+                pc1 = destination[5],
+                pc2 = destination[6],
+                pc3 = destination[7])
+            {
+                var p = ps;
+
+                var e0 = pef;
+                var e1 = pef + 4;
+                var e2 = pef + 8;
+                var e3 = pef + 12;
+
+                for (var x = 0; x < destinationLength; x++)
+                {
+                    var b0 = p[0];
+                    var b1 = p[1];
+                    var b2 = p[2];
+                    var b3 = p[3];
+
+                    pd0[x] = b0;
+                    pd1[x] = b1;
+                    pd2[x] = b2;
+                    pd3[x] = b3;
+
+                    pc0[x] = (byte)(
+                        pm[(b0 << 8) | e0[0]] ^
+                        pm[(b1 << 8) | e0[1]] ^
+                        pm[(b2 << 8) | e0[2]] ^
+                        pm[(b3 << 8) | e0[3]]);
+
+                    pc1[x] = (byte)(
+                        pm[(b0 << 8) | e1[0]] ^
+                        pm[(b1 << 8) | e1[1]] ^
+                        pm[(b2 << 8) | e1[2]] ^
+                        pm[(b3 << 8) | e1[3]]);
+
+                    pc2[x] = (byte)(
+                        pm[(b0 << 8) | e2[0]] ^
+                        pm[(b1 << 8) | e2[1]] ^
+                        pm[(b2 << 8) | e2[2]] ^
+                        pm[(b3 << 8) | e2[3]]);
+
+                    pc3[x] = (byte)(
+                        pm[(b0 << 8) | e3[0]] ^
+                        pm[(b1 << 8) | e3[1]] ^
+                        pm[(b2 << 8) | e3[2]] ^
+                        pm[(b3 << 8) | e3[3]]);
+
+                    p += 4;
+                }
+            }
+
+            return;
+        }
+
+        if (n == 8)
+        {
+            fixed (byte* ps = source, pef = ef, pm = multi)
+            fixed (
+                byte* pd0 = destination[0],
+                pd1 = destination[1],
+                pd2 = destination[2],
+                pd3 = destination[3],
+                pd4 = destination[4],
+                pd5 = destination[5],
+                pd6 = destination[6],
+                pd7 = destination[7])
+            {
+                var p = ps;
+
+                for (var x = 0; x < destinationLength; x++)
+                {
+                    var b0 = p[0];
+                    var b1 = p[1];
+                    var b2 = p[2];
+                    var b3 = p[3];
+                    var b4 = p[4];
+                    var b5 = p[5];
+                    var b6 = p[6];
+                    var b7 = p[7];
+
+                    pd0[x] = b0;
+                    pd1[x] = b1;
+                    pd2[x] = b2;
+                    pd3[x] = b3;
+                    pd4[x] = b4;
+                    pd5[x] = b5;
+                    pd6[x] = b6;
+                    pd7[x] = b7;
+
+                    for (var y = 0; y < m; y++)
+                    {
+                        var e = pef + (y << 3);
+
+                        destination[8 + y][x] = (byte)(
+                            pm[(b0 << 8) | e[0]] ^
+                            pm[(b1 << 8) | e[1]] ^
+                            pm[(b2 << 8) | e[2]] ^
+                            pm[(b3 << 8) | e[3]] ^
+                            pm[(b4 << 8) | e[4]] ^
+                            pm[(b5 << 8) | e[5]] ^
+                            pm[(b6 << 8) | e[6]] ^
+                            pm[(b7 << 8) | e[7]]);
+                    }
+
+                    p += 8;
+                }
+            }
+
+            return;
+        }
+
         if (n == 4)
         {
             fixed (byte* ps = source, pef = ef, pm = multi)
-            fixed (byte* pd0 = destination[0], pd1 = destination[1], pd2 = destination[2], pd3 = destination[3])
+            fixed (
+                byte* pd0 = destination[0],
+                pd1 = destination[1],
+                pd2 = destination[2],
+                pd3 = destination[3])
             {
-                var ps2 = ps;
+                var p = ps;
+
                 for (var x = 0; x < destinationLength; x++)
                 {
-                    pd0[x] = ps2[0];
-                    pd1[x] = ps2[1];
-                    pd2[x] = ps2[2];
-                    pd3[x] = ps2[3];
+                    var b0 = p[0];
+                    var b1 = p[1];
+                    var b2 = p[2];
+                    var b3 = p[3];
+
+                    pd0[x] = b0;
+                    pd1[x] = b1;
+                    pd2[x] = b2;
+                    pd3[x] = b3;
 
                     for (var y = 0; y < m; y++)
                     {
-                        var d = 0;
-                        var yn = y * n;
-                        d ^= pm[(ps2[0] * GaloisField.Max) + pef[yn + 0]];
-                        d ^= pm[(ps2[1] * GaloisField.Max) + pef[yn + 1]];
-                        d ^= pm[(ps2[2] * GaloisField.Max) + pef[yn + 2]];
-                        d ^= pm[(ps2[3] * GaloisField.Max) + pef[yn + 3]];
+                        var e = pef + (y << 2);
 
-                        destination[n + y][x] = (byte)d;
+                        destination[4 + y][x] = (byte)(
+                            pm[(b0 << 8) | e[0]] ^
+                            pm[(b1 << 8) | e[1]] ^
+                            pm[(b2 << 8) | e[2]] ^
+                            pm[(b3 << 8) | e[3]]);
                     }
 
-                    ps2 += n;
+                    p += 4;
                 }
             }
+
+            return;
         }
-        else if (n == 8)
+
+        fixed (byte* ps = source, pef = ef, pm = multi)
         {
-            fixed (byte* ps = source, pef = ef, pm = multi)
-            fixed (byte* pd0 = destination[0], pd1 = destination[1], pd2 = destination[2], pd3 = destination[3],
-                pd4 = destination[4], pd5 = destination[5], pd6 = destination[6], pd7 = destination[7])
-            {// 0..n: $"pd{i} = destination[{i}], "
-                var ps2 = ps;
-                for (var x = 0; x < destinationLength; x++)
+            var p = ps;
+
+            for (var x = 0; x < destinationLength; x++)
+            {
+                for (var y = 0; y < n; y++)
                 {
-                    pd0[x] = ps2[0];
-                    pd1[x] = ps2[1];
-                    pd2[x] = ps2[2];
-                    pd3[x] = ps2[3];
-                    pd4[x] = ps2[4];
-                    pd5[x] = ps2[5];
-                    pd6[x] = ps2[6];
-                    pd7[x] = ps2[7];
-
-                    for (var y = 0; y < m; y++)
-                    {
-                        var d = 0;
-                        var yn = y * n;
-                        d ^= pm[(ps2[0] * GaloisField.Max) + pef[yn + 0]];
-                        d ^= pm[(ps2[1] * GaloisField.Max) + pef[yn + 1]];
-                        d ^= pm[(ps2[2] * GaloisField.Max) + pef[yn + 2]];
-                        d ^= pm[(ps2[3] * GaloisField.Max) + pef[yn + 3]];
-                        d ^= pm[(ps2[4] * GaloisField.Max) + pef[yn + 4]];
-                        d ^= pm[(ps2[5] * GaloisField.Max) + pef[yn + 5]];
-                        d ^= pm[(ps2[6] * GaloisField.Max) + pef[yn + 6]];
-                        d ^= pm[(ps2[7] * GaloisField.Max) + pef[yn + 7]];
-
-                        destination[n + y][x] = (byte)d;
-                    }
-
-                    ps2 += n;
+                    destination[y][x] = p[y];
                 }
-            }
-        }
-        else
-        {
-            fixed (byte* ps = source, pef = ef, pm = multi)
-            {// 0..n: $"pd{i} = destination[{i}], "
-                var ps2 = ps;
-                for (var x = 0; x < destinationLength; x++)
+
+                for (var y = 0; y < m; y++)
                 {
-                    for (var y = 0; y < n; y++)
-                    {// 0..n: $"pd{i}[x] = ps2[{i}];"
-                        destination[y][x] = ps2[y];
-                    }
+                    var e = pef + (y * n);
+                    var result = 0;
 
-                    for (var y = 0; y < m; y++)
+                    for (var z = 0; z < n; z++)
                     {
-                        var d = 0;
-                        var yn = y * n;
-                        for (var z = 0; z < n; z++)
-                        {// 0..n: $"d ^= pm[(ps2[{i}] * GaloisField.Max) + pef[yn + {i}]];"
-                            d ^= pm[(ps2[z] * GaloisField.Max) + pef[yn + z]];
-                        }
-
-                        destination[n + y][x] = (byte)d;
+                        result ^= pm[(p[z] << 8) | e[z]];
                     }
 
-                    ps2 += n;
+                    destination[n + y][x] = (byte)result;
                 }
+
+                p += n;
             }
         }
     }
 
     public unsafe void Decode(byte[]?[] source, int length)
     {
-        var nm = this.TotalSize;
+        ArgumentNullException.ThrowIfNull(source);
+
         var n = this.DataSize;
         var m = this.CheckSize;
-        var multi = this.GaloisField.Multi;
+        var nm = this.TotalSize;
 
-        for (var x = 0; x < nm; x++)
+        if (source.Length < nm)
         {
-            if (source[x] != null && source[x]!.Length < length)
+            throw new InvalidDataException(
+                "The number of source byte arrays is insufficient.");
+        }
+
+        if (length < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length));
+        }
+
+        var validCount = 0;
+
+        for (var i = 0; i < nm; i++)
+        {
+            var block = source[i];
+
+            if (block is null)
             {
-                throw new InvalidDataException("Length of source byte arrays must be greater than 'length'.");
+                continue;
             }
+
+            if (block.Length < length)
+            {
+                throw new InvalidDataException(
+                    "Length of source byte arrays must be greater than or equal to 'length'.");
+            }
+
+            validCount++;
+        }
+
+        if (validCount < n)
+        {
+            throw new InvalidDataException(
+                "Number of valid byte arrays must be greater than or equal to RsCoder.DataSize.");
         }
 
         this.DecodedBufferLength = length * n;
         this.EnsureDecodeBuffer(this.DecodedBufferLength);
-        var destination = this.rentDecodeBuffer!;
 
-        // Rent buffers
+        if (length == 0)
+        {
+            return;
+        }
+
+        var destination = this.rentDecodeBuffer!;
+        var multi = this.GaloisField.Multi;
+
         this.EnsureBuffers(true);
+
         var ef = this.rentEF!;
         var el = this.rentEL!;
-        el.AsSpan().Fill(0);
-
-        var u = 0; // data
-        var v = 0; // check
-        var z = 0;
+        var er = this.rentER!;
         var s = this.rentS!;
+
+        var matrixWidth = n << 1;
+        el.AsSpan(0, n * matrixWidth).Clear();
+
+        var checkIndex = 0;
+
         for (var x = 0; x < n; x++)
         {
-            if (x == u && source[u] != null)
-            {// Data
-                z = u;
-                u++;
-            }
-            else
-            {// Search valid check
-                while (source[u] == null && u < n)
-                {
-                    u++;
-                }
+            byte[] selected;
+            int sourceIndex;
 
-                while (source[n + v] == null)
-                {
-                    v++;
-                    if (v >= m)
-                    {
-                        throw new InvalidDataException("Number of valid byte arrays must be greater than or equal to RsCoder.DataSize.");
-                    }
-                }
+            var data = source[x];
 
-                z = n + v;
-                v++;
-            }
-
-            if (z < n)
-            {// data
-                for (var y = 0; y < n; y++)
-                {
-                    if (y == z)
-                    {
-                        el[y + (x * n * 2)] = 1;
-                    }
-                }
-            }
-            else
-            {// check
-                for (var y = 0; y < n; y++)
-                {
-                    el[y + (x * n * 2)] = ef[y + ((z - n) * n)];
-                }
-            }
-
-            for (var y = 0; y < n; y++)
+            if (data is not null)
             {
-                if (y == x)
+                selected = data;
+                sourceIndex = x;
+            }
+            else
+            {
+                while (checkIndex < m && source[n + checkIndex] is null)
                 {
-                    el[y + (x * n * 2) + n] = 1;
+                    checkIndex++;
                 }
+
+                if (checkIndex >= m)
+                {
+                    throw new InvalidDataException(
+                        "Number of valid byte arrays must be greater than or equal to RsCoder.DataSize.");
+                }
+
+                sourceIndex = n + checkIndex;
+                selected = source[sourceIndex]!;
+                checkIndex++;
             }
 
-            s[x] = source[z]!;
+            var row = x * matrixWidth;
+
+            if (sourceIndex < n)
+            {
+                el[row + sourceIndex] = 1;
+            }
+            else
+            {
+                ef.AsSpan((sourceIndex - n) * n, n)
+                    .CopyTo(el.AsSpan(row, n));
+            }
+
+            el[row + n + x] = 1;
+            s[x] = selected;
         }
 
-        this.GenerateEL(s);
+        this.GenerateEL();
 
-        // copy reverse
-        var er = this.rentER!;
         for (var y = 0; y < n; y++)
         {
-            for (var x = 0; x < n; x++)
-            {
-                er[x + (n * y)] = el[n + x + (y * n * 2)];
-            }
+            el.AsSpan((y * matrixWidth) + n, n)
+                .CopyTo(er.AsSpan(y * n, n));
         }
 
-        // decode core (original)
-        /*var i = 0;
-        for (var x = 0; x < sourceLength; x++)
+        if (n == 8)
         {
-            for (var y = 0; y < n; y++)
+            fixed (byte* pm = multi, per = er, pd = destination)
+            fixed (
+                byte* ps0 = s[0],
+                ps1 = s[1],
+                ps2 = s[2],
+                ps3 = s[3],
+                ps4 = s[4],
+                ps5 = s[5],
+                ps6 = s[6],
+                ps7 = s[7])
             {
-                u = 0;
-                for (z = 0; z < n; z++)
+                var output = pd;
+
+                for (var x = 0; x < length; x++)
                 {
-                    u ^= multi[er[z + (y * n)], s[z][x]];
+                    var b0 = ps0[x];
+                    var b1 = ps1[x];
+                    var b2 = ps2[x];
+                    var b3 = ps3[x];
+                    var b4 = ps4[x];
+                    var b5 = ps5[x];
+                    var b6 = ps6[x];
+                    var b7 = ps7[x];
+
+                    for (var y = 0; y < 8; y++)
+                    {
+                        var row = per + (y << 3);
+
+                        var value =
+                            pm[(row[0] << 8) | b0] ^
+                            pm[(row[1] << 8) | b1] ^
+                            pm[(row[2] << 8) | b2] ^
+                            pm[(row[3] << 8) | b3] ^
+                            pm[(row[4] << 8) | b4] ^
+                            pm[(row[5] << 8) | b5] ^
+                            pm[(row[6] << 8) | b6] ^
+                            pm[(row[7] << 8) | b7];
+
+                        *output++ = (byte)value;
+                    }
                 }
-
-                destination[i++] = (byte)u; // fixed
             }
-        }*/
 
-        // decode core (n = 4, 8, other)
+            return;
+        }
+
         if (n == 4)
         {
-            fixed (byte* um = multi, uer = er, ud = destination)
-            fixed (byte* ps0 = s[0], ps1 = s[1], ps2 = s[2], ps3 = s[3])
+            fixed (byte* pm = multi, per = er, pd = destination)
+            fixed (
+                byte* ps0 = s[0],
+                ps1 = s[1],
+                ps2 = s[2],
+                ps3 = s[3])
             {
-                var ud2 = ud;
+                var output = pd;
+
                 for (var x = 0; x < length; x++)
                 {
-                    for (var y = 0; y < n; y++)
+                    var b0 = ps0[x];
+                    var b1 = ps1[x];
+                    var b2 = ps2[x];
+                    var b3 = ps3[x];
+
+                    for (var y = 0; y < 4; y++)
                     {
-                        var yn = y * n;
+                        var row = per + (y << 2);
 
-                        u = um[(uer[0 + yn] * GaloisField.Max) + ps0[x]];
-                        u ^= um[(uer[1 + yn] * GaloisField.Max) + ps1[x]];
-                        u ^= um[(uer[2 + yn] * GaloisField.Max) + ps2[x]];
-                        u ^= um[(uer[3 + yn] * GaloisField.Max) + ps3[x]];
+                        var value =
+                            pm[(row[0] << 8) | b0] ^
+                            pm[(row[1] << 8) | b1] ^
+                            pm[(row[2] << 8) | b2] ^
+                            pm[(row[3] << 8) | b3];
 
-                        *ud2++ = (byte)u; // fixed
+                        *output++ = (byte)value;
                     }
                 }
             }
+
+            return;
         }
-        else if (n == 8)
+
+        fixed (byte* pm = multi, per = er, pd = destination)
         {
-            fixed (byte* um = multi, uer = er, ud = destination)
-            fixed (byte* ps0 = s[0], ps1 = s[1], ps2 = s[2], ps3 = s[3],
-ps4 = s[4], ps5 = s[5], ps6 = s[6], ps7 = s[7])
+            var output = pd;
+
+            for (var x = 0; x < length; x++)
             {
-                var ud2 = ud;
-                for (var x = 0; x < length; x++)
+                for (var y = 0; y < n; y++)
                 {
-                    for (var y = 0; y < n; y++)
+                    var row = per + (y * n);
+                    var value = 0;
+
+                    for (var z = 0; z < n; z++)
                     {
-                        var yn = y * n;
-
-                        u = um[(uer[0 + yn] * GaloisField.Max) + ps0[x]];
-                        u ^= um[(uer[1 + yn] * GaloisField.Max) + ps1[x]];
-                        u ^= um[(uer[2 + yn] * GaloisField.Max) + ps2[x]];
-                        u ^= um[(uer[3 + yn] * GaloisField.Max) + ps3[x]];
-                        u ^= um[(uer[4 + yn] * GaloisField.Max) + ps4[x]];
-                        u ^= um[(uer[5 + yn] * GaloisField.Max) + ps5[x]];
-                        u ^= um[(uer[6 + yn] * GaloisField.Max) + ps6[x]];
-                        u ^= um[(uer[7 + yn] * GaloisField.Max) + ps7[x]];
-
-                        *ud2++ = (byte)u; // fixed
+                        value ^= pm[(row[z] << 8) | s[z][x]];
                     }
-                }
-            }
-        }
-        else
-        {
-            fixed (byte* um = multi, uer = er, ud = destination)
-            {// $"ps{i} = s[{i}], "
-                var ud2 = ud;
-                for (var x = 0; x < length; x++)
-                {
-                    for (var y = 0; y < n; y++)
-                    {
-                        var yn = y * n;
-                        u = 0;
-                        for (z = 0; z < n; z++)
-                        {// $"u ^= um[(uer[{i} + yn] * GaloisField.Max) + ps{i}[x]];"
-                            u ^= um[(uer[z + yn] * GaloisField.Max) + s[z][x]];
-                        }
 
-                        *ud2++ = (byte)u; // fixed
-                    }
+                    *output++ = (byte)value;
                 }
             }
         }
     }
 
-    public override string ToString() => $"RsCoder Data: {this.DataSize}, Check: {this.CheckSize}";
+    public override string ToString()
+        => $"RsCoder Data: {this.DataSize}, Check: {this.CheckSize}";
 
-    public void InvalidateEncodedBufferForUnitTest(System.Random random, int number)
+    public void InvalidateEncodedBufferForUnitTest(Random random, int number)
     {
-        if (this.rentEncodeBuffer == null)
+        var buffers = this.rentEncodeBuffer;
+        if (buffers is null)
         {
             return;
         }
-        else if (this.rentEncodeBuffer.Length < number)
+
+        if (buffers.Length < number)
         {
             throw new InvalidOperationException();
         }
 
-        while (true)
-        {
-            var invalidNumber = this.rentEncodeBuffer.Count(a => a == null);
-            if (invalidNumber >= number)
-            {
-                return;
-            }
+        var invalidNumber = 0;
 
+        for (var i = 0; i < buffers.Length; i++)
+        {
+            if (buffers[i] is null)
+            {
+                invalidNumber++;
+            }
+        }
+
+        var pool = ArrayPool<byte>.Shared;
+
+        while (invalidNumber < number)
+        {
             int i;
+
             do
             {
-                i = random.Next(this.rentEncodeBuffer.Length);
+                i = random.Next(buffers.Length);
             }
-            while (this.rentEncodeBuffer[i] == null);
+            while (buffers[i] is null);
 
-            ArrayPool<byte>.Shared.Return(this.rentEncodeBuffer[i]);
-            this.rentEncodeBuffer[i] = null!; // Invalidate
+            pool.Return(buffers[i]);
+            buffers[i] = null!;
+            invalidNumber++;
         }
     }
 
     public void InvalidateEncodedBufferForUnitTest(uint bufferbits)
     {
-        if (this.rentEncodeBuffer == null)
+        var buffers = this.rentEncodeBuffer;
+        if (buffers is null)
         {
             return;
         }
 
-        for (var i = 0; i < this.rentEncodeBuffer.Length; i++)
+        var pool = ArrayPool<byte>.Shared;
+
+        for (var i = 0; i < buffers.Length; i++)
         {
-            if ((bufferbits & (1 << i)) == 0)
+            if ((bufferbits & (1u << i)) != 0)
             {
-                ArrayPool<byte>.Shared.Return(this.rentEncodeBuffer[i]);
-                this.rentEncodeBuffer[i] = null!; // Invalidate
+                continue;
             }
+
+            var buffer = buffers[i];
+            if (buffer is null)
+            {
+                continue;
+            }
+
+            pool.Return(buffer);
+            buffers[i] = null!;
         }
     }
 
@@ -552,206 +820,180 @@ ps4 = s[4], ps5 = s[5], ps6 = s[6], ps7 = s[7])
         var m = this.CheckSize;
 
         this.EnsureBuffers(true);
+
         var ef = this.rentEF!;
         var el = this.rentEL!;
-        el.AsSpan().Fill(0);
 
-        var u = 0; // data
-        var v = 0; // check
-        var z = 0;
+        var matrixWidth = n << 1;
+        el.AsSpan(0, n * matrixWidth).Clear();
+
+        var checkIndex = 0;
+
         for (var x = 0; x < n; x++)
         {
-            if (x == u && ((sourceBits & (1 << u)) != 0))
-            {// Data
-                z = u;
-                u++;
+            int z;
+
+            if (IsBitSet(sourceBits, x))
+            {
+                z = x;
             }
             else
-            {// Search valid check
-                while (((sourceBits & (1 << u)) == 0) && u < n)
+            {
+                while (checkIndex < m && !IsBitSet(sourceBits, n + checkIndex))
                 {
-                    u++;
+                    checkIndex++;
                 }
 
-                while ((sourceBits & (1 << (n + v))) == 0)
+                if (checkIndex >= m)
                 {
-                    v++;
-                    if (v >= m)
-                    {
-                        throw new InvalidDataException("The number of valid byte arrays must be greater than RsCoder.DataSize.");
-                    }
+                    throw new InvalidDataException(
+                        "The number of valid byte arrays must be greater than RsCoder.DataSize.");
                 }
 
-                z = n + v;
-                v++;
+                z = n + checkIndex;
+                checkIndex++;
             }
+
+            var row = x * matrixWidth;
 
             if (z < n)
-            {// data
-                el[z + (x * n * 2)] = 1;
+            {
+                el[row + z] = 1;
             }
             else
-            {// check
-                for (var y = 0; y < n; y++)
-                {
-                    el[y + (x * n * 2)] = ef[y + ((z - n) * n)];
-                }
+            {
+                ef.AsSpan((z - n) * n, n)
+                    .CopyTo(el.AsSpan(row, n));
             }
 
-            el[x + (x * n * 2) + n] = 1;
+            el[row + n + x] = 1;
         }
 
-        this.GenerateEL(null);
+        this.GenerateEL();
 
-        // check
         for (var y = 0; y < n; y++)
         {
+            var row = y * matrixWidth;
+
             for (var x = 0; x < n; x++)
             {
-                if (x == y)
+                var expected = x == y ? 1 : 0;
+
+                if (el[row + x] != expected)
                 {
-                    if (el[x + (y * n * 2)] != 1)
-                    {
-                        throw new Exception();
-                    }
-                }
-                else
-                {
-                    if (el[x + (y * n * 2)] != 0)
-                    {
-                        throw new Exception();
-                    }
+                    throw new Exception();
                 }
             }
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsBitSet(uint bits, int index)
+        => (uint)index < 32 && (bits & (1u << index)) != 0;
 
     private void GenerateEF()
     {
+        var n = this.DataSize;
+        var m = this.CheckSize;
+
         var ef = this.rentEF!;
-        for (var y = 0; y < this.CheckSize; y++)
+        var gfi = this.GaloisField.GFI;
+
+        for (var y = 0; y < m; y++)
         {
-            for (var x = 0; x < this.DataSize; x++)
+            var row = y * n;
+            var exponent = 0;
+
+            for (var x = 0; x < n; x++)
             {
-                ef[x + (this.DataSize * y)] = this.GaloisField.GFI[x * y]; // 1st
+                ef[row + x] = gfi[exponent];
+
+                exponent += y;
+                if (exponent >= GaloisField.Mask)
+                {
+                    exponent -= GaloisField.Mask;
+                }
             }
         }
-
-        /*for (var x = 0; x < this.DataSize; x++)
-        {
-            ef[x] = 1; // 2nd
-            // this.F[x] = 1;
-        }
-
-        for (var y = 1; y < this.CheckSize; y++)
-        {
-            for (var x = 0; x < this.DataSize; x++)
-            {
-                ef[x + (this.DataSize * y)] = this.GaloisField.Multi[(ef[x + (this.DataSize * (y - 1))] * GaloisField.Max) + this.GaloisField.GFI[x]]; // 2nd
-                // this.F[x + (this.DataSize * y)] = this.GaloisField.Multi[(this.F[x + (this.DataSize * (y - 1))] * GaloisField.Max) + x + 1]; // Obsolete
-            }
-        }*/
-
-        /*var temp = new byte[this.DataSize];
-        for (var x = 0; x < this.DataSize; x++)
-        {
-            temp[x] = 1;
-        }
-
-        for (var y = 0; y < this.CheckSize; y++)
-        {
-            for (var x = 0; x < this.DataSize; x++)
-            {
-                this.F[x + (this.DataSize * y)] = this.GaloisField.GFI[temp[x]];
-                temp[x] = this.GaloisField.Multi[((x + 1) * GaloisField.Max) + temp[x]];
-            }
-        }*/
-
-        // Random...
-        /*for (var y = 0; y < ef.Length; y++)
-        {
-            ef[y] = this.GaloisField.GFI[Random.Shared.Next() & GaloisField.Mask];
-        }*/
     }
 
-    private void GenerateEL(byte[][]? s)
+    private unsafe void GenerateEL()
     {
         var n = this.DataSize;
+        var width = n << 1;
+
+        var el = this.rentEL!;
         var multi = this.GaloisField.Multi;
         var div = this.GaloisField.Div;
-        var el = this.rentEL!;
 
-        for (var x = 0; x < n; x++)
+        fixed (byte* pel = el, pm = multi, pd = div)
         {
-            if (el[x + (x * n * 2)] != 0)
+            for (var x = 0; x < n; x++)
             {
-                goto Normalize;
-            }
+                var rowX = x * width;
 
-            // Pivoting (Row)
-            for (var y = x + 1; y < n; y++)
-            {
-                if (el[x + (y * n * 2)] != 0)
+                if (pel[rowX + x] == 0)
                 {
-                    for (var u = 0; u < (n * 2); u++)
+                    var pivotRow = x + 1;
+
+                    while (pivotRow < n &&
+                           pel[(pivotRow * width) + x] == 0)
                     {
-                        var temp = el[u + (y * n * 2)];
-                        el[u + (y * n * 2)] = el[u + (x * n * 2)];
-                        el[u + (x * n * 2)] = temp;
+                        pivotRow++;
                     }
 
-                    goto Normalize;
-                }
-            }
-
-            // Pivoting (Column)
-            for (var y = x + 1; y < n; y++)
-            {
-                if (el[y + (x * n * 2)] != 0)
-                {
-                    for (var u = 0; u < n; u++)
+                    if (pivotRow >= n)
                     {
-                        var temp = el[y + (u * n * 2)];
-                        el[y + (u * n * 2)] = el[x + (u * n * 2)];
-                        el[x + (u * n * 2)] = temp;
+                        throw new InvalidDataException(
+                            "The decoding matrix is singular.");
                     }
 
-                    if (s != null)
+                    var rowY = pivotRow * width;
+
+                    // Columns before x are already zero.
+                    for (var u = x; u < width; u++)
                     {
-                        var temp = s[y];
-                        s[y] = s[x];
-                        s[x] = temp;
+                        var temp = pel[rowX + u];
+                        pel[rowX + u] = pel[rowY + u];
+                        pel[rowY + u] = temp;
+                    }
+                }
+
+                var pivot = pel[rowX + x];
+
+                if (pivot != 1)
+                {
+                    pel[rowX + x] = 1;
+
+                    for (var u = x + 1; u < width; u++)
+                    {
+                        var value = pel[rowX + u];
+                        pel[rowX + u] = pd[(value << 8) | pivot];
+                    }
+                }
+
+                for (var y = 0; y < n; y++)
+                {
+                    if (y == x)
+                    {
+                        continue;
                     }
 
-                    goto Normalize;
-                }
-            }
+                    var rowY = y * width;
+                    var factor = pel[rowY + x];
 
-            // el[x + (x * n * 2)] is 0...
-            throw new InvalidDataException("Sorry for this.");
-
-Normalize:
-            var e = el[x + (x * n * 2)];
-            if (e != 1)
-            {
-                for (var y = 0; y < (n * 2); y++)
-                {
-                    el[y + (x * n * 2)] = div[(el[y + (x * n * 2)] * GaloisField.Max) + e];
-                }
-            }
-
-            for (var y = 0; y < n; y++)
-            {
-                if (x != y)
-                {
-                    e = el[x + (y * n * 2)];
-                    if (e != 0)
+                    if (factor == 0)
                     {
-                        e = div[(e * GaloisField.Max) + 1];
-                        for (var u = 0; u < (n * 2); u++)
-                        {
-                            el[u + (y * n * 2)] ^= multi[(el[u + (x * n * 2)] * GaloisField.Max) + e];
-                        }
+                        continue;
+                    }
+
+                    // pivot == 1, therefore this entry always becomes zero.
+                    pel[rowY + x] = 0;
+
+                    for (var u = x + 1; u < width; u++)
+                    {
+                        pel[rowY + u] ^=
+                            pm[(pel[rowX + u] << 8) | factor];
                     }
                 }
             }
@@ -767,14 +1009,17 @@ Normalize:
 
     private string MatrixToString(byte[] m)
     {
-        int row, column;
+        int row;
+        int column;
+
         var length = m.Length;
-        if (length == (this.DataSize * this.DataSize))
+
+        if (length == this.DataSize * this.DataSize)
         {
             row = this.DataSize;
             column = this.DataSize;
         }
-        else if (length == (this.DataSize * this.DataSize * 2))
+        else if (length == this.DataSize * this.DataSize * 2)
         {
             row = this.DataSize;
             column = this.DataSize * 2;
@@ -789,12 +1034,15 @@ Normalize:
             return string.Empty;
         }
 
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
+
         for (var y = 0; y < row; y++)
         {
+            var offset = y * column;
+
             for (var x = 0; x < column; x++)
             {
-                sb.Append(string.Format("{0, 3}", m[x + (y * column)]));
+                sb.AppendFormat("{0,3}", m[offset + x]);
                 sb.Append(", ");
             }
 
@@ -806,137 +1054,152 @@ Normalize:
 
     private void EnsureBuffers(bool decodeBuffer)
     {
-        if (this.rentEF == null)
+        if (this.rentEF is null)
         {
-            this.rentEF = ArrayPool<byte>.Shared.Rent(this.DataSize * this.CheckSize);
-            Array.Fill<byte>(this.rentEF, 0);
+            this.rentEF =
+                ArrayPool<byte>.Shared.Rent(this.DataSize * this.CheckSize);
         }
 
-        if (decodeBuffer)
+        if (!decodeBuffer)
         {
-            if (this.rentEL == null)
-            {
-                this.rentEL = ArrayPool<byte>.Shared.Rent(this.DataSize * this.DataSize * 2);
-            }
+            return;
+        }
 
-            if (this.rentER == null)
-            {
-                this.rentER = ArrayPool<byte>.Shared.Rent(this.DataSize * this.DataSize);
-            }
+        if (this.rentEL is null)
+        {
+            this.rentEL =
+                ArrayPool<byte>.Shared.Rent(this.DataSize * this.DataSize * 2);
+        }
 
-            if (this.rentS == null)
-            {
-                this.rentS = ArrayPool<byte[]>.Shared.Rent(this.DataSize);
-            }
+        if (this.rentER is null)
+        {
+            this.rentER =
+                ArrayPool<byte>.Shared.Rent(this.DataSize * this.DataSize);
+        }
+
+        if (this.rentS is null)
+        {
+            this.rentS =
+                ArrayPool<byte[]>.Shared.Rent(this.DataSize);
         }
     }
 
     private void ReturnBuffers()
     {
-        if (this.rentEF != null)
+        if (this.rentEF is not null)
         {
             ArrayPool<byte>.Shared.Return(this.rentEF);
             this.rentEF = null;
         }
 
-        if (this.rentEL != null)
+        if (this.rentEL is not null)
         {
             ArrayPool<byte>.Shared.Return(this.rentEL);
             this.rentEL = null;
         }
 
-        if (this.rentER != null)
+        if (this.rentER is not null)
         {
             ArrayPool<byte>.Shared.Return(this.rentER);
             this.rentER = null;
         }
 
-        if (this.rentS != null)
+        if (this.rentS is not null)
         {
-            ArrayPool<byte[]>.Shared.Return(this.rentS);
+            ArrayPool<byte[]>.Shared.Return(this.rentS, clearArray: true);
             this.rentS = null;
         }
     }
 
     private void EnsureEncodeBuffer(int length)
     {
-        if (this.rentEncodeBuffer == null)
-        {// Rent a buffer.
-            this.rentEncodeBuffer = new byte[this.TotalSize][];
-            for (var n = 0; n < this.TotalSize; n++)
-            {
-                this.rentEncodeBuffer[n] = ArrayPool<byte>.Shared.Rent(length);
-            }
-        }
-        else
+        var buffers = this.rentEncodeBuffer;
+        var pool = ArrayPool<byte>.Shared;
+
+        if (buffers is null)
         {
-            for (var n = 0; n < this.TotalSize; n++)
+            buffers = new byte[this.TotalSize][];
+
+            for (var i = 0; i < buffers.Length; i++)
             {
-                if (this.rentEncodeBuffer[n] == null)
-                {// Rent
-                    this.rentEncodeBuffer[n] = ArrayPool<byte>.Shared.Rent(length);
-                }
-                else if (this.rentEncodeBuffer[n].Length < length)
-                {// Insufficient buffer, return and rent.
-                    ArrayPool<byte>.Shared.Return(this.rentEncodeBuffer[n]);
-                    this.rentEncodeBuffer[n] = ArrayPool<byte>.Shared.Rent(length);
-                }
+                buffers[i] = pool.Rent(length);
+            }
+
+            this.rentEncodeBuffer = buffers;
+            return;
+        }
+
+        for (var i = 0; i < buffers.Length; i++)
+        {
+            var buffer = buffers[i];
+
+            if (buffer is null)
+            {
+                buffers[i] = pool.Rent(length);
+            }
+            else if (buffer.Length < length)
+            {
+                pool.Return(buffer);
+                buffers[i] = pool.Rent(length);
             }
         }
     }
 
     private void ReturnEncodeBuffer()
     {
-        if (this.rentEncodeBuffer != null)
+        var buffers = this.rentEncodeBuffer;
+        if (buffers is null)
         {
-            for (var n = 0; n < this.rentEncodeBuffer.Length; n++)
-            {
-                if (this.rentEncodeBuffer[n] != null)
-                {
-                    ArrayPool<byte>.Shared.Return(this.rentEncodeBuffer[n]!);
-                    this.rentEncodeBuffer[n] = null!;
-                }
-            }
-
-            this.rentEncodeBuffer = null!;
+            return;
         }
+
+        var pool = ArrayPool<byte>.Shared;
+
+        for (var i = 0; i < buffers.Length; i++)
+        {
+            var buffer = buffers[i];
+
+            if (buffer is not null)
+            {
+                pool.Return(buffer);
+                buffers[i] = null!;
+            }
+        }
+
+        this.rentEncodeBuffer = null;
     }
 
     private void EnsureDecodeBuffer(int length)
     {
-        if (this.rentDecodeBuffer == null)
-        {// Rent a buffer.
+        var buffer = this.rentDecodeBuffer;
+
+        if (buffer is null)
+        {
             this.rentDecodeBuffer = ArrayPool<byte>.Shared.Rent(length);
         }
-        else if (this.rentDecodeBuffer.Length < length)
-        {// Insufficient buffer, return and rent.
-            this.ReturnDecodeBuffer();
+        else if (buffer.Length < length)
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
             this.rentDecodeBuffer = ArrayPool<byte>.Shared.Rent(length);
         }
     }
 
     private void ReturnDecodeBuffer()
     {
-        if (this.rentDecodeBuffer != null)
+        if (this.rentDecodeBuffer is null)
         {
-            ArrayPool<byte>.Shared.Return(this.rentDecodeBuffer);
-            this.rentDecodeBuffer = null;
+            return;
         }
+
+        ArrayPool<byte>.Shared.Return(this.rentDecodeBuffer);
+        this.rentDecodeBuffer = null;
     }
 
 #pragma warning disable SA1124 // Do not use regions
     #region IDisposable Support
 #pragma warning restore SA1124 // Do not use regions
 
-    private bool disposed = false; // To detect redundant calls.
-
-    /// <summary>
-    /// Finalizes an instance of the <see cref="RsCoder"/> class.
-    /// </summary>
-    ~RsCoder()
-    {
-        this.Dispose(false);
-    }
+    private bool disposed;
 
     /// <inheritdoc/>
     public void Dispose()
@@ -946,24 +1209,25 @@ Normalize:
     }
 
     /// <summary>
-    /// free managed/native resources.
+    /// Frees managed resources.
     /// </summary>
-    /// <param name="disposing">true: free managed resources.</param>
+    /// <param name="disposing">true to free managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (!this.disposed)
+        if (this.disposed)
         {
-            if (disposing)
-            {
-                // free managed resources.
-                this.ReturnBuffers();
-                this.ReturnDecodeBuffer();
-                this.ReturnEncodeBuffer();
-            }
-
-            // free native resources here if there are any.
-            this.disposed = true;
+            return;
         }
+
+        if (disposing)
+        {
+            this.ReturnBuffers();
+            this.ReturnDecodeBuffer();
+            this.ReturnEncodeBuffer();
+        }
+
+        this.disposed = true;
     }
+
     #endregion
 }
