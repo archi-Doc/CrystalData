@@ -3,6 +3,7 @@
     <File Path=".editorconfig" />
   </Folder>
   <Project Path="Advanced/Advanced.csproj" />
+  <Project Path="Benchmark/Benchmark.csproj" Id="a3fce4da-a2e2-4d05-b138-01b8c72d9787" />
   <Project Path="CrystalData/CrystalData.csproj" />
   <Project Path="Playground/Playground.csproj" />
   <Project Path="QuickStart/QuickStart.csproj" />
