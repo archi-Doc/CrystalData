@@ -6,7 +6,7 @@ using System.Buffers;
 
 namespace CrystalData;
 
-public class GaloisField
+internal class GaloisField
 {
     public const int Max = 256;
     public const int Mask = Max - 1;
@@ -153,7 +153,7 @@ public class RsCoder : IDisposable
         this.GenerateEF();
     }
 
-    public GaloisField GaloisField { get; }
+    internal GaloisField GaloisField { get; }
 
     public int TotalSize { get; }
 
