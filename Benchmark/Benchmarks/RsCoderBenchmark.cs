@@ -15,7 +15,7 @@ public class RsCoderBenchmark
     private const int ParityCount = 4;
     private const int Length = 12 * 1024 * 84;
 
-    private readonly RsCoder2 coder;
+    private readonly RsCoder coder;
     private readonly byte[] source;
     private readonly byte[] destination;
     private readonly bool[] available;
@@ -31,7 +31,7 @@ public class RsCoderBenchmark
         this.destination = new byte[Length * (DataCount + ParityCount) / DataCount];
 
         this.available = [true, false, true, false, false, true, true, true, true, true, true, true,];
-        this.coder = new RsCoder2(DataCount, ParityCount);
+        this.coder = new RsCoder(DataCount, ParityCount);
     }
 
     [GlobalSetup]
@@ -47,7 +47,7 @@ public class RsCoderBenchmark
     [Benchmark]
     public byte Test1()
     {
-        using (var coder = new RsCoder(DataCount, ParityCount))
+        using (var coder = new RsCoderObsolete(DataCount, ParityCount))
         {
             // for (uint i = 0; i < total; i++)
             {

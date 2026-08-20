@@ -31,7 +31,7 @@ public class RsCoderTest
             source[i] = (byte)i;
         }
 
-        using (var coder = new RsCoder(n, m))
+        using (var coder = new RsCoderObsolete(n, m))
         {
             var total = 1 << coder.TotalSize;
             for (uint i = 0; i < total; i++)
@@ -51,7 +51,7 @@ public class RsCoderTest
 
     private void ComprehensiveTestNM(int n, int m)
     {
-        using (var coder = new RsCoder(n, m))
+        using (var coder = new RsCoderObsolete(n, m))
         {
             var total = 1 << coder.TotalSize;
             for (uint i = 0; i < total; i++)
@@ -90,7 +90,7 @@ public class RsCoderTest
     {
         // using (var coder = new RsCoder)
 
-        using (var coder = new RsCoder(n, m))
+        using (var coder = new RsCoderObsolete(n, m))
         {
             foreach (var x in sources)
             {
@@ -99,7 +99,7 @@ public class RsCoderTest
         }
     }
 
-    private void RandomTestSource(RsCoder coder, byte[] source, Random random)
+    private void RandomTestSource(RsCoderObsolete coder, byte[] source, Random random)
     {
         var length = source.Length;
         length = (length / coder.DataSize) * coder.DataSize; // length must be a multiple of coder.DataSize

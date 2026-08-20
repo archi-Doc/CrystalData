@@ -2,1232 +2,691 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.CompilerServices;
-using System.Text;
-
-#pragma warning disable SA1519 // Braces should not be omitted from multi-line child statement
 
 namespace CrystalData;
 
-public class GaloisField
+#pragma warning disable SA1202 // Elements should be ordered by access
+#pragma warning disable SA1204 // Static elements should appear before instance elements
+#pragma warning disable SA1611 // Element parameters should be documented
+#pragma warning disable SA1615 // Element return value should be documented
+#pragma warning disable SA1642 // Constructor summary documentation should begin with standard text
+#pragma warning disable SA1519 // Braces should not be omitted from multi-line child statement
+
+/// <summary>
+/// Encodes data into systematic Reed-Solomon shards over GF(256).
+/// Any <see cref="DataShardCount"/> shards are sufficient to recover the original data.
+/// </summary>
+/// <remarks>
+/// The encoded buffer consists of all data shards followed by all parity shards.
+/// This type is thread-safe after construction.
+/// </remarks>
+public sealed class RsCoder
 {
-    public const int Max = 256;
-    public const int Mask = Max - 1;
-    public const int FieldGenPoly = 301; // 301 > 285 > 435
+    public const int DefaultDataShardCount = 8;
+    public const int DefaultParityShardCount = 4;
 
-    private static readonly GaloisField DefaultField = new(FieldGenPoly);
-    private static readonly Dictionary<int, GaloisField> FieldCache = new();
-    private static readonly object FieldCacheLock = new();
+    private const int StackallocThreshold = 4096;
 
-    public static GaloisField Get(int fieldGenPoly)
-    {
-        if (fieldGenPoly == FieldGenPoly)
-        {
-            return DefaultField;
-        }
-
-        lock (FieldCacheLock)
-        {
-            if (!FieldCache.TryGetValue(fieldGenPoly, out var field))
-            {
-                field = new GaloisField(fieldGenPoly);
-                FieldCache.Add(fieldGenPoly, field);
-            }
-
-            return field;
-        }
-    }
-
-    private GaloisField(int fieldGenPoly)
-    {
-        var gf = new byte[Max];
-        var gfi = new byte[Max];
-
-        gf[0] = Mask;
-        gfi[Mask] = 0;
-
-        var value = 1;
-
-        unchecked
-        {
-            for (var exponent = 0; exponent < Mask; exponent++)
-            {
-                gf[value] = (byte)exponent;
-                gfi[exponent] = (byte)value;
-
-                value <<= 1;
-                if (value >= Max)
-                {
-                    value = (value ^ fieldGenPoly) & Mask;
-                }
-            }
-        }
-
-        this.GF = gf;
-        this.GFI = gfi;
-
-        var multi = new byte[Max * Max];
-        var div = new byte[Max * Max];
-
-        // Row/column zero is already initialized to zero.
-        for (var a = 1; a < Max; a++)
-        {
-            var logA = gf[a];
-            var row = a << 8;
-
-            for (var b = 1; b < Max; b++)
-            {
-                var logB = gf[b];
-
-                var productExponent = logA + logB;
-                if (productExponent >= Mask)
-                {
-                    productExponent -= Mask;
-                }
-
-                multi[row | b] = gfi[productExponent];
-
-                var quotientExponent = logA - logB;
-                if (quotientExponent < 0)
-                {
-                    quotientExponent += Mask;
-                }
-
-                div[row | b] = gfi[quotientExponent];
-            }
-        }
-
-        this.Multi = multi;
-        this.Div = div;
-    }
-
-    public byte[] GF { get; }
-
-    public byte[] GFI { get; }
-
-    public byte[] Multi { get; }
-
-    public byte[] Div { get; }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal byte InternalMulti(int a, int b)
-    {
-        if (a == 0 || b == 0)
-        {
-            return 0;
-        }
-
-        var exponent = this.GF[a] + this.GF[b];
-        if (exponent >= Mask)
-        {
-            exponent -= Mask;
-        }
-
-        return this.GFI[exponent];
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal byte InternalDiv(int a, int b)
-    {
-        if (a == 0 || b == 0)
-        {
-            return 0;
-        }
-
-        var exponent = this.GF[a] - this.GF[b];
-        if (exponent < 0)
-        {
-            exponent += Mask;
-        }
-
-        return this.GFI[exponent];
-    }
-}
-
-public class RsCoder : IDisposable
-{
-    public const int DefaultDataSize = 8;
-    public const int DefaultCheckSize = 4;
+    private readonly byte[] parityRows;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="RsCoder"/> class (Reed-Solomon Coder.).
+    /// Initializes a new instance of the <see cref="RsCoder"/> class.
     /// </summary>
-    /// <param name="dataSize">The Number of blocks of data to be split.</param>
-    /// <param name="checkSize">The Number of blocks of checksum.</param>
-    /// <param name="fieldGenPoly">Field generator polymoninal (default 301).</param>
-    public RsCoder(
-        int dataSize = DefaultDataSize,
-        int checkSize = DefaultCheckSize,
-        int fieldGenPoly = GaloisField.FieldGenPoly)
+    public RsCoder(int dataShardCount = DefaultDataShardCount, int parityShardCount = DefaultParityShardCount)
     {
-        if (dataSize < 1)
+        if (dataShardCount < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(dataSize));
+            throw new ArgumentOutOfRangeException(nameof(dataShardCount));
         }
 
-        if (checkSize < 1)
+        if (parityShardCount < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(checkSize));
+            throw new ArgumentOutOfRangeException(nameof(parityShardCount));
         }
 
-        this.DataSize = dataSize;
-        this.CheckSize = checkSize;
-        this.TotalSize = dataSize + checkSize;
-
-        if (this.TotalSize >= GaloisField.Max)
+        var shardCount = dataShardCount + parityShardCount;
+        if (shardCount > GaloisField.Size)
         {
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException(nameof(parityShardCount), "The total number of shards must not exceed 256.");
         }
 
-        this.GaloisField = GaloisField.Get(fieldGenPoly);
+        this.DataShardCount = dataShardCount;
+        this.ParityShardCount = parityShardCount;
+        this.ShardCount = shardCount;
+        this.parityRows = GC.AllocateUninitializedArray<byte>(dataShardCount * parityShardCount);
 
-        this.EnsureBuffers(false);
-        this.GenerateEF();
+        this.GenerateParityRows();
     }
 
-    public GaloisField GaloisField { get; }
+    public int DataShardCount { get; }
 
-    public int TotalSize { get; }
+    public int ParityShardCount { get; }
 
-    public int DataSize { get; }
+    public int ShardCount { get; }
 
-    public int CheckSize { get; }
-
-    public byte[]? Source { get; set; }
-
-    public byte[][]? EncodedBuffer => this.rentEncodeBuffer;
-
-    public int EncodedBufferLength { get; set; }
-
-    public byte[]? DecodedBuffer => this.rentDecodeBuffer;
-
-    public int DecodedBufferLength { get; set; }
-
-    public unsafe void Encode(byte[] source, int length)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetShardLength(int dataLength)
     {
-        ArgumentNullException.ThrowIfNull(source);
-
-        if ((uint)length > (uint)source.Length)
+        if (dataLength < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(length));
+            throw new ArgumentOutOfRangeException(nameof(dataLength));
         }
 
-        var n = this.DataSize;
-
-        if ((length % n) != 0)
+        if (dataLength == 0)
         {
-            throw new InvalidDataException(
-                "Length of source data must be a multiple of RsCoder.DataSize.");
+            return 0;
         }
 
-        var m = this.CheckSize;
-        var destinationLength = length / n;
-
-        this.EncodedBufferLength = destinationLength;
-        this.EnsureEncodeBuffer(destinationLength);
-
-        var destination = this.rentEncodeBuffer!;
-        var ef = this.rentEF!;
-        var multi = this.GaloisField.Multi;
-
-        // Most common configuration.
-        if (n == 8 && m == 4)
-        {
-            fixed (byte* ps = source, pef = ef, pm = multi)
-            fixed (
-                byte* pd0 = destination[0],
-                pd1 = destination[1],
-                pd2 = destination[2],
-                pd3 = destination[3],
-                pd4 = destination[4],
-                pd5 = destination[5],
-                pd6 = destination[6],
-                pd7 = destination[7],
-                pc0 = destination[8],
-                pc1 = destination[9],
-                pc2 = destination[10],
-                pc3 = destination[11])
-            {
-                var p = ps;
-
-                var e0 = pef;
-                var e1 = pef + 8;
-                var e2 = pef + 16;
-                var e3 = pef + 24;
-
-                for (var x = 0; x < destinationLength; x++)
-                {
-                    var b0 = p[0];
-                    var b1 = p[1];
-                    var b2 = p[2];
-                    var b3 = p[3];
-                    var b4 = p[4];
-                    var b5 = p[5];
-                    var b6 = p[6];
-                    var b7 = p[7];
-
-                    pd0[x] = b0;
-                    pd1[x] = b1;
-                    pd2[x] = b2;
-                    pd3[x] = b3;
-                    pd4[x] = b4;
-                    pd5[x] = b5;
-                    pd6[x] = b6;
-                    pd7[x] = b7;
-
-                    pc0[x] = (byte)(
-                        pm[(b0 << 8) | e0[0]] ^
-                        pm[(b1 << 8) | e0[1]] ^
-                        pm[(b2 << 8) | e0[2]] ^
-                        pm[(b3 << 8) | e0[3]] ^
-                        pm[(b4 << 8) | e0[4]] ^
-                        pm[(b5 << 8) | e0[5]] ^
-                        pm[(b6 << 8) | e0[6]] ^
-                        pm[(b7 << 8) | e0[7]]);
-
-                    pc1[x] = (byte)(
-                        pm[(b0 << 8) | e1[0]] ^
-                        pm[(b1 << 8) | e1[1]] ^
-                        pm[(b2 << 8) | e1[2]] ^
-                        pm[(b3 << 8) | e1[3]] ^
-                        pm[(b4 << 8) | e1[4]] ^
-                        pm[(b5 << 8) | e1[5]] ^
-                        pm[(b6 << 8) | e1[6]] ^
-                        pm[(b7 << 8) | e1[7]]);
-
-                    pc2[x] = (byte)(
-                        pm[(b0 << 8) | e2[0]] ^
-                        pm[(b1 << 8) | e2[1]] ^
-                        pm[(b2 << 8) | e2[2]] ^
-                        pm[(b3 << 8) | e2[3]] ^
-                        pm[(b4 << 8) | e2[4]] ^
-                        pm[(b5 << 8) | e2[5]] ^
-                        pm[(b6 << 8) | e2[6]] ^
-                        pm[(b7 << 8) | e2[7]]);
-
-                    pc3[x] = (byte)(
-                        pm[(b0 << 8) | e3[0]] ^
-                        pm[(b1 << 8) | e3[1]] ^
-                        pm[(b2 << 8) | e3[2]] ^
-                        pm[(b3 << 8) | e3[3]] ^
-                        pm[(b4 << 8) | e3[4]] ^
-                        pm[(b5 << 8) | e3[5]] ^
-                        pm[(b6 << 8) | e3[6]] ^
-                        pm[(b7 << 8) | e3[7]]);
-
-                    p += 8;
-                }
-            }
-
-            return;
-        }
-
-        if (n == 4 && m == 4)
-        {
-            fixed (byte* ps = source, pef = ef, pm = multi)
-            fixed (
-                byte* pd0 = destination[0],
-                pd1 = destination[1],
-                pd2 = destination[2],
-                pd3 = destination[3],
-                pc0 = destination[4],
-                pc1 = destination[5],
-                pc2 = destination[6],
-                pc3 = destination[7])
-            {
-                var p = ps;
-
-                var e0 = pef;
-                var e1 = pef + 4;
-                var e2 = pef + 8;
-                var e3 = pef + 12;
-
-                for (var x = 0; x < destinationLength; x++)
-                {
-                    var b0 = p[0];
-                    var b1 = p[1];
-                    var b2 = p[2];
-                    var b3 = p[3];
-
-                    pd0[x] = b0;
-                    pd1[x] = b1;
-                    pd2[x] = b2;
-                    pd3[x] = b3;
-
-                    pc0[x] = (byte)(
-                        pm[(b0 << 8) | e0[0]] ^
-                        pm[(b1 << 8) | e0[1]] ^
-                        pm[(b2 << 8) | e0[2]] ^
-                        pm[(b3 << 8) | e0[3]]);
-
-                    pc1[x] = (byte)(
-                        pm[(b0 << 8) | e1[0]] ^
-                        pm[(b1 << 8) | e1[1]] ^
-                        pm[(b2 << 8) | e1[2]] ^
-                        pm[(b3 << 8) | e1[3]]);
-
-                    pc2[x] = (byte)(
-                        pm[(b0 << 8) | e2[0]] ^
-                        pm[(b1 << 8) | e2[1]] ^
-                        pm[(b2 << 8) | e2[2]] ^
-                        pm[(b3 << 8) | e2[3]]);
-
-                    pc3[x] = (byte)(
-                        pm[(b0 << 8) | e3[0]] ^
-                        pm[(b1 << 8) | e3[1]] ^
-                        pm[(b2 << 8) | e3[2]] ^
-                        pm[(b3 << 8) | e3[3]]);
-
-                    p += 4;
-                }
-            }
-
-            return;
-        }
-
-        if (n == 8)
-        {
-            fixed (byte* ps = source, pef = ef, pm = multi)
-            fixed (
-                byte* pd0 = destination[0],
-                pd1 = destination[1],
-                pd2 = destination[2],
-                pd3 = destination[3],
-                pd4 = destination[4],
-                pd5 = destination[5],
-                pd6 = destination[6],
-                pd7 = destination[7])
-            {
-                var p = ps;
-
-                for (var x = 0; x < destinationLength; x++)
-                {
-                    var b0 = p[0];
-                    var b1 = p[1];
-                    var b2 = p[2];
-                    var b3 = p[3];
-                    var b4 = p[4];
-                    var b5 = p[5];
-                    var b6 = p[6];
-                    var b7 = p[7];
-
-                    pd0[x] = b0;
-                    pd1[x] = b1;
-                    pd2[x] = b2;
-                    pd3[x] = b3;
-                    pd4[x] = b4;
-                    pd5[x] = b5;
-                    pd6[x] = b6;
-                    pd7[x] = b7;
-
-                    for (var y = 0; y < m; y++)
-                    {
-                        var e = pef + (y << 3);
-
-                        destination[8 + y][x] = (byte)(
-                            pm[(b0 << 8) | e[0]] ^
-                            pm[(b1 << 8) | e[1]] ^
-                            pm[(b2 << 8) | e[2]] ^
-                            pm[(b3 << 8) | e[3]] ^
-                            pm[(b4 << 8) | e[4]] ^
-                            pm[(b5 << 8) | e[5]] ^
-                            pm[(b6 << 8) | e[6]] ^
-                            pm[(b7 << 8) | e[7]]);
-                    }
-
-                    p += 8;
-                }
-            }
-
-            return;
-        }
-
-        if (n == 4)
-        {
-            fixed (byte* ps = source, pef = ef, pm = multi)
-            fixed (
-                byte* pd0 = destination[0],
-                pd1 = destination[1],
-                pd2 = destination[2],
-                pd3 = destination[3])
-            {
-                var p = ps;
-
-                for (var x = 0; x < destinationLength; x++)
-                {
-                    var b0 = p[0];
-                    var b1 = p[1];
-                    var b2 = p[2];
-                    var b3 = p[3];
-
-                    pd0[x] = b0;
-                    pd1[x] = b1;
-                    pd2[x] = b2;
-                    pd3[x] = b3;
-
-                    for (var y = 0; y < m; y++)
-                    {
-                        var e = pef + (y << 2);
-
-                        destination[4 + y][x] = (byte)(
-                            pm[(b0 << 8) | e[0]] ^
-                            pm[(b1 << 8) | e[1]] ^
-                            pm[(b2 << 8) | e[2]] ^
-                            pm[(b3 << 8) | e[3]]);
-                    }
-
-                    p += 4;
-                }
-            }
-
-            return;
-        }
-
-        fixed (byte* ps = source, pef = ef, pm = multi)
-        {
-            var p = ps;
-
-            for (var x = 0; x < destinationLength; x++)
-            {
-                for (var y = 0; y < n; y++)
-                {
-                    destination[y][x] = p[y];
-                }
-
-                for (var y = 0; y < m; y++)
-                {
-                    var e = pef + (y * n);
-                    var result = 0;
-
-                    for (var z = 0; z < n; z++)
-                    {
-                        result ^= pm[(p[z] << 8) | e[z]];
-                    }
-
-                    destination[n + y][x] = (byte)result;
-                }
-
-                p += n;
-            }
-        }
-    }
-
-    public unsafe void Decode(byte[]?[] source, int length)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-
-        var n = this.DataSize;
-        var m = this.CheckSize;
-        var nm = this.TotalSize;
-
-        if (source.Length < nm)
-        {
-            throw new InvalidDataException(
-                "The number of source byte arrays is insufficient.");
-        }
-
-        if (length < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(length));
-        }
-
-        var validCount = 0;
-
-        for (var i = 0; i < nm; i++)
-        {
-            var block = source[i];
-
-            if (block is null)
-            {
-                continue;
-            }
-
-            if (block.Length < length)
-            {
-                throw new InvalidDataException(
-                    "Length of source byte arrays must be greater than or equal to 'length'.");
-            }
-
-            validCount++;
-        }
-
-        if (validCount < n)
-        {
-            throw new InvalidDataException(
-                "Number of valid byte arrays must be greater than or equal to RsCoder.DataSize.");
-        }
-
-        this.DecodedBufferLength = length * n;
-        this.EnsureDecodeBuffer(this.DecodedBufferLength);
-
-        if (length == 0)
-        {
-            return;
-        }
-
-        var destination = this.rentDecodeBuffer!;
-        var multi = this.GaloisField.Multi;
-
-        this.EnsureBuffers(true);
-
-        var ef = this.rentEF!;
-        var el = this.rentEL!;
-        var er = this.rentER!;
-        var s = this.rentS!;
-
-        var matrixWidth = n << 1;
-        el.AsSpan(0, n * matrixWidth).Clear();
-
-        var checkIndex = 0;
-
-        for (var x = 0; x < n; x++)
-        {
-            byte[] selected;
-            int sourceIndex;
-
-            var data = source[x];
-
-            if (data is not null)
-            {
-                selected = data;
-                sourceIndex = x;
-            }
-            else
-            {
-                while (checkIndex < m && source[n + checkIndex] is null)
-                {
-                    checkIndex++;
-                }
-
-                if (checkIndex >= m)
-                {
-                    throw new InvalidDataException(
-                        "Number of valid byte arrays must be greater than or equal to RsCoder.DataSize.");
-                }
-
-                sourceIndex = n + checkIndex;
-                selected = source[sourceIndex]!;
-                checkIndex++;
-            }
-
-            var row = x * matrixWidth;
-
-            if (sourceIndex < n)
-            {
-                el[row + sourceIndex] = 1;
-            }
-            else
-            {
-                ef.AsSpan((sourceIndex - n) * n, n)
-                    .CopyTo(el.AsSpan(row, n));
-            }
-
-            el[row + n + x] = 1;
-            s[x] = selected;
-        }
-
-        this.GenerateEL();
-
-        for (var y = 0; y < n; y++)
-        {
-            el.AsSpan((y * matrixWidth) + n, n)
-                .CopyTo(er.AsSpan(y * n, n));
-        }
-
-        if (n == 8)
-        {
-            fixed (byte* pm = multi, per = er, pd = destination)
-            fixed (
-                byte* ps0 = s[0],
-                ps1 = s[1],
-                ps2 = s[2],
-                ps3 = s[3],
-                ps4 = s[4],
-                ps5 = s[5],
-                ps6 = s[6],
-                ps7 = s[7])
-            {
-                var output = pd;
-
-                for (var x = 0; x < length; x++)
-                {
-                    var b0 = ps0[x];
-                    var b1 = ps1[x];
-                    var b2 = ps2[x];
-                    var b3 = ps3[x];
-                    var b4 = ps4[x];
-                    var b5 = ps5[x];
-                    var b6 = ps6[x];
-                    var b7 = ps7[x];
-
-                    for (var y = 0; y < 8; y++)
-                    {
-                        var row = per + (y << 3);
-
-                        var value =
-                            pm[(row[0] << 8) | b0] ^
-                            pm[(row[1] << 8) | b1] ^
-                            pm[(row[2] << 8) | b2] ^
-                            pm[(row[3] << 8) | b3] ^
-                            pm[(row[4] << 8) | b4] ^
-                            pm[(row[5] << 8) | b5] ^
-                            pm[(row[6] << 8) | b6] ^
-                            pm[(row[7] << 8) | b7];
-
-                        *output++ = (byte)value;
-                    }
-                }
-            }
-
-            return;
-        }
-
-        if (n == 4)
-        {
-            fixed (byte* pm = multi, per = er, pd = destination)
-            fixed (
-                byte* ps0 = s[0],
-                ps1 = s[1],
-                ps2 = s[2],
-                ps3 = s[3])
-            {
-                var output = pd;
-
-                for (var x = 0; x < length; x++)
-                {
-                    var b0 = ps0[x];
-                    var b1 = ps1[x];
-                    var b2 = ps2[x];
-                    var b3 = ps3[x];
-
-                    for (var y = 0; y < 4; y++)
-                    {
-                        var row = per + (y << 2);
-
-                        var value =
-                            pm[(row[0] << 8) | b0] ^
-                            pm[(row[1] << 8) | b1] ^
-                            pm[(row[2] << 8) | b2] ^
-                            pm[(row[3] << 8) | b3];
-
-                        *output++ = (byte)value;
-                    }
-                }
-            }
-
-            return;
-        }
-
-        fixed (byte* pm = multi, per = er, pd = destination)
-        {
-            var output = pd;
-
-            for (var x = 0; x < length; x++)
-            {
-                for (var y = 0; y < n; y++)
-                {
-                    var row = per + (y * n);
-                    var value = 0;
-
-                    for (var z = 0; z < n; z++)
-                    {
-                        value ^= pm[(row[z] << 8) | s[z][x]];
-                    }
-
-                    *output++ = (byte)value;
-                }
-            }
-        }
-    }
-
-    public override string ToString()
-        => $"RsCoder Data: {this.DataSize}, Check: {this.CheckSize}";
-
-    public void InvalidateEncodedBufferForUnitTest(Random random, int number)
-    {
-        var buffers = this.rentEncodeBuffer;
-        if (buffers is null)
-        {
-            return;
-        }
-
-        if (buffers.Length < number)
-        {
-            throw new InvalidOperationException();
-        }
-
-        var invalidNumber = 0;
-
-        for (var i = 0; i < buffers.Length; i++)
-        {
-            if (buffers[i] is null)
-            {
-                invalidNumber++;
-            }
-        }
-
-        var pool = ArrayPool<byte>.Shared;
-
-        while (invalidNumber < number)
-        {
-            int i;
-
-            do
-            {
-                i = random.Next(buffers.Length);
-            }
-            while (buffers[i] is null);
-
-            pool.Return(buffers[i]);
-            buffers[i] = null!;
-            invalidNumber++;
-        }
-    }
-
-    public void InvalidateEncodedBufferForUnitTest(uint bufferbits)
-    {
-        var buffers = this.rentEncodeBuffer;
-        if (buffers is null)
-        {
-            return;
-        }
-
-        var pool = ArrayPool<byte>.Shared;
-
-        for (var i = 0; i < buffers.Length; i++)
-        {
-            if ((bufferbits & (1u << i)) != 0)
-            {
-                continue;
-            }
-
-            var buffer = buffers[i];
-            if (buffer is null)
-            {
-                continue;
-            }
-
-            pool.Return(buffer);
-            buffers[i] = null!;
-        }
-    }
-
-    public void TestReverseMatrix(uint sourceBits)
-    {
-        var n = this.DataSize;
-        var m = this.CheckSize;
-
-        this.EnsureBuffers(true);
-
-        var ef = this.rentEF!;
-        var el = this.rentEL!;
-
-        var matrixWidth = n << 1;
-        el.AsSpan(0, n * matrixWidth).Clear();
-
-        var checkIndex = 0;
-
-        for (var x = 0; x < n; x++)
-        {
-            int z;
-
-            if (IsBitSet(sourceBits, x))
-            {
-                z = x;
-            }
-            else
-            {
-                while (checkIndex < m && !IsBitSet(sourceBits, n + checkIndex))
-                {
-                    checkIndex++;
-                }
-
-                if (checkIndex >= m)
-                {
-                    throw new InvalidDataException(
-                        "The number of valid byte arrays must be greater than RsCoder.DataSize.");
-                }
-
-                z = n + checkIndex;
-                checkIndex++;
-            }
-
-            var row = x * matrixWidth;
-
-            if (z < n)
-            {
-                el[row + z] = 1;
-            }
-            else
-            {
-                ef.AsSpan((z - n) * n, n)
-                    .CopyTo(el.AsSpan(row, n));
-            }
-
-            el[row + n + x] = 1;
-        }
-
-        this.GenerateEL();
-
-        for (var y = 0; y < n; y++)
-        {
-            var row = y * matrixWidth;
-
-            for (var x = 0; x < n; x++)
-            {
-                var expected = x == y ? 1 : 0;
-
-                if (el[row + x] != expected)
-                {
-                    throw new Exception();
-                }
-            }
-        }
+        var n = this.DataShardCount;
+        return (dataLength / n) + ((dataLength % n) == 0 ? 0 : 1);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsBitSet(uint bits, int index)
-        => (uint)index < 32 && (bits & (1u << index)) != 0;
+    public int GetEncodedLength(int dataLength) => checked(this.GetShardLength(dataLength) * this.ShardCount);
 
-    private void GenerateEF()
+    public byte[] Encode(ReadOnlySpan<byte> source)
     {
-        var n = this.DataSize;
-        var m = this.CheckSize;
+        var encoded = GC.AllocateUninitializedArray<byte>(this.GetEncodedLength(source.Length));
+        this.Encode(source, encoded);
+        return encoded;
+    }
 
-        var ef = this.rentEF!;
-        var gfi = this.GaloisField.GFI;
+    public unsafe void Encode(ReadOnlySpan<byte> source, Span<byte> destination)
+    {
+        var shardLength = this.GetShardLength(source.Length);
+        var requiredLength = checked(shardLength * this.ShardCount);
 
-        for (var y = 0; y < m; y++)
+        if (destination.Length < requiredLength)
         {
-            var row = y * n;
-            var exponent = 0;
+            throw new ArgumentException("The destination buffer is too small.", nameof(destination));
+        }
 
-            for (var x = 0; x < n; x++)
+        if (source.IsEmpty)
+        {
+            return;
+        }
+
+        var n = this.DataShardCount;
+        var m = this.ParityShardCount;
+        var dataLength = shardLength * n;
+
+        destination = destination[..requiredLength];
+        source.CopyTo(destination);
+        destination.Slice(source.Length, dataLength - source.Length).Clear();
+
+        fixed (byte* pEncoded = destination)
+        fixed (byte* pParity = this.parityRows)
+        fixed (byte* pMultiply = GaloisField.Tables)
+        {
+            for (var parityIndex = 0; parityIndex < m; parityIndex++)
             {
-                ef[row + x] = gfi[exponent];
+                var destinationShard = pEncoded + ((n + parityIndex) * shardLength);
+                var coefficients = pParity + (parityIndex * n);
+                var initialized = false;
 
-                exponent += y;
-                if (exponent >= GaloisField.Mask)
+                for (var dataIndex = 0; dataIndex < n; dataIndex++)
                 {
-                    exponent -= GaloisField.Mask;
+                    var coefficient = coefficients[dataIndex];
+                    if (coefficient == 0)
+                    {
+                        continue;
+                    }
+
+                    var sourceShard = pEncoded + (dataIndex * shardLength);
+
+                    if (!initialized)
+                    {
+                        MultiplyCopy(destinationShard, sourceShard, shardLength, coefficient, pMultiply);
+                        initialized = true;
+                    }
+                    else
+                    {
+                        XorMultiply(destinationShard, sourceShard, shardLength, coefficient, pMultiply);
+                    }
+                }
+
+                if (!initialized)
+                {
+                    new Span<byte>(destinationShard, shardLength).Clear();
                 }
             }
         }
     }
 
-    private unsafe void GenerateEL()
+    public byte[] Decode(ReadOnlySpan<byte> shards, ReadOnlySpan<bool> shardAvailable, int dataLength)
     {
-        var n = this.DataSize;
-        var width = n << 1;
-
-        var el = this.rentEL!;
-        var multi = this.GaloisField.Multi;
-        var div = this.GaloisField.Div;
-
-        fixed (byte* pel = el, pm = multi, pd = div)
+        if (dataLength < 0)
         {
-            for (var x = 0; x < n; x++)
-            {
-                var rowX = x * width;
+            throw new ArgumentOutOfRangeException(nameof(dataLength));
+        }
 
-                if (pel[rowX + x] == 0)
-                {
-                    var pivotRow = x + 1;
+        var destination = GC.AllocateUninitializedArray<byte>(dataLength);
+        this.Decode(shards, shardAvailable, dataLength, destination);
+        return destination;
+    }
 
-                    while (pivotRow < n &&
-                           pel[(pivotRow * width) + x] == 0)
-                    {
-                        pivotRow++;
-                    }
-
-                    if (pivotRow >= n)
-                    {
-                        throw new InvalidDataException(
-                            "The decoding matrix is singular.");
-                    }
-
-                    var rowY = pivotRow * width;
-
-                    // Columns before x are already zero.
-                    for (var u = x; u < width; u++)
-                    {
-                        var temp = pel[rowX + u];
-                        pel[rowX + u] = pel[rowY + u];
-                        pel[rowY + u] = temp;
-                    }
-                }
-
-                var pivot = pel[rowX + x];
-
-                if (pivot != 1)
-                {
-                    pel[rowX + x] = 1;
-
-                    for (var u = x + 1; u < width; u++)
-                    {
-                        var value = pel[rowX + u];
-                        pel[rowX + u] = pd[(value << 8) | pivot];
-                    }
-                }
-
-                for (var y = 0; y < n; y++)
-                {
-                    if (y == x)
-                    {
-                        continue;
-                    }
-
-                    var rowY = y * width;
-                    var factor = pel[rowY + x];
-
-                    if (factor == 0)
-                    {
-                        continue;
-                    }
-
-                    // pivot == 1, therefore this entry always becomes zero.
-                    pel[rowY + x] = 0;
-
-                    for (var u = x + 1; u < width; u++)
-                    {
-                        pel[rowY + u] ^=
-                            pm[(pel[rowX + u] << 8) | factor];
-                    }
-                }
-            }
+    public void Decode(ReadOnlySpan<byte> shards, ReadOnlySpan<bool> shardAvailable, int dataLength, Span<byte> destination)
+    {
+        if (!this.TryDecode(shards, shardAvailable, dataLength, destination))
+        {
+            throw new InvalidDataException("There are not enough shards to recover the original data.");
         }
     }
 
-    private byte[]? rentEF;
-    private byte[]? rentEL;
-    private byte[][]? rentS;
-    private byte[]? rentER;
-    private byte[][]? rentEncodeBuffer;
-    private byte[]? rentDecodeBuffer;
-
-    private string MatrixToString(byte[] m)
+    public unsafe bool TryDecode(ReadOnlySpan<byte> shards, ReadOnlySpan<bool> shardAvailable, int dataLength, Span<byte> destination)
     {
-        int row;
-        int column;
-
-        var length = m.Length;
-
-        if (length == this.DataSize * this.DataSize)
+        if (dataLength < 0)
         {
-            row = this.DataSize;
-            column = this.DataSize;
+            throw new ArgumentOutOfRangeException(nameof(dataLength));
         }
-        else if (length == this.DataSize * this.DataSize * 2)
+
+        if (shardAvailable.Length < this.ShardCount)
         {
-            row = this.DataSize;
-            column = this.DataSize * 2;
+            throw new ArgumentException("The shard availability span is too small.", nameof(shardAvailable));
         }
-        else if ((length % this.DataSize) == 0)
+
+        if (destination.Length < dataLength)
         {
-            row = length / this.DataSize;
-            column = this.DataSize;
+            throw new ArgumentException("The destination buffer is too small.", nameof(destination));
+        }
+
+        var shardLength = this.GetShardLength(dataLength);
+        var requiredLength = checked(shardLength * this.ShardCount);
+
+        if (shards.Length < requiredLength)
+        {
+            throw new ArgumentException("The encoded shard buffer is too small.", nameof(shards));
+        }
+
+        if (dataLength == 0)
+        {
+            return true;
+        }
+
+        destination = destination[..dataLength];
+        shards = shards[..requiredLength];
+
+        if (shards.Overlaps(destination, out var overlapOffset) && overlapOffset != 0)
+        {
+            throw new ArgumentException("The destination must not partially overlap the encoded buffer.");
+        }
+
+        var dataCount = this.DataShardCount;
+        var usedDataShards = (dataLength / shardLength) + ((dataLength % shardLength) == 0 ? 0 : 1);
+        var allRequiredDataAvailable = true;
+
+        for (var i = 0; i < usedDataShards; i++)
+        {
+            if (!shardAvailable[i])
+            {
+                allRequiredDataAvailable = false;
+                break;
+            }
+        }
+
+        if (allRequiredDataAvailable)
+        {
+            shards[..dataLength].CopyTo(destination);
+            return true;
+        }
+
+        var availableCount = 0;
+        for (var i = 0; i < this.ShardCount; i++)
+        {
+            if (shardAvailable[i])
+            {
+                availableCount++;
+            }
+        }
+
+        if (availableCount < dataCount)
+        {
+            return false;
+        }
+
+        var matrixWidth = dataCount << 1;
+        var matrixLength = checked(dataCount * matrixWidth);
+        var scratchLength = checked(matrixLength + dataCount);
+
+        byte[]? rented = null;
+        scoped Span<byte> scratch;
+
+        if (scratchLength <= StackallocThreshold)
+        {
+            scratch = stackalloc byte[scratchLength];
         }
         else
         {
-            return string.Empty;
+            rented = ArrayPool<byte>.Shared.Rent(scratchLength);
+            scratch = rented.AsSpan(0, scratchLength);
         }
 
-        var sb = new StringBuilder();
-
-        for (var y = 0; y < row; y++)
+        try
         {
-            var offset = y * column;
+            var matrix = scratch[..matrixLength];
+            var selected = scratch.Slice(matrixLength, dataCount);
+            matrix.Clear();
 
-            for (var x = 0; x < column; x++)
+            var selectedCount = 0;
+            for (var shardIndex = 0; shardIndex < this.ShardCount && selectedCount < dataCount; shardIndex++)
             {
-                sb.AppendFormat("{0,3}", m[offset + x]);
-                sb.Append(", ");
+                if (!shardAvailable[shardIndex])
+                {
+                    continue;
+                }
+
+                selected[selectedCount] = (byte)shardIndex;
+
+                var row = matrix.Slice(selectedCount * matrixWidth, matrixWidth);
+                if (shardIndex < dataCount)
+                {
+                    row[shardIndex] = 1;
+                }
+                else
+                {
+                    this.parityRows.AsSpan((shardIndex - dataCount) * dataCount, dataCount).CopyTo(row);
+                }
+
+                row[dataCount + selectedCount] = 1;
+                selectedCount++;
             }
 
-            sb.AppendLine();
-        }
+            InvertAugmentedMatrix(matrix, dataCount);
 
-        return sb.ToString();
-    }
-
-    private void EnsureBuffers(bool decodeBuffer)
-    {
-        if (this.rentEF is null)
-        {
-            this.rentEF =
-                ArrayPool<byte>.Shared.Rent(this.DataSize * this.CheckSize);
-        }
-
-        if (!decodeBuffer)
-        {
-            return;
-        }
-
-        if (this.rentEL is null)
-        {
-            this.rentEL =
-                ArrayPool<byte>.Shared.Rent(this.DataSize * this.DataSize * 2);
-        }
-
-        if (this.rentER is null)
-        {
-            this.rentER =
-                ArrayPool<byte>.Shared.Rent(this.DataSize * this.DataSize);
-        }
-
-        if (this.rentS is null)
-        {
-            this.rentS =
-                ArrayPool<byte[]>.Shared.Rent(this.DataSize);
-        }
-    }
-
-    private void ReturnBuffers()
-    {
-        if (this.rentEF is not null)
-        {
-            ArrayPool<byte>.Shared.Return(this.rentEF);
-            this.rentEF = null;
-        }
-
-        if (this.rentEL is not null)
-        {
-            ArrayPool<byte>.Shared.Return(this.rentEL);
-            this.rentEL = null;
-        }
-
-        if (this.rentER is not null)
-        {
-            ArrayPool<byte>.Shared.Return(this.rentER);
-            this.rentER = null;
-        }
-
-        if (this.rentS is not null)
-        {
-            ArrayPool<byte[]>.Shared.Return(this.rentS, clearArray: true);
-            this.rentS = null;
-        }
-    }
-
-    private void EnsureEncodeBuffer(int length)
-    {
-        var buffers = this.rentEncodeBuffer;
-        var pool = ArrayPool<byte>.Shared;
-
-        if (buffers is null)
-        {
-            buffers = new byte[this.TotalSize][];
-
-            for (var i = 0; i < buffers.Length; i++)
+            fixed (byte* pShards = shards)
+            fixed (byte* pDestination = destination)
+            fixed (byte* pMatrix = matrix)
+            fixed (byte* pSelected = selected)
+            fixed (byte* pMultiply = GaloisField.Tables)
             {
-                buffers[i] = pool.Rent(length);
+                for (var dataIndex = 0; dataIndex < usedDataShards; dataIndex++)
+                {
+                    var outputOffset = dataIndex * shardLength;
+                    var outputLength = Math.Min(shardLength, dataLength - outputOffset);
+                    var output = pDestination + outputOffset;
+
+                    if (shardAvailable[dataIndex])
+                    {
+                        var source = pShards + outputOffset;
+                        new ReadOnlySpan<byte>(source, outputLength).CopyTo(new Span<byte>(output, outputLength));
+                        continue;
+                    }
+
+                    var inverseRow = pMatrix + (dataIndex * matrixWidth) + dataCount;
+                    var initialized = false;
+
+                    for (var selectedIndex = 0; selectedIndex < dataCount; selectedIndex++)
+                    {
+                        var coefficient = inverseRow[selectedIndex];
+                        if (coefficient == 0)
+                        {
+                            continue;
+                        }
+
+                        var source = pShards + (pSelected[selectedIndex] * shardLength);
+
+                        if (!initialized)
+                        {
+                            MultiplyCopy(output, source, outputLength, coefficient, pMultiply);
+                            initialized = true;
+                        }
+                        else
+                        {
+                            XorMultiply(output, source, outputLength, coefficient, pMultiply);
+                        }
+                    }
+
+                    if (!initialized)
+                    {
+                        new Span<byte>(output, outputLength).Clear();
+                    }
+                }
             }
 
-            this.rentEncodeBuffer = buffers;
-            return;
+            return true;
         }
-
-        for (var i = 0; i < buffers.Length; i++)
+        finally
         {
-            var buffer = buffers[i];
-
-            if (buffer is null)
+            if (rented is not null)
             {
-                buffers[i] = pool.Rent(length);
-            }
-            else if (buffer.Length < length)
-            {
-                pool.Return(buffer);
-                buffers[i] = pool.Rent(length);
+                ArrayPool<byte>.Shared.Return(rented);
             }
         }
     }
 
-    private void ReturnEncodeBuffer()
+    public bool TryDecodeInPlace(Span<byte> shards, ReadOnlySpan<bool> shardAvailable, int dataLength)
+        => this.TryDecode(shards, shardAvailable, dataLength, shards[..dataLength]);
+
+    public void DecodeInPlace(Span<byte> shards, ReadOnlySpan<bool> shardAvailable, int dataLength)
     {
-        var buffers = this.rentEncodeBuffer;
-        if (buffers is null)
+        if (!this.TryDecodeInPlace(shards, shardAvailable, dataLength))
+        {
+            throw new InvalidDataException("There are not enough shards to recover the original data.");
+        }
+    }
+
+    public ReadOnlySpan<byte> GetShard(ReadOnlySpan<byte> encoded, int dataLength, int shardIndex)
+    {
+        if ((uint)shardIndex >= (uint)this.ShardCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(shardIndex));
+        }
+
+        var shardLength = this.GetShardLength(dataLength);
+        var requiredLength = checked(shardLength * this.ShardCount);
+
+        if (encoded.Length < requiredLength)
+        {
+            throw new ArgumentException("The encoded buffer is too small.", nameof(encoded));
+        }
+
+        return encoded.Slice(shardIndex * shardLength, shardLength);
+    }
+
+    public Span<byte> GetShard(Span<byte> encoded, int dataLength, int shardIndex)
+    {
+        if ((uint)shardIndex >= (uint)this.ShardCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(shardIndex));
+        }
+
+        var shardLength = this.GetShardLength(dataLength);
+        var requiredLength = checked(shardLength * this.ShardCount);
+
+        if (encoded.Length < requiredLength)
+        {
+            throw new ArgumentException("The encoded buffer is too small.", nameof(encoded));
+        }
+
+        return encoded.Slice(shardIndex * shardLength, shardLength);
+    }
+
+    public override string ToString() => $"RsCoder2 Data: {this.DataShardCount}, Parity: {this.ParityShardCount}";
+
+    private void GenerateParityRows()
+    {
+        var n = this.DataShardCount;
+        var matrixWidth = n << 1;
+        var matrixLength = checked(n * matrixWidth);
+        var scratchLength = checked(matrixLength + n);
+
+        byte[]? rented = null;
+        scoped Span<byte> scratch;
+
+        if (scratchLength <= StackallocThreshold)
+        {
+            scratch = stackalloc byte[scratchLength];
+        }
+        else
+        {
+            rented = ArrayPool<byte>.Shared.Rent(scratchLength);
+            scratch = rented.AsSpan(0, scratchLength);
+        }
+
+        try
+        {
+            var matrix = scratch[..matrixLength];
+            var vandermonde = scratch.Slice(matrixLength, n);
+            matrix.Clear();
+
+            for (var rowIndex = 0; rowIndex < n; rowIndex++)
+            {
+                var row = matrix.Slice(rowIndex * matrixWidth, matrixWidth);
+                FillVandermondeRow(rowIndex, row[..n]);
+                row[n + rowIndex] = 1;
+            }
+
+            InvertAugmentedMatrix(matrix, n);
+
+            for (var parityIndex = 0; parityIndex < this.ParityShardCount; parityIndex++)
+            {
+                FillVandermondeRow(n + parityIndex, vandermonde);
+                var destination = this.parityRows.AsSpan(parityIndex * n, n);
+
+                for (var column = 0; column < n; column++)
+                {
+                    byte value = 0;
+
+                    for (var k = 0; k < n; k++)
+                    {
+                        value ^= GaloisField.Multiply(vandermonde[k], matrix[(k * matrixWidth) + n + column]);
+                    }
+
+                    destination[column] = value;
+                }
+            }
+        }
+        finally
+        {
+            if (rented is not null)
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void FillVandermondeRow(int x, Span<byte> row)
+    {
+        row[0] = 1;
+
+        if (row.Length == 1)
         {
             return;
         }
 
-        var pool = ArrayPool<byte>.Shared;
+        var fieldX = (byte)x;
+        byte value = 1;
 
-        for (var i = 0; i < buffers.Length; i++)
+        for (var column = 1; column < row.Length; column++)
         {
-            var buffer = buffers[i];
+            value = GaloisField.Multiply(value, fieldX);
+            row[column] = value;
+        }
+    }
 
-            if (buffer is not null)
+    private static void InvertAugmentedMatrix(Span<byte> matrix, int n)
+    {
+        var width = n << 1;
+
+        for (var column = 0; column < n; column++)
+        {
+            var pivotRow = column;
+            while (pivotRow < n && matrix[(pivotRow * width) + column] == 0)
             {
-                pool.Return(buffer);
-                buffers[i] = null!;
+                pivotRow++;
+            }
+
+            if (pivotRow == n)
+            {
+                throw new InvalidOperationException("The Reed-Solomon matrix is singular.");
+            }
+
+            var currentOffset = column * width;
+
+            if (pivotRow != column)
+            {
+                var pivotOffset = pivotRow * width;
+
+                for (var x = column; x < width; x++)
+                {
+                    var temp = matrix[currentOffset + x];
+                    matrix[currentOffset + x] = matrix[pivotOffset + x];
+                    matrix[pivotOffset + x] = temp;
+                }
+            }
+
+            var pivot = matrix[currentOffset + column];
+
+            if (pivot != 1)
+            {
+                var inverse = GaloisField.Inverse(pivot);
+                matrix[currentOffset + column] = 1;
+
+                for (var x = column + 1; x < width; x++)
+                {
+                    matrix[currentOffset + x] = GaloisField.Multiply(inverse, matrix[currentOffset + x]);
+                }
+            }
+
+            for (var row = 0; row < n; row++)
+            {
+                if (row == column)
+                {
+                    continue;
+                }
+
+                var rowOffset = row * width;
+                var factor = matrix[rowOffset + column];
+
+                if (factor == 0)
+                {
+                    continue;
+                }
+
+                matrix[rowOffset + column] = 0;
+
+                for (var x = column + 1; x < width; x++)
+                {
+                    matrix[rowOffset + x] ^= GaloisField.Multiply(factor, matrix[currentOffset + x]);
+                }
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static unsafe void MultiplyCopy(byte* destination, byte* source, int length, byte coefficient, byte* multiply)
+    {
+        if (coefficient == 1)
+        {
+            Buffer.MemoryCopy(source, destination, length, length);
+            return;
+        }
+
+        var table = multiply + (coefficient << 8);
+        var i = 0;
+        var limit = length - 7;
+
+        for (; i < limit; i += 8)
+        {
+            destination[i] = table[source[i]];
+            destination[i + 1] = table[source[i + 1]];
+            destination[i + 2] = table[source[i + 2]];
+            destination[i + 3] = table[source[i + 3]];
+            destination[i + 4] = table[source[i + 4]];
+            destination[i + 5] = table[source[i + 5]];
+            destination[i + 6] = table[source[i + 6]];
+            destination[i + 7] = table[source[i + 7]];
+        }
+
+        for (; i < length; i++)
+        {
+            destination[i] = table[source[i]];
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static unsafe void XorMultiply(byte* destination, byte* source, int length, byte coefficient, byte* multiply)
+    {
+        var i = 0;
+
+        if (coefficient == 1)
+        {
+            var wordSize = sizeof(nuint);
+            var limit = length - wordSize + 1;
+
+            for (; i < limit; i += wordSize)
+            {
+                var value = Unsafe.ReadUnaligned<nuint>(destination + i) ^ Unsafe.ReadUnaligned<nuint>(source + i);
+                Unsafe.WriteUnaligned(destination + i, value);
+            }
+
+            for (; i < length; i++)
+            {
+                destination[i] ^= source[i];
+            }
+
+            return;
+        }
+
+        var table = multiply + (coefficient << 8);
+        var unrolledLimit = length - 7;
+
+        for (; i < unrolledLimit; i += 8)
+        {
+            destination[i] ^= table[source[i]];
+            destination[i + 1] ^= table[source[i + 1]];
+            destination[i + 2] ^= table[source[i + 2]];
+            destination[i + 3] ^= table[source[i + 3]];
+            destination[i + 4] ^= table[source[i + 4]];
+            destination[i + 5] ^= table[source[i + 5]];
+            destination[i + 6] ^= table[source[i + 6]];
+            destination[i + 7] ^= table[source[i + 7]];
+        }
+
+        for (; i < length; i++)
+        {
+            destination[i] ^= table[source[i]];
+        }
+    }
+}
+
+internal static class GaloisField
+{
+    internal const int Size = 256;
+
+    private const int Mask = Size - 1;
+    private const int GeneratorPolynomial = 301;
+    private const int MultiplyTableLength = Size * Size;
+    private const int InverseOffset = MultiplyTableLength;
+
+    internal static readonly byte[] Tables = CreateTables();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static byte Multiply(byte a, byte b) => Tables[(a << 8) | b];
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static byte Inverse(byte value) => Tables[InverseOffset + value];
+
+    private static byte[] CreateTables()
+    {
+        var tables = new byte[MultiplyTableLength + Size];
+        Span<byte> log = stackalloc byte[Size];
+        Span<byte> exp = stackalloc byte[Size * 2];
+
+        var value = 1;
+
+        for (var exponent = 0; exponent < Mask; exponent++)
+        {
+            exp[exponent] = (byte)value;
+            log[value] = (byte)exponent;
+
+            value <<= 1;
+            if (value >= Size)
+            {
+                value = (value ^ GeneratorPolynomial) & Mask;
             }
         }
 
-        this.rentEncodeBuffer = null;
-    }
-
-    private void EnsureDecodeBuffer(int length)
-    {
-        var buffer = this.rentDecodeBuffer;
-
-        if (buffer is null)
+        for (var exponent = Mask; exponent < exp.Length; exponent++)
         {
-            this.rentDecodeBuffer = ArrayPool<byte>.Shared.Rent(length);
-        }
-        else if (buffer.Length < length)
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-            this.rentDecodeBuffer = ArrayPool<byte>.Shared.Rent(length);
-        }
-    }
-
-    private void ReturnDecodeBuffer()
-    {
-        if (this.rentDecodeBuffer is null)
-        {
-            return;
+            exp[exponent] = exp[exponent - Mask];
         }
 
-        ArrayPool<byte>.Shared.Return(this.rentDecodeBuffer);
-        this.rentDecodeBuffer = null;
-    }
-
-#pragma warning disable SA1124 // Do not use regions
-    #region IDisposable Support
-#pragma warning restore SA1124 // Do not use regions
-
-    private bool disposed;
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        this.Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Frees managed resources.
-    /// </summary>
-    /// <param name="disposing">true to free managed resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (this.disposed)
+        for (var a = 1; a < Size; a++)
         {
-            return;
+            var logA = log[a];
+            var row = a << 8;
+
+            for (var b = 1; b < Size; b++)
+            {
+                tables[row | b] = exp[logA + log[b]];
+            }
+
+            tables[InverseOffset + a] = exp[Mask - logA];
         }
 
-        if (disposing)
-        {
-            this.ReturnBuffers();
-            this.ReturnDecodeBuffer();
-            this.ReturnEncodeBuffer();
-        }
-
-        this.disposed = true;
+        return tables;
     }
-
-    #endregion
 }
