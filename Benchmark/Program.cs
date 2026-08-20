@@ -16,11 +16,12 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        DebugRun<TemplateBenchmark>();
+        DebugRun<RsCoderBenchmark>();
 
         // var summary = BenchmarkRunner.Run<TestBenchmark>();
         var switcher = new BenchmarkSwitcher(new[]
         {
+            typeof(RsCoderBenchmark),
             typeof(TemplateBenchmark),
         });
 
