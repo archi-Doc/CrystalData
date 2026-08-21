@@ -72,24 +72,7 @@ public class RsCoderBenchmark
     }
 
     [Benchmark]
-    public byte Test1()
-    {
-        using (var coder = new RsCoderObsolete(DataCount, ParityCount))
-        {
-            // for (uint i = 0; i < total; i++)
-            {
-                var mask = ~6U;
-                coder.Encode(this.source, this.source.Length);
-                coder.InvalidateEncodedBufferForUnitTest(mask);
-                coder.Decode(coder.EncodedBuffer!, coder.EncodedBufferLength);
-            }
-        }
-
-        return this.source[0];
-    }
-
-    [Benchmark]
-    public int Test2()
+    public int EncodeAndDecode_8_4()
     {
         var encoded = this.coder.Encode(this.source);
         var decoded = this.coder.Decode(encoded, this.available, this.source.Length);
@@ -98,7 +81,7 @@ public class RsCoderBenchmark
     }
 
     [Benchmark]
-    public int Test3()
+    public int EncodeAndDecode_8_4_b()
     {
         this.coder.Encode(this.source, this.destination);
         this.coder.Decode(this.destination, this.available, this.source.Length, this.source);
@@ -107,7 +90,7 @@ public class RsCoderBenchmark
     }
 
     [Benchmark]
-    public int Test4()
+    public int EncodeAndDecode_16_32()
     {
         this.coder2.Encode(this.source, this.destination);
         this.coder2.Decode(this.destination, this.available2, this.source.Length, this.source);
