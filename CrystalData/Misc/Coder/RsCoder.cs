@@ -4,6 +4,9 @@ using System;
 using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 
 namespace CrystalData;
 
@@ -35,6 +38,11 @@ public sealed class RsCoder
     public const int DefaultParityShardCount = 4;
 
     private const int StackallocThreshold = 4096;
+
+    // Shards are processed in cache-sized blocks so that a destination block stays
+    // in L1 while every data shard contributes to it, and the source blocks of all
+    // data shards stay in L1/L2 across the parity rows.
+    private const int BlockSize = 4096;
 
     // Generator matrix rows used to produce parity shards.
     private readonly byte[] parityRows;
@@ -69,7 +77,6 @@ public sealed class RsCoder
         this.ParityShardCount = parityShardCount;
         this.ShardCount = shardCount;
         this.parityRows = GC.AllocateUninitializedArray<byte>(dataShardCount * parityShardCount);
-
         this.GenerateParityRows();
     }
 
@@ -153,7 +160,6 @@ public sealed class RsCoder
     {
         var shardLength = this.GetShardLength(source.Length);
         var requiredLength = checked(shardLength * this.ShardCount);
-
         if (destination.Length < requiredLength)
         {
             throw new ArgumentException("The destination buffer is too small.", nameof(destination));
@@ -167,7 +173,6 @@ public sealed class RsCoder
         var n = this.DataShardCount;
         var m = this.ParityShardCount;
         var dataLength = shardLength * n;
-
         destination = destination[..requiredLength];
 
         // Store the original data as systematic data shards and zero the padding.
@@ -177,38 +182,42 @@ public sealed class RsCoder
         fixed (byte* pEncoded = destination)
         fixed (byte* pParity = this.parityRows)
         fixed (byte* pMultiply = GaloisField.Tables)
+        fixed (byte* pNibbles = GaloisField.NibbleTables)
         {
-            // parity = sum(data[i] * coefficient[i]) over GF(256).
-            for (var parityIndex = 0; parityIndex < m; parityIndex++)
+            // parity = sum(data[i] * coefficient[i]) over GF(256), block by block
+            // so that each parity block stays cache-resident across all data shards.
+            for (var blockStart = 0; blockStart < shardLength; blockStart += BlockSize)
             {
-                var destinationShard = pEncoded + ((n + parityIndex) * shardLength);
-                var coefficients = pParity + (parityIndex * n);
-                var initialized = false;
-
-                for (var dataIndex = 0; dataIndex < n; dataIndex++)
+                var blockLength = Math.Min(BlockSize, shardLength - blockStart);
+                for (var parityIndex = 0; parityIndex < m; parityIndex++)
                 {
-                    var coefficient = coefficients[dataIndex];
-                    if (coefficient == 0)
+                    var destinationBlock = pEncoded + ((n + parityIndex) * shardLength) + blockStart;
+                    var coefficients = pParity + (parityIndex * n);
+                    var initialized = false;
+                    for (var dataIndex = 0; dataIndex < n; dataIndex++)
                     {
-                        continue;
-                    }
+                        var coefficient = coefficients[dataIndex];
+                        if (coefficient == 0)
+                        {
+                            continue;
+                        }
 
-                    var sourceShard = pEncoded + (dataIndex * shardLength);
+                        var sourceBlock = pEncoded + (dataIndex * shardLength) + blockStart;
+                        if (!initialized)
+                        {
+                            MultiplyCopy(destinationBlock, sourceBlock, blockLength, coefficient, pMultiply, pNibbles);
+                            initialized = true;
+                        }
+                        else
+                        {
+                            XorMultiply(destinationBlock, sourceBlock, blockLength, coefficient, pMultiply, pNibbles);
+                        }
+                    }
 
                     if (!initialized)
                     {
-                        MultiplyCopy(destinationShard, sourceShard, shardLength, coefficient, pMultiply);
-                        initialized = true;
+                        new Span<byte>(destinationBlock, blockLength).Clear();
                     }
-                    else
-                    {
-                        XorMultiply(destinationShard, sourceShard, shardLength, coefficient, pMultiply);
-                    }
-                }
-
-                if (!initialized)
-                {
-                    new Span<byte>(destinationShard, shardLength).Clear();
                 }
             }
         }
@@ -305,7 +314,6 @@ public sealed class RsCoder
 
         var shardLength = this.GetShardLength(dataLength);
         var requiredLength = checked(shardLength * this.ShardCount);
-
         if (shards.Length < requiredLength)
         {
             throw new ArgumentException("The encoded shard buffer is too small.", nameof(shards));
@@ -328,7 +336,6 @@ public sealed class RsCoder
         var dataCount = this.DataShardCount;
         var usedDataShards = (dataLength / shardLength) + ((dataLength % shardLength) == 0 ? 0 : 1);
         var allRequiredDataAvailable = true;
-
         for (var i = 0; i < usedDataShards; i++)
         {
             if (!shardAvailable[i])
@@ -362,10 +369,8 @@ public sealed class RsCoder
         var matrixWidth = dataCount << 1;
         var matrixLength = checked(dataCount * matrixWidth);
         var scratchLength = checked(matrixLength + dataCount);
-
         byte[]? rented = null;
         scoped Span<byte> scratch;
-
         if (scratchLength <= StackallocThreshold)
         {
             scratch = stackalloc byte[scratchLength];
@@ -392,7 +397,6 @@ public sealed class RsCoder
                 }
 
                 selected[selectedCount] = (byte)shardIndex;
-
                 var row = matrix.Slice(selectedCount * matrixWidth, matrixWidth);
                 if (shardIndex < dataCount)
                 {
@@ -415,6 +419,7 @@ public sealed class RsCoder
             fixed (byte* pMatrix = matrix)
             fixed (byte* pSelected = selected)
             fixed (byte* pMultiply = GaloisField.Tables)
+            fixed (byte* pNibbles = GaloisField.NibbleTables)
             {
                 for (var dataIndex = 0; dataIndex < usedDataShards; dataIndex++)
                 {
@@ -433,7 +438,6 @@ public sealed class RsCoder
                     // Reconstruct a missing data shard from the selected shards.
                     var inverseRow = pMatrix + (dataIndex * matrixWidth) + dataCount;
                     var initialized = false;
-
                     for (var selectedIndex = 0; selectedIndex < dataCount; selectedIndex++)
                     {
                         var coefficient = inverseRow[selectedIndex];
@@ -443,15 +447,14 @@ public sealed class RsCoder
                         }
 
                         var source = pShards + (pSelected[selectedIndex] * shardLength);
-
                         if (!initialized)
                         {
-                            MultiplyCopy(output, source, outputLength, coefficient, pMultiply);
+                            MultiplyCopy(output, source, outputLength, coefficient, pMultiply, pNibbles);
                             initialized = true;
                         }
                         else
                         {
-                            XorMultiply(output, source, outputLength, coefficient, pMultiply);
+                            XorMultiply(output, source, outputLength, coefficient, pMultiply, pNibbles);
                         }
                     }
 
@@ -545,19 +548,7 @@ public sealed class RsCoder
     /// </exception>
     public ReadOnlySpan<byte> GetShard(ReadOnlySpan<byte> encoded, int dataLength, int shardIndex)
     {
-        if ((uint)shardIndex >= (uint)this.ShardCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(shardIndex));
-        }
-
-        var shardLength = this.GetShardLength(dataLength);
-        var requiredLength = checked(shardLength * this.ShardCount);
-
-        if (encoded.Length < requiredLength)
-        {
-            throw new ArgumentException("The encoded buffer is too small.", nameof(encoded));
-        }
-
+        var shardLength = this.ValidateShardAccess(encoded.Length, dataLength, shardIndex);
         return encoded.Slice(shardIndex * shardLength, shardLength);
     }
 
@@ -576,19 +567,7 @@ public sealed class RsCoder
     /// </exception>
     public Span<byte> GetShard(Span<byte> encoded, int dataLength, int shardIndex)
     {
-        if ((uint)shardIndex >= (uint)this.ShardCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(shardIndex));
-        }
-
-        var shardLength = this.GetShardLength(dataLength);
-        var requiredLength = checked(shardLength * this.ShardCount);
-
-        if (encoded.Length < requiredLength)
-        {
-            throw new ArgumentException("The encoded buffer is too small.", nameof(encoded));
-        }
-
+        var shardLength = this.ValidateShardAccess(encoded.Length, dataLength, shardIndex);
         return encoded.Slice(shardIndex * shardLength, shardLength);
     }
 
@@ -598,16 +577,31 @@ public sealed class RsCoder
     /// <returns>A string containing the data and parity shard counts.</returns>
     public override string ToString() => $"RsCoder Data: {this.DataShardCount}, Parity: {this.ParityShardCount}";
 
+    private int ValidateShardAccess(int encodedLength, int dataLength, int shardIndex)
+    {
+        if ((uint)shardIndex >= (uint)this.ShardCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(shardIndex));
+        }
+
+        var shardLength = this.GetShardLength(dataLength);
+        var requiredLength = checked(shardLength * this.ShardCount);
+        if (encodedLength < requiredLength)
+        {
+            throw new ArgumentException("The encoded buffer is too small.", nameof(encodedLength));
+        }
+
+        return shardLength;
+    }
+
     private void GenerateParityRows()
     {
         var n = this.DataShardCount;
         var matrixWidth = n << 1;
         var matrixLength = checked(n * matrixWidth);
         var scratchLength = checked(matrixLength + n);
-
         byte[]? rented = null;
         scoped Span<byte> scratch;
-
         if (scratchLength <= StackallocThreshold)
         {
             scratch = stackalloc byte[scratchLength];
@@ -639,11 +633,9 @@ public sealed class RsCoder
             {
                 FillVandermondeRow(n + parityIndex, vandermonde);
                 var destination = this.parityRows.AsSpan(parityIndex * n, n);
-
                 for (var column = 0; column < n; column++)
                 {
                     byte value = 0;
-
                     for (var k = 0; k < n; k++)
                     {
                         value ^= GaloisField.Multiply(vandermonde[k], matrix[(k * matrixWidth) + n + column]);
@@ -667,7 +659,6 @@ public sealed class RsCoder
     {
         // Row = [1, x, x^2, ...] over GF(256).
         row[0] = 1;
-
         if (row.Length == 1)
         {
             return;
@@ -675,7 +666,6 @@ public sealed class RsCoder
 
         var fieldX = (byte)x;
         byte value = 1;
-
         for (var column = 1; column < row.Length; column++)
         {
             value = GaloisField.Multiply(value, fieldX);
@@ -702,11 +692,9 @@ public sealed class RsCoder
             }
 
             var currentOffset = column * width;
-
             if (pivotRow != column)
             {
                 var pivotOffset = pivotRow * width;
-
                 for (var x = column; x < width; x++)
                 {
                     var temp = matrix[currentOffset + x];
@@ -721,7 +709,6 @@ public sealed class RsCoder
             {
                 var inverse = GaloisField.Inverse(pivot);
                 matrix[currentOffset + column] = 1;
-
                 for (var x = column + 1; x < width; x++)
                 {
                     matrix[currentOffset + x] = GaloisField.Multiply(inverse, matrix[currentOffset + x]);
@@ -738,14 +725,12 @@ public sealed class RsCoder
 
                 var rowOffset = row * width;
                 var factor = matrix[rowOffset + column];
-
                 if (factor == 0)
                 {
                     continue;
                 }
 
                 matrix[rowOffset + column] = 0;
-
                 for (var x = column + 1; x < width; x++)
                 {
                     matrix[rowOffset + x] ^= GaloisField.Multiply(factor, matrix[currentOffset + x]);
@@ -754,8 +739,8 @@ public sealed class RsCoder
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static unsafe void MultiplyCopy(byte* destination, byte* source, int length, byte coefficient, byte* multiply)
+    // destination = source * coefficient over GF(256).
+    private static unsafe void MultiplyCopy(byte* destination, byte* source, int length, byte coefficient, byte* multiply, byte* nibbles)
     {
         // Multiplication by one is a plain copy.
         if (coefficient == 1)
@@ -764,12 +749,53 @@ public sealed class RsCoder
             return;
         }
 
-        // Select the 256-byte multiplication row for this coefficient.
-        var table = multiply + (coefficient << 8);
         var i = 0;
-        var limit = length - 7;
+        if (Avx2.IsSupported)
+        {
+            if (length >= 32)
+            {
+                var tableLo = Avx2.BroadcastVector128ToVector256(nibbles + ((nuint)coefficient << 5));
+                var tableHi = Avx2.BroadcastVector128ToVector256(nibbles + ((nuint)coefficient << 5) + 16);
+                var mask = Vector256.Create((byte)0x0F);
+                for (; i <= length - 64; i += 64)
+                {
+                    var r0 = MultiplyVector(Avx.LoadVector256(source + i), tableLo, tableHi, mask);
+                    var r1 = MultiplyVector(Avx.LoadVector256(source + i + 32), tableLo, tableHi, mask);
+                    Avx.Store(destination + i, r0);
+                    Avx.Store(destination + i + 32, r1);
+                }
 
-        for (; i < limit; i += 8)
+                for (; i <= length - 32; i += 32)
+                {
+                    Avx.Store(destination + i, MultiplyVector(Avx.LoadVector256(source + i), tableLo, tableHi, mask));
+                }
+            }
+        }
+        else if (Ssse3.IsSupported || AdvSimd.Arm64.IsSupported)
+        {
+            if (length >= 16)
+            {
+                var tableLo = Vector128.Load(nibbles + ((nuint)coefficient << 5));
+                var tableHi = Vector128.Load(nibbles + ((nuint)coefficient << 5) + 16);
+                var mask = Vector128.Create((byte)0x0F);
+                for (; i <= length - 32; i += 32)
+                {
+                    var r0 = MultiplyVector(Vector128.Load(source + i), tableLo, tableHi, mask);
+                    var r1 = MultiplyVector(Vector128.Load(source + i + 16), tableLo, tableHi, mask);
+                    r0.Store(destination + i);
+                    r1.Store(destination + i + 16);
+                }
+
+                for (; i <= length - 16; i += 16)
+                {
+                    MultiplyVector(Vector128.Load(source + i), tableLo, tableHi, mask).Store(destination + i);
+                }
+            }
+        }
+
+        // Scalar path: remaining tail bytes, or all bytes without SIMD support.
+        var table = multiply + ((nuint)coefficient << 8);
+        for (; i <= length - 8; i += 8)
         {
             destination[i] = table[source[i]];
             destination[i + 1] = table[source[i + 1]];
@@ -787,18 +813,30 @@ public sealed class RsCoder
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static unsafe void XorMultiply(byte* destination, byte* source, int length, byte coefficient, byte* multiply)
+    // destination ^= source * coefficient over GF(256).
+    private static unsafe void XorMultiply(byte* destination, byte* source, int length, byte coefficient, byte* multiply, byte* nibbles)
     {
         var i = 0;
 
         // Multiplication by one reduces to XOR.
         if (coefficient == 1)
         {
-            var wordSize = sizeof(nuint);
-            var limit = length - wordSize + 1;
+            if (Vector256.IsHardwareAccelerated)
+            {
+                for (; i <= length - 32; i += 32)
+                {
+                    Vector256.Store(Vector256.Load(destination + i) ^ Vector256.Load(source + i), destination + i);
+                }
+            }
+            else if (Vector128.IsHardwareAccelerated)
+            {
+                for (; i <= length - 16; i += 16)
+                {
+                    Vector128.Store(Vector128.Load(destination + i) ^ Vector128.Load(source + i), destination + i);
+                }
+            }
 
-            for (; i < limit; i += wordSize)
+            for (; i <= length - sizeof(nuint); i += sizeof(nuint))
             {
                 var value = Unsafe.ReadUnaligned<nuint>(destination + i) ^ Unsafe.ReadUnaligned<nuint>(source + i);
                 Unsafe.WriteUnaligned(destination + i, value);
@@ -812,10 +850,54 @@ public sealed class RsCoder
             return;
         }
 
-        var table = multiply + (coefficient << 8);
-        var unrolledLimit = length - 7;
+        if (Avx2.IsSupported)
+        {
+            if (length >= 32)
+            {
+                var tableLo = Avx2.BroadcastVector128ToVector256(nibbles + ((nuint)coefficient << 5));
+                var tableHi = Avx2.BroadcastVector128ToVector256(nibbles + ((nuint)coefficient << 5) + 16);
+                var mask = Vector256.Create((byte)0x0F);
+                for (; i <= length - 64; i += 64)
+                {
+                    var r0 = MultiplyVector(Avx.LoadVector256(source + i), tableLo, tableHi, mask);
+                    var r1 = MultiplyVector(Avx.LoadVector256(source + i + 32), tableLo, tableHi, mask);
+                    Avx.Store(destination + i, Avx2.Xor(Avx.LoadVector256(destination + i), r0));
+                    Avx.Store(destination + i + 32, Avx2.Xor(Avx.LoadVector256(destination + i + 32), r1));
+                }
 
-        for (; i < unrolledLimit; i += 8)
+                for (; i <= length - 32; i += 32)
+                {
+                    var r = MultiplyVector(Avx.LoadVector256(source + i), tableLo, tableHi, mask);
+                    Avx.Store(destination + i, Avx2.Xor(Avx.LoadVector256(destination + i), r));
+                }
+            }
+        }
+        else if (Ssse3.IsSupported || AdvSimd.Arm64.IsSupported)
+        {
+            if (length >= 16)
+            {
+                var tableLo = Vector128.Load(nibbles + ((nuint)coefficient << 5));
+                var tableHi = Vector128.Load(nibbles + ((nuint)coefficient << 5) + 16);
+                var mask = Vector128.Create((byte)0x0F);
+                for (; i <= length - 32; i += 32)
+                {
+                    var r0 = MultiplyVector(Vector128.Load(source + i), tableLo, tableHi, mask);
+                    var r1 = MultiplyVector(Vector128.Load(source + i + 16), tableLo, tableHi, mask);
+                    (Vector128.Load(destination + i) ^ r0).Store(destination + i);
+                    (Vector128.Load(destination + i + 16) ^ r1).Store(destination + i + 16);
+                }
+
+                for (; i <= length - 16; i += 16)
+                {
+                    var r = MultiplyVector(Vector128.Load(source + i), tableLo, tableHi, mask);
+                    (Vector128.Load(destination + i) ^ r).Store(destination + i);
+                }
+            }
+        }
+
+        // Scalar path: remaining tail bytes, or all bytes without SIMD support.
+        var table = multiply + ((nuint)coefficient << 8);
+        for (; i <= length - 8; i += 8)
         {
             destination[i] ^= table[source[i]];
             destination[i + 1] ^= table[source[i + 1]];
@@ -832,6 +914,30 @@ public sealed class RsCoder
             destination[i] ^= table[source[i]];
         }
     }
+
+    // Multiplies 32 bytes by a fixed coefficient using two nibble lookup tables:
+    // product = tableLo[b & 0x0F] ^ tableHi[b >> 4].
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<byte> MultiplyVector(Vector256<byte> value, Vector256<byte> tableLo, Vector256<byte> tableHi, Vector256<byte> mask)
+        => Avx2.Xor(
+            Avx2.Shuffle(tableLo, Avx2.And(value, mask)),
+            Avx2.Shuffle(tableHi, Avx2.And(Avx2.ShiftRightLogical(value.AsUInt64(), 4).AsByte(), mask)));
+
+    // Multiplies 16 bytes by a fixed coefficient using two nibble lookup tables.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<byte> MultiplyVector(Vector128<byte> value, Vector128<byte> tableLo, Vector128<byte> tableHi, Vector128<byte> mask)
+    {
+        if (Ssse3.IsSupported)
+        {
+            return Sse2.Xor(
+                Ssse3.Shuffle(tableLo, Sse2.And(value, mask)),
+                Ssse3.Shuffle(tableHi, Sse2.And(Sse2.ShiftRightLogical(value.AsUInt64(), 4).AsByte(), mask)));
+        }
+
+        return AdvSimd.Xor(
+            AdvSimd.Arm64.VectorTableLookup(tableLo, AdvSimd.And(value, mask)),
+            AdvSimd.Arm64.VectorTableLookup(tableHi, AdvSimd.ShiftRightLogical(value, 4)));
+    }
 }
 
 internal static class GaloisField
@@ -845,6 +951,10 @@ internal static class GaloisField
 
     // Layout: 256 multiplication rows followed by 256 multiplicative inverses.
     internal static readonly byte[] Tables = CreateTables();
+
+    // Per-coefficient 16-entry nibble tables for SIMD shuffle multiplication.
+    // Layout per coefficient c (32 bytes): [c * 0x00..0x0F] then [c * 0x00, c * 0x10, ..., c * 0xF0].
+    internal static readonly byte[] NibbleTables = CreateNibbleTables();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static byte Multiply(byte a, byte b) => Tables[(a << 8) | b];
@@ -861,12 +971,10 @@ internal static class GaloisField
 
         // Build logarithm and exponent tables for GF(256).
         var value = 1;
-
         for (var exponent = 0; exponent < Mask; exponent++)
         {
             exp[exponent] = (byte)value;
             log[value] = (byte)exponent;
-
             value <<= 1;
             if (value >= Size)
             {
@@ -885,13 +993,28 @@ internal static class GaloisField
         {
             var logA = log[a];
             var row = a << 8;
-
             for (var b = 1; b < Size; b++)
             {
                 tables[row | b] = exp[logA + log[b]];
             }
 
             tables[InverseOffset + a] = exp[Mask - logA];
+        }
+
+        return tables;
+    }
+
+    private static byte[] CreateNibbleTables()
+    {
+        var tables = new byte[Size * 32];
+        for (var c = 0; c < Size; c++)
+        {
+            var offset = c << 5;
+            for (var i = 0; i < 16; i++)
+            {
+                tables[offset + i] = Multiply((byte)c, (byte)i);
+                tables[offset + 16 + i] = Multiply((byte)c, (byte)(i << 4));
+            }
         }
 
         return tables;
