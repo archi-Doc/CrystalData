@@ -39,7 +39,7 @@ public partial class StorageControl : IPersistable
 
     internal ILogger? Logger { get; set; }
 
-    public bool IsRip => this.unitState == UnitState.Rip;
+    public bool IsDisposed => this.unitState == UnitState.Disposed;
 
     public long MemoryUsageLimit { get; private set; } = CrystalOptions.DefaultMemoryUsageLimit;
 
@@ -88,7 +88,7 @@ public partial class StorageControl : IPersistable
         this.storageMaps = [];
     }
 
-    public void Rip() => this.unitState = UnitState.Rip;
+    public void Rip() => this.unitState = UnitState.Disposed;
 
     public void AddStorageMap(StorageMap storageMap)
     {
