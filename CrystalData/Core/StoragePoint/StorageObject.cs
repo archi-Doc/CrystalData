@@ -196,7 +196,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             return new(DataScopeResult.Obsolete);
         }
 
-        if (this.storageControl.IsRip)
+        if (this.storageControl.IsDisposed)
         {// Rip
             return new(DataScopeResult.Rip);
         }
@@ -206,7 +206,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             return new(DataScopeResult.Timeout);
         }
 
-        if (this.storageControl.IsRip)
+        if (this.storageControl.IsDisposed)
         {
             this.Exit();
             return new(DataScopeResult.Rip);

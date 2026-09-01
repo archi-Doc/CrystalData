@@ -467,7 +467,7 @@ internal class Program
         await crystalControl.StoreAndRip();
         Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
 
-        unit.Context.Root.RequestTermination();
-        await unit.Context.Root.WaitForTermination(TerminationOptions.IncludeIndependent);
+        unit.Context.ExecutionRoot.RequestTermination();
+        await unit.Context.ExecutionRoot.WaitForTermination(TerminationOptions.IncludeIndependent);
     }
 }
