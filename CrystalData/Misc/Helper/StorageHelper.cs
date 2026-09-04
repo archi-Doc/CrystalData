@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace CrystalData;
 
+/// <summary>
+/// Provides path, size-formatting, and file-system helpers used by storage components.
+/// </summary>
 public static partial class StorageHelper
 {
     public const char Slash = '/';
@@ -145,14 +148,13 @@ public static partial class StorageHelper
     public static (string Directory, string File) PathToDirectoryAndFile(string path)
     {
         var span = path.AsSpan();
-        for (var i = span.Length - 1; i >= 1; i--)
+        for (var i = span.Length - 1; i >= 0; i--)
         {
             if (span[i] == Slash || span[i] == Backslash)
             {
-                var st = span[0..0].ToString();
-                var st2 = span[0..1].ToString();
-                var st3 = span[span.Length..].ToString();
-                return (span[0..i].ToString(), span[(i + 1)..].ToString());
+                var rootLength = Path.GetPathRoot(path)?.Length ?? 0;
+                var directoryLength = Math.Max(i, rootLength);
+                return (span[..directoryLength].ToString(), span[(i + 1)..].ToString());
             }
         }
 

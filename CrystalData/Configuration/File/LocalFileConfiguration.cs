@@ -3,8 +3,7 @@
 namespace CrystalData;
 
 /// <summary>
-/// Represents a configuration for a local file.<br/>
-/// Specifies the file path relative to the data directory, defined by <see cref="UnitOptions.DataDirectory"/> or the current directory.
+/// Represents a local file path resolved against the configured data directory.
 /// </summary>
 [TinyhandObject]
 public partial record LocalFileConfiguration : FileConfiguration
@@ -29,7 +28,7 @@ public partial record LocalFileConfiguration : FileConfiguration
     /// <summary>
     /// Appends the specified file path to the current path and returns a new <see cref="LocalFileConfiguration"/> instance.
     /// </summary>
-    /// <param name="file">The file path relative to the data directory, defined by <see cref="UnitOptions.DataDirectory"/> or the current directory.</param>
+    /// <param name="file">The relative path to append.</param>
     /// <returns>A new <see cref="LocalFileConfiguration"/> with the appended path.</returns>
     public override LocalFileConfiguration AppendPath(string file)
         => new LocalFileConfiguration(this.Path + file);

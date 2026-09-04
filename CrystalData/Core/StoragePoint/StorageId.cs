@@ -6,6 +6,9 @@ using Arc;
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies stored data by journal position, file identifier, and content hash.
+/// </summary>
 [TinyhandObject]
 public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<StorageId>
 {// StorageId: JournalPosition 8 bytes, File id 8 bytes, Hash 8 bytes
@@ -48,8 +51,16 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
 
     public static bool TryParse(string base32, out StorageId storageId)
     {
-        var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
-        return TryParse(byteArray, out storageId);
+        try
+        {
+            var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
+            return TryParse(byteArray, out storageId);
+        }
+        catch
+        {
+            storageId = default;
+            return false;
+        }
     }
 
     public static bool TryParse(ReadOnlySpan<byte> span, out StorageId storageId)
@@ -140,7 +151,7 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
     }
 
     public override int GetHashCode()
-        => HashCode.Combine(this.JournalPosition, this.Hash);
+        => HashCode.Combine(this.JournalPosition, this.FileId, this.Hash);
 
     private static void WriteBigEndian(ulong value, Span<byte> span)
     {
@@ -162,6 +173,8 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
     private void WriteSpan(Span<byte> span)
     {
         WriteBigEndian(this.JournalPosition, span);
+        span = span.Slice(sizeof(ulong));
+        BitConverter.TryWriteBytes(span, this.FileId);
         span = span.Slice(sizeof(ulong));
         BitConverter.TryWriteBytes(span, this.Hash);
     }

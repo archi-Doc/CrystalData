@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines registration operations for crystals, options, and the journal.
+/// </summary>
 public interface ICrystalConfigurationContext
 {
     void SetCrystalOptions(CrystalOptions options);

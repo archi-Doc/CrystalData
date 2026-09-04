@@ -19,6 +19,9 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Coordinates crystal registration, loading, persistence, journaling, and storage services.
+/// </summary>
 public partial class CrystalControl
 {
     public const string BinaryExtension = ".th";
@@ -228,10 +231,7 @@ public partial class CrystalControl
             }
             else if (configuration is LocalFileConfiguration)
             {// Local file
-                if (this.localFiler == null)
-                {
-                    this.localFiler ??= new LocalFiler(this.Root);
-                }
+                this.localFiler ??= new LocalFiler(this.Root);
 
                 return (this.localFiler, configuration);
             }
@@ -268,10 +268,7 @@ public partial class CrystalControl
             }
             else if (configuration is LocalDirectoryConfiguration)
             {// Local directory
-                if (this.localFiler == null)
-                {
-                    this.localFiler ??= new LocalFiler(this.Root);
-                }
+                this.localFiler ??= new LocalFiler(this.Root);
 
                 return (this.localFiler, configuration);
             }
@@ -444,6 +441,12 @@ public partial class CrystalControl
         }
     }
 
+    /// <summary>
+    /// Prepares persistence services and optionally loads every registered crystal.
+    /// </summary>
+    /// <param name="useQuery">Whether to consult <see cref="ICrystalDataQuery"/> when recovery requires a decision.</param>
+    /// <param name="loadCrystals">Whether to load all registered crystals during preparation.</param>
+    /// <returns>The result of preparing the persistence services.</returns>
     public async Task<CrystalResult> PrepareAndLoad(bool useQuery = true, bool loadCrystals = true)
     {
         if (this.IsPrepared)
@@ -494,7 +497,7 @@ public partial class CrystalControl
         => this.Store(false, StoreMode.StoreOnly, cancellationToken);
 
     /// <summary>
-    /// Stores all managed crystals and storage asynchronously., then attempts to release resources.
+    /// Stores all managed crystals and storage, then attempts to release their resources.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous store and release operation.</returns>
@@ -502,12 +505,11 @@ public partial class CrystalControl
         => this.Store(false, StoreMode.TryRelease, cancellationToken);
 
     /// <summary>
-    /// Stores all crystals and storage and journal.<br/>
-    /// Always call this function when the application shuts down.<br/>
-    /// The database cannot be used after this point.
+    /// Persists all managed data and terminates the journal and control services.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous store and rip operation.</returns>
+    /// <returns>A task representing the terminal shutdown operation.</returns>
+    /// <remarks>This instance cannot be used after the operation completes.</remarks>
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         this.StorageControl.Rip();
@@ -536,7 +538,7 @@ public partial class CrystalControl
     {
         var crystals = this.crystals.GetCrystals(false);
         var tasks = crystals.Select(x => x.Delete()).ToArray();
-        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     public void DeleteDirectory(DirectoryConfiguration directoryConfiguration)
@@ -1000,10 +1002,11 @@ public partial class CrystalControl
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
-        var releaseTasks = new Task[this.Options.ConcurrentUnload];
-        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
+        var concurrentUnload = Math.Max(1, this.Options.ConcurrentUnload);
+        var releaseTasks = new Task[concurrentUnload];
+        for (var i = 0; i < concurrentUnload; i++)
         {
-            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode, cancellationToken);
         }
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
@@ -1016,16 +1019,16 @@ public partial class CrystalControl
             goshujin.Add(new(x));
         }
 
-        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
+        for (var i = 0; i < concurrentUnload; i++)
         {
-            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode, cancellationToken);
         }
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
         if (this.Journal is { } journal)
         {// Journal
-            await journal.StoreData().ConfigureAwait(false);
+            await journal.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
         }
 
         await this.CrystalSupplement.Store(terminate).ConfigureAwait(false);

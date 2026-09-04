@@ -2,6 +2,9 @@
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Provides a no-op filer for configurations that intentionally disable file persistence.
+/// </summary>
 public partial class EmptyFiler : IFiler
 {
     public static readonly EmptyFiler Default = new();

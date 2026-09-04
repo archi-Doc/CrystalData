@@ -4,6 +4,9 @@ using System.IO;
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Manages primary and backup crystal files, including snapshot histories.
+/// </summary>
 public class CrystalFiler
 {
     internal class Output
@@ -41,11 +44,15 @@ public class CrystalFiler
                 return r.Result;
             }
 
-            var path2 = target.crystalFiler.IsProtected ? target.GetFilePath(waypoint) : target.GetFilePath();
-            var result = await target.rawFiler.WriteAsync(path2, 0, r.Data).ConfigureAwait(false);
-
-            r.Return();
-            return result;
+            try
+            {
+                var path2 = target.crystalFiler.IsProtected ? target.GetFilePath(waypoint) : target.GetFilePath();
+                return await target.rawFiler.WriteAsync(path2, 0, r.Data).ConfigureAwait(false);
+            }
+            finally
+            {
+                r.Return();
+            }
         }
 
         public Waypoint GetLatestWaypoint()
@@ -100,7 +107,7 @@ public class CrystalFiler
                     var path = x.Path; // {this.prefix}.waypoint{this.extension}
                     if (!string.IsNullOrEmpty(this.extension))
                     {
-                        if (path.EndsWith(this.extension))
+                        if (path.EndsWith(this.extension, StringComparison.Ordinal))
                         {// Prefix/Data.Waypoint.Extension or Prefix/Data.Extension
                             path = path.Substring(0, path.Length - this.extension.Length);
                         }
@@ -152,15 +159,15 @@ public class CrystalFiler
             return this.rawFiler.WriteAsync(path, 0, rentMemory);
         }
 
-        public Task<CrystalResult> LimitNumberOfFiles()
+        public async Task<CrystalResult> LimitNumberOfFiles()
         {
             if (this.rawFiler == null)
             {
-                return Task.FromResult(CrystalResult.NotPrepared);
+                return CrystalResult.NotPrepared;
             }
             else if (this.waypoints == null)
             {
-                return Task.FromResult(CrystalResult.Success);
+                return CrystalResult.Success;
             }
 
             var numberOfFiles = this.crystalFiler.configuration.NumberOfFileHistories;
@@ -170,25 +177,42 @@ public class CrystalFiler
             }
 
             Waypoint[] array;
-            string[] pathArray;
             using (this.lockObject.EnterScope())
             {
                 array = this.waypoints.Take(this.waypoints.Count - numberOfFiles).ToArray();
                 if (array.Length == 0)
                 {
-                    return Task.FromResult(CrystalResult.Success);
+                    return CrystalResult.Success;
                 }
 
-                pathArray = array.Select(x => this.GetFilePath(x)).ToArray();
-
-                foreach (var x in array)
+                foreach (var waypoint in array)
                 {
-                    this.waypoints.Remove(x);
+                    this.waypoints.Remove(waypoint);
                 }
             }
 
-            var tasks = pathArray.Select(x => this.rawFiler.DeleteAsync(x)).ToArray();
-            return Task.WhenAll(tasks).ContinueWith(x => CrystalResult.Success);
+            var tasks = array.Select(x => this.rawFiler.DeleteAsync(this.GetFilePath(x))).ToArray();
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            var overallResult = CrystalResult.Success;
+            for (var i = 0; i < results.Length; i++)
+            {
+                if (results[i].IsSuccess())
+                {
+                    continue;
+                }
+
+                if (overallResult.IsSuccess())
+                {
+                    overallResult = results[i];
+                }
+
+                using (this.lockObject.EnterScope())
+                {
+                    this.waypoints?.Add(array[i]);
+                }
+            }
+
+            return overallResult;
         }
 
         public async Task<(CrystalObjectResult<TData> Result, Waypoint Waypoint, string Path)> LoadLatest<TData>(PrepareParam param, SaveFormat formatHint, TData? singletonData)
@@ -229,14 +253,20 @@ public class CrystalFiler
                 var result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {// Read successful
-                    if (FarmHash.Hash64(result.Data.Memory.Span) == x.Hash)
+                    try
                     {
-                        var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true, singletonData);
-                        result.Return();
-                        if (r.Data is not null)
+                        if (FarmHash.Hash64(result.Data.Memory.Span) == x.Hash)
                         {
-                            return (new(CrystalResult.Success, r.Data), x, path);
+                            var r = SerializeHelper.TryDeserialize<TData>(result.Data.Span, formatHint, true, singletonData);
+                            if (r.Data is not null)
+                            {
+                                return (new(CrystalResult.Success, r.Data), x, path);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        result.Return();
                     }
 
                     // Checksum mismatch or deserialization error.
@@ -259,30 +289,58 @@ public class CrystalFiler
                 return CrystalResult.NotFound;
             }
 
-            return await this.rawFiler.DeleteAsync(this.GetFilePath(waypoint)).ConfigureAwait(false);
+            var result = await this.rawFiler.DeleteAsync(this.GetFilePath(waypoint)).ConfigureAwait(false);
+            if (result.IsSuccess())
+            {
+                this.TryDeleteWaypoint(waypoint);
+            }
+
+            return result;
         }
 
-        public Task<CrystalResult> DeleteAll()
+        public async Task<CrystalResult> DeleteAll()
         {
             if (this.rawFiler == null)
             {
-                return Task.FromResult(CrystalResult.NotPrepared);
+                return CrystalResult.NotPrepared;
             }
             else if (this.waypoints == null)
             {
-                return Task.FromResult(CrystalResult.Success);
+                return CrystalResult.Success;
             }
 
-            List<string> pathList;
+            Waypoint[] waypoints;
             using (this.lockObject.EnterScope())
             {
-                pathList = this.waypoints.Select(x => this.GetFilePath(x)).ToList();
-                pathList.Add(this.GetFilePath());
+                waypoints = this.waypoints.ToArray();
                 this.waypoints.Clear();
             }
 
-            var tasks = pathList.Select(x => this.rawFiler.DeleteAsync(x)).ToArray();
-            return Task.WhenAll(tasks).ContinueWith(x => CrystalResult.Success);
+            var tasks = waypoints.Select(x => this.rawFiler.DeleteAsync(this.GetFilePath(x))).Append(this.rawFiler.DeleteAsync(this.GetFilePath())).ToArray();
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            var overallResult = CrystalResult.Success;
+            for (var i = 0; i < results.Length; i++)
+            {
+                if (results[i].IsSuccess())
+                {
+                    continue;
+                }
+
+                if (overallResult.IsSuccess())
+                {
+                    overallResult = results[i];
+                }
+
+                if (i < waypoints.Length)
+                {
+                    using (this.lockObject.EnterScope())
+                    {
+                        this.waypoints?.Add(waypoints[i]);
+                    }
+                }
+            }
+
+            return overallResult;
         }
 
         internal Waypoint[] GetWaypoints()
@@ -309,6 +367,7 @@ public class CrystalFiler
 
             if (FarmHash.Hash64(result.Data.Memory.Span) != waypoint.Hash)
             {
+                result.Return();
                 return new(CrystalResult.CorruptedData);
             }
 

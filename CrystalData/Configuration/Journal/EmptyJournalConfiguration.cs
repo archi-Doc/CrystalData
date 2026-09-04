@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Disables journal persistence.
+/// </summary>
 [TinyhandObject]
 public partial record EmptyJournalConfiguration : JournalConfiguration
 {

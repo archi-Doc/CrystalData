@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines a file path used by a crystal or supporting service.
+/// </summary>
 [TinyhandUnion("EmptyFile", typeof(EmptyFileConfiguration))]
 [TinyhandUnion("LocalFile", typeof(LocalFileConfiguration))]
 [TinyhandUnion("S3File", typeof(S3FileConfiguration))]

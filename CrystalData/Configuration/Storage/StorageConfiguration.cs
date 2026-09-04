@@ -3,7 +3,7 @@
 namespace CrystalData;
 
 /// <summary>
-/// Represents the base configuration for storage, including directory and backup settings.
+/// Defines primary and optional backup directories for auxiliary storage.
 /// </summary>
 [TinyhandUnion("EmptyStorage", typeof(EmptyStorageConfiguration))]
 [TinyhandUnion("SimpleStorage", typeof(SimpleStorageConfiguration))]
@@ -13,9 +13,7 @@ public abstract partial record StorageConfiguration
     #region MainDirectoryComparer
 
     /// <summary>
-    /// Provides equality comparison for <see cref="StorageConfiguration"/> instances based on their
-    /// <see cref="DirectoryConfiguration"/> values (main directory only).<br/>
-    /// If multiple Crystals reference multiple storage configurations, treat them as the same storage when their MainDirectory is identical.
+    /// Compares storage configurations by their primary directory.
     /// </summary>
     public class MainDirectoryComparer : IEqualityComparer<StorageConfiguration>
     {

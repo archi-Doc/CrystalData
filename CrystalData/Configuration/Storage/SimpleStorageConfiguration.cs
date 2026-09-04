@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Configures file-backed auxiliary storage and an optional backup directory.
+/// </summary>
 [TinyhandObject]
 public partial record SimpleStorageConfiguration : StorageConfiguration
 {

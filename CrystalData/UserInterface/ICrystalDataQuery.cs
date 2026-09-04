@@ -2,6 +2,9 @@
 
 namespace CrystalData.UserInterface;
 
+/// <summary>
+/// Defines user decisions requested while loading or recovering crystal data.
+/// </summary>
 public interface ICrystalDataQuery
 {
     Task<AbortOrContinue> NoCheckFile();

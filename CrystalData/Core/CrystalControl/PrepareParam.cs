@@ -4,6 +4,9 @@ using CrystalData.UserInterface;
 
 namespace CrystalData;
 
+/// <summary>
+/// Supplies runtime context and query behavior while preparing a filer, journal, or storage service.
+/// </summary>
 public readonly struct PrepareParam
 {
     internal static PrepareParam NoQuery<TData>(CrystalControl crystalControl)

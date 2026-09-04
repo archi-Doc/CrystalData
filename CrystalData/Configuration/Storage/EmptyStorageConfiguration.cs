@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Disables auxiliary storage for a crystal.
+/// </summary>
 [TinyhandObject]
 public partial record EmptyStorageConfiguration : StorageConfiguration
 {

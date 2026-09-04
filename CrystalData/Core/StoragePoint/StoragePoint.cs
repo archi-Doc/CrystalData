@@ -11,12 +11,10 @@ namespace CrystalData;
 #pragma warning disable SA1401 // Fields should be private
 
 /// <summary>
-/// <see cref="StoragePoint{TData}"/> is an independent component of the data tree, responsible for loading and persisting data.<br/>
-/// Thread-safe; however, please note that the thread safety of the data <see cref="StoragePoint{TData}"/> holds depends on the implementation of that data.<br/>
-/// The <b>TinyhandObject.Key(0)</b> is reserved for <c>PointId</c>.
-/// Use keys starting from <b>1 or greater</b> instead.
+/// Represents an independently loaded and persisted node in a structural data tree.<br/>
+/// Key <c>0</c> is reserved for the point identifier; derived types must use keys starting at <c>1</c>.
 /// </summary>
-/// <typeparam name="TData">The type of data.</typeparam>
+/// <typeparam name="TData">The stored reference type.</typeparam>
 [TinyhandObject(ExplicitKeysOnly = true, ReservedKeyCount = 1)]
 public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TData>>, ITinyhandReconstructable<StoragePoint<TData>>, ITinyhandCloneable<StoragePoint<TData>>, IStructuralObject, IDataLocker<TData>
     where TData : class
@@ -73,7 +71,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// Sets the data instance for this storage point.<br/>
     /// This function is not recommended, as instance replacement may cause data inconsistencies.
     /// </summary>
-    /// <param name="data">The data to set.</param>]
+    /// <param name="data">The data to set.</param>
     public void Set(TData data)
         => this.GetOrCreateStorageObject().Set(data);
 
@@ -161,8 +159,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(StoragePoint<TData> other)
     {
-        var data = this.TryGet().Result;
-        var otherData = other.TryGet().Result;
+        var data = this.TryGet().AsTask().GetAwaiter().GetResult();
+        var otherData = other.TryGet().AsTask().GetAwaiter().GetResult();
         if (data is null)
         {
             return otherData is null;
@@ -175,7 +173,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(TData? otherData)
     {
-        var data = this.TryGet().Result;
+        var data = this.TryGet().AsTask().GetAwaiter().GetResult();
         if (data is null)
         {
             return otherData is null;

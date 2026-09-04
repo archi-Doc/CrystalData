@@ -6,6 +6,9 @@ using Arc;
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies a crystal snapshot by journal position, content hash, and journal plane.
+/// </summary>
 [TinyhandObject]
 public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Waypoint>
 {// JournalPosition, Plane, Hash
@@ -53,8 +56,16 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
 
     public static bool TryParse(string base32, out Waypoint waypoint)
     {
-        var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
-        return TryRead(byteArray, out waypoint);
+        try
+        {
+            var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
+            return TryRead(byteArray, out waypoint);
+        }
+        catch
+        {
+            waypoint = default;
+            return false;
+        }
     }
 
     public static bool TryRead(ReadOnlySpan<byte> span, out Waypoint waypoint)

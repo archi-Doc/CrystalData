@@ -6,23 +6,24 @@ internal static class StoreTaskExtension
 {
     private const int WaitTimeInMilliseconds = 1_000;
 
-    public static async Task StoreTask(CrystalControl crystalControl, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
+    public static async Task StoreTask(CrystalControl crystalControl, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode, CancellationToken cancellationToken)
     {
         while (true)
         {
-            var result = await ProcessGoshujin(crystalControl, goshujin, storeMode).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await ProcessGoshujin(crystalControl, goshujin, storeMode, cancellationToken).ConfigureAwait(false);
             if (result.Remaining == 0)
             {
                 return;
             }
             else if (result.Unloaded == 0)
             {
-                await Task.Delay(WaitTimeInMilliseconds).ConfigureAwait(false);
+                await Task.Delay(WaitTimeInMilliseconds, cancellationToken).ConfigureAwait(false);
             }
         }
     }
 
-    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(CrystalControl crystalControl, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode)
+    public static async Task<(int Unloaded, int Remaining)> ProcessGoshujin(CrystalControl crystalControl, ReleaseTask.GoshujinClass goshujin, StoreMode storeMode, CancellationToken cancellationToken = default)
     {
         var unloaded = 0;
         ReleaseTask? task;
@@ -30,6 +31,7 @@ internal static class StoreTaskExtension
 
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             utc = DateTime.UtcNow;
             using (goshujin.LockObject.EnterScope())
             {
@@ -54,19 +56,19 @@ internal static class StoreTaskExtension
 
             if (storeMode == StoreMode.StoreOnly)
             {// Store only
-                await task.PersistableObject.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+                await task.PersistableObject.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
                 unloaded++;
             }
             else if (storeMode == StoreMode.ForceRelease ||
                 (utc - task.FirstProcessed) > crystalControl.Options.TimeoutUntilForcedRelease)
             {// Force release
-                await task.PersistableObject.StoreData(StoreMode.ForceRelease).ConfigureAwait(false);
+                await task.PersistableObject.StoreData(StoreMode.ForceRelease, cancellationToken).ConfigureAwait(false);
                 crystalControl.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
                 unloaded++;
             }
             else
             {// Try release
-                var result = await task.PersistableObject.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
+                var result = await task.PersistableObject.StoreData(StoreMode.TryRelease, cancellationToken).ConfigureAwait(false);
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalControl.Logger.GetWriter(LogLevel.Warning)?.Write(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);

@@ -14,10 +14,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CrystalData;
 
+/// <summary>
+/// Integrates CrystalData services and configuration with the Arc.Unit dependency container.
+/// </summary>
 public class CrystalUnit
 {
     #region Builder
 
+    /// <summary>
+    /// Configures and builds a <see cref="CrystalUnit.Product"/>.
+    /// </summary>
     public class Builder : UnitBuilder<Product>
     {// Builder class for customizing dependencies.
         public Builder()
@@ -104,6 +110,9 @@ public class CrystalUnit
 
     #region Product
 
+    /// <summary>
+    /// Represents the built unit product that contains CrystalData services.
+    /// </summary>
     public class Product : UnitProduct
     {// Unit class for customizing behaviors.
         public Product(UnitContext context)

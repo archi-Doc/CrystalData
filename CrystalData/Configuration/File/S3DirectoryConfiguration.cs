@@ -4,6 +4,9 @@ using System.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies a directory prefix in an Amazon S3 bucket.
+/// </summary>
 [TinyhandObject]
 public partial record S3DirectoryConfiguration : DirectoryConfiguration
 {

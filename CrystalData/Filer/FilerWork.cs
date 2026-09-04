@@ -2,6 +2,9 @@
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Describes one queued read, write, delete, or list operation for a filer.
+/// </summary>
 public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 {
     public enum WorkType

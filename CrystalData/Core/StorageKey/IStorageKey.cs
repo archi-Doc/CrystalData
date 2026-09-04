@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Provides bucket-scoped credentials to storage backends.
+/// </summary>
 public interface IStorageKey
 {
     bool AddKey(string bucket, AccessKeyPair accessKeyPair);

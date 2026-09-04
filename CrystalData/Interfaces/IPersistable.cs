@@ -3,7 +3,7 @@
 namespace CrystalData;
 
 /// <summary>
-/// Defines methods and properties for objects that can be persisted and restored.
+/// Defines persistence and journal-integrity operations.
 /// </summary>
 public interface IPersistable
 {

@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines auxiliary object storage used by structural data and <see cref="StoragePoint{TData}"/>.
+/// </summary>
 public interface IStorage : IPersistable
 {
     int NumberOfHistoryFiles { get; }

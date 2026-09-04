@@ -6,6 +6,9 @@ using System.Collections.Concurrent;
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Provides queued, path-serialized execution for filer implementations.
+/// </summary>
 public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 {
     public const int DefaultConcurrentTasks = 4;
@@ -140,6 +143,6 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     protected override void OnJobFinished(FilerWork job)
     {
-        var result = this.pathToTask.TryRemove(new(job.Path, job.Task));
+        this.pathToTask.TryRemove(new(job.Path, job.Task));
     }
 }

@@ -10,6 +10,9 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Tracks storage objects, memory usage, save queues, and release operations.
+/// </summary>
 public partial class StorageControl : IPersistable
 {
     private const int MinimumDataSize = 256;
@@ -155,6 +158,7 @@ public partial class StorageControl : IPersistable
 
         foreach (var x in list)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
@@ -166,6 +170,7 @@ public partial class StorageControl : IPersistable
 
         foreach (var x in list)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
     }
@@ -180,6 +185,7 @@ public partial class StorageControl : IPersistable
 
         foreach (var x in list)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
@@ -193,6 +199,7 @@ public partial class StorageControl : IPersistable
 
             foreach (var x in list)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
 
@@ -228,6 +235,7 @@ public partial class StorageControl : IPersistable
                 this.UpdateLinkInternal(node);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
         }
     }

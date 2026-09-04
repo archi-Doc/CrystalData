@@ -10,6 +10,9 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Maps structural storage points to their persisted storage objects.
+/// </summary>
 [TinyhandObject(UseServiceProvider = true, ExplicitKeysOnly = true)]
 public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 {

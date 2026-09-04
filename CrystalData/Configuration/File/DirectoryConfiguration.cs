@@ -4,6 +4,9 @@ using System.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines a directory path and operations for creating child path configurations.
+/// </summary>
 [TinyhandUnion("EmptyDirectory", typeof(EmptyDirectoryConfiguration))]
 [TinyhandUnion("LocalDirectory", typeof(LocalDirectoryConfiguration))]
 [TinyhandUnion("S3Directory", typeof(S3DirectoryConfiguration))]

@@ -1,691 +1,259 @@
-## CrystalData is a storage engine for C#
-![Nuget](https://img.shields.io/nuget/v/CrystalData) ![Build and Test](https://github.com/archi-Doc/CrystalData/workflows/Build%20and%20Test/badge.svg)
+# CrystalData
 
-- Very versatile and easy to use.
-- Covers a wide range of storage needs.
+[![NuGet](https://img.shields.io/nuget/v/CrystalData)](https://www.nuget.org/packages/CrystalData)
+[![Build and Test](https://github.com/archi-Doc/CrystalData/actions/workflows/test.yml/badge.svg)](https://github.com/archi-Doc/CrystalData/actions/workflows/test.yml)
 
-- Full serialization features integrated with [Tinyhand](https://github.com/archi-Doc/Tinyhand) and [ValueLink](https://github.com/archi-Doc/ValueLink).
+CrystalData is a persistence engine for .NET. It combines snapshot files, optional journals, backups, and independently loaded storage nodes with [Tinyhand](https://github.com/archi-Doc/Tinyhand) serialization and [ValueLink](https://github.com/archi-Doc/ValueLink) collections.
 
-
-
-## Table of Contents
+## Contents
 
 - [Requirements](#requirements)
-- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [NativeAOT](#nativeaot)
 - [Configuration](#configuration)
-
-
+- [Paths and backups](#paths-and-backups)
+- [Saving and shutdown](#saving-and-shutdown)
+- [Journaling](#journaling)
+- [Auxiliary storage](#auxiliary-storage)
+- [S3 storage](#s3-storage)
+- [Recovery](#recovery)
+- [Samples](#samples)
 
 ## Requirements
 
-**Visual Studio 2026** or later.
+- .NET 10 SDK or later
 
+## Installation
 
-
-## Quick start
-
-Install **CrystalData** using Package Manager Console.
-
+```shell
+dotnet add package CrystalData
 ```
+
+Package Manager Console:
+
+```powershell
 Install-Package CrystalData
 ```
 
-This is a small example code to use **CrystalData**.
+## Quick start
+
+Define a Tinyhand-serializable data type:
 
 ```csharp
-// First, create a class to represent the data content.
-[TinyhandObject] // Annotate TinyhandObject attribute to make this class serializable.
+using System.ComponentModel;
+using Tinyhand;
+
+[TinyhandObject]
 public partial class FirstData
 {
-    [Key(0)] // The key attribute specifies the index at serialization
+    [Key(0)]
     public int Id { get; set; }
 
     [Key(1)]
-    [DefaultValue("Hoge")] // The default value for the name property.
+    [DefaultValue("Hoge")]
     public string Name { get; set; } = string.Empty;
-
-    public override string ToString()
-        => $"Id: {this.Id}, Name: {this.Name}";
 }
 ```
 
+Register the crystal, prepare the storage services, update the data, and shut down cleanly:
+
 ```csharp
-// Create a builder to organize dependencies and register data configurations.
-var builder = new CrystalUnit.Builder()
+using CrystalData;
+using Microsoft.Extensions.DependencyInjection;
+
+var product = new CrystalUnit.Builder()
     .ConfigureCrystal(context =>
     {
-        // Register FirstData configuration.
         context.AddCrystal<FirstData>(
-            new CrystalConfiguration()
+            new CrystalConfiguration(
+                new LocalFileConfiguration("Local/FirstData.tinyhand"))
             {
-                SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
-                NumberOfFileHistories = 0, // No history file.
-                FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
+                SaveFormat = SaveFormat.Utf8,
+                NumberOfFileHistories = 1,
             });
-    });
+    })
+    .Build();
 
-var product = builder.Build(); // Build.
-var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
-await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
-
-var data = product.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
-
-Console.WriteLine($"Load {data.ToString()}"); // Id: 0 Name: Hoge
-data.Id += 1;
-data.Name += "Fuga";
-Console.WriteLine($"Save {data.ToString()}"); // Id: 1 Name: Fuga
-
-await crystalControl.StoreAndRip(); // Save data and perform the shutdown process.
-```
-
-
-
-## Advanced
-
-CrystalData is designed to cover a really wide range of storage needs.
-
-```csharp
-// From a quite simple class for data storage...
-[TinyhandObject]
-public partial record SimpleClass
+var services = product.Context.ServiceProvider;
+var control = services.GetRequiredService<CrystalControl>();
+var result = await control.PrepareAndLoad(useQuery: false);
+if (result.IsFailure())
 {
-    public SimpleClass()
-    {
-    }
-
-    [Key(0)]
-    public string UserName { get; set; } = string.Empty;
+    throw new InvalidOperationException($"CrystalData initialization failed: {result}");
 }
 
-// To a complex class designed for handling large-scale data in terms of both quantity and capacity.
-[TinyhandObject(Structual = true)]
-public partial record AdvancedClass
-{// This is it. This class is the crystal of the most advanced data management architecture I've reached so far.
-    public static void Register(ICrystalConfigurationContext context)
-    {
-        context.AddCrystal<AdvancedClass>(
-            new()
-            {
-                SaveFormat = SaveFormat.Binary,
-                SaveInterval = TimeSpan.FromMinutes(10),
-                FileConfiguration = new GlobalFileConfiguration("AdvancedExampleMain"),
-                BackupFileConfiguration = new GlobalFileConfiguration("AdvancedExampleBackup"),
-                StorageConfiguration = new SimpleStorageConfiguration(
-                    new GlobalDirectoryConfiguration("MainStorage"),
-                    new GlobalDirectoryConfiguration("BackupStorage")),
-                NumberOfFileHistories = 2,
-            });
+var data = services.GetRequiredData<FirstData>();
+data.Id++;
+data.Name = "Updated";
 
-        context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));
-    }
-
-    [TinyhandObject(Structual = true)]
-    [ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
-    public partial class Point : StoragePoint<AdvancedClass>
-    {
-        public void TryInitialize(int id)
-        {
-            if (this.Id == 0)
-            {
-                this.Id = id;
-            }
-        }
-
-        [Key(1)]
-        [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-        public int Id { get; private set; }
-    }
-
-    public AdvancedClass()
-    {
-    }
-
-    [Key(0)]
-    public int Id { get; private set; }
-
-    [Key(1)]
-    public partial string Name { get; set; } = "Test";
-
-    [Key(2)]
-    public StoragePoint<AdvancedClass> ChildStorage { get; private set; } = new();
-
-    [Key(3)]
-    public StoragePoint<Point.GoshujinClass> ChildrenStorage { get; private set; } = new();
-
-    [Key(4)]
-    public partial StoragePoint<byte[]> ByteArrayStorage { get; private set; } = new();
-}
+await control.StoreAndRip();
 ```
 
+`StoreAndRip` is terminal: the `CrystalControl` instance cannot be used after it completes. Call it during application shutdown.
 
+## NativeAOT
+
+CrystalData supports NativeAOT. Data types must use Tinyhand source generation and be registered through the generic `AddCrystal<TData>`, `CreateCrystal<TData>`, or `GetOrCreateCrystal<TData>` APIs so their closed generic forms are visible at build time.
+
+Publish an application for a specific runtime identifier:
+
+```shell
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishAot=true
+```
+
+The CrystalData project enables the .NET AOT and trimming compatibility analyzers, and CI publishes and runs QuickStart as a native executable.
 
 ## Configuration
 
-By assigning a **CrystalConfiguration** to the data class, you can specify the timing, format of data save, the number of history files, and the file path.
+Each registered type has a `CrystalConfiguration`.
+
+| Property | Purpose |
+| --- | --- |
+| `SaveFormat` | Selects binary or UTF-8 Tinyhand output. The default comes from `CrystalOptions.DefaultSaveFormat`. |
+| `Volatile` | Keeps the crystal in memory without writing snapshot files. |
+| `SaveInterval` | Sets the automatic snapshot interval for the crystal. |
+| `NumberOfFileHistories` | Sets the number of retained snapshot files. Use `0` to disable file histories. |
+| `FileConfiguration` | Selects the primary snapshot file. |
+| `BackupFileConfiguration` | Selects an optional backup snapshot file. |
+| `StorageConfiguration` | Configures independently loaded `StoragePoint<T>` data. |
+| `RequiredForLoading` | Passes failures for previously stored data to the recovery query. |
+
+Global defaults and limits are configured with `CrystalOptions`:
 
 ```csharp
-context.AddCrystal<FirstData>(
-    new CrystalConfiguration()
-    {
-        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
-        SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-        NumberOfHistoryFiles = 0, // No history file.
-        FileConfiguration = new LocalFileConfiguration("Local/FirstExample/FirstData.tinyhand"), // Specify the file name to save.
-    });
-```
-
-
-
-
-### Timing of data persistence
-
-Data persistence is a core feature of CrystalData and its timing is critical. There are several options for when to save data.
-The following code is for preparation.
-
-```csharp
-[TinyhandObject(Journaling = true)] // Journaling feature is necessary to allow the function to save data when properties are changed.
-public partial class SaveTimingData
+context.SetCrystalOptions(new CrystalOptions
 {
-    [Key(0, AddProperty = "Id")] // Add a property to save data when the value is changed.
-    internal int id;
-
-    public override string ToString()
-        => $"Id: {this.Id}";
-}
-```
-
-```csharp
-var crystal = unit.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
-var data = crystal.Data;
-```
-
-
-
-#### Save manually
-
-Save the data manually after it has been changed, and wait until the save process is complete.
-
-```csharp
-context.AddCrystal<SaveTimingData>(
-    new CrystalConfiguration()
-    {
-        SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
-        FileConfiguration = new LocalFileConfiguration("Local/SaveTimingExample/SaveTimingData.tinyhand"), // Specify the file name to save.
-    });
-```
-
-```csharp
-// Save manually
-data.id += 1;
-await crystal.Save();
-```
-
-
-
-#### On changed
-
-When data is changed, it is registered in the save queue and will be saved in a second.
-
-```csharp
-context.AddCrystal<SaveTimingData>(
-    new CrystalConfiguration()
-    {
-        SavePolicy = SavePolicy.OnChanged,
-        FileConfiguration = new LocalFileConfiguration("Local/SaveTimingExample/SaveTimingData.tinyhand"), // Specify the file name to save.
-    });
-```
-
-```csharp
-// Add to the save queue when the value is changed
-data.Id += 2;
-
-// Alternative
-data.id += 2;
-crystal.TryAddToSaveQueue();
-```
-
-
-
-#### Periodic
-
-By setting **SavePolicy** to **Periodic** in **CrystalConfiguration**, data can be saved at regular intervals.
-
-```csharp
-context.AddCrystal<SaveTimingData>(
-    new CrystalConfiguration()
-    {
-        SavePolicy = SavePolicy.Periodic, // Data will be saved at regular intervals.
-        SaveInterval = TimeSpan.FromMinutes(1), // The interval at which data is saved.
-        SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-        NumberOfHistoryFiles = 0, // No history file.
-        FileConfiguration = new LocalFileConfiguration("Local/SaveTimingExample/SaveTimingData.tinyhand"), // Specify the file name to save.
-    });
-```
-
-
-
-
-#### When exiting the application
-
-Add the following code to save all data and release resources when the application exits.
-
-```csharp
-await unit.Context.ServiceProvider.GetRequiredService<CrystalControl>().SaveAllAndTerminate();
-```
-
-
-
-#### Volatile
-
-Data is volatile and not saved.
-
-```cahrp
-context.AddCrystal<SaveTimingData>(
-    new CrystalConfiguration()
-    {
-        SavePolicy = SavePolicy.Volatile,
-        FileConfiguration = new LocalFileConfiguration("Local/SaveTimingExample/SaveTimingData.tinyhand"), // Specify the file name to save.
-    });
-```
-
-
-
-
-### Timing of configuration and instantiation
-
-#### Builder pattern
-
-Create a **CrystalControl.Builder** and register Data using the **ConfigureCrystal()** and **AddCrystal()** methods. As Data is registered in the DI container, it can be easily used.
-
-```csharp
-var builder = new CrystalControl.Builder()
-    .Configure(context =>
-    {
-        context.AddSingleton<ConfigurationExampleClass>();
-    })
-    .ConfigureCrystal(context =>
-    {
-        // Register SimpleData configuration.
-        context.AddCrystal<FirstData>(
-            new CrystalConfiguration()
-            {
-                SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
-                SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                NumberOfHistoryFiles = 0, // No history file.
-                FileConfiguration = new LocalFileConfiguration("Local/FirstExample/FirstData.tinyhand"), // Specify the file name to save.
-            });
-    });
-
-var unit = builder.Build(); // Build.
-```
-
-```csharp
-public class ConfigurationExampleClass
-{
-    public ConfigurationExampleClass(CrystalControl crystalControl, FirstData firstData)
-    {
-        this.crystalControl = crystalControl;
-        this.firstData = firstData;
-    }
-}
-```
-
-
-
-#### CrystalControl
-
-Create an **ICrystal** object using the **CrystalControl**.
-
-```csharp
-// Get or create an ICrystal interface of the data.
-var crystal = this.crystalControl.GetOrCreateCrystal<SecondData>(
-    new CrystalConfiguration(
-        SavePolicy.Manual,
-        new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData.tinyhand")));
-var secondData = crystal.Data;
-
-// You can create multiple crystals from single data class.
-var crystal2 = this.crystalControl.CreateCrystal<SecondData>(
-    new CrystalConfiguration(
-        SavePolicy.Manual,
-        new LocalFileConfiguration("Local/ConfigurationTimingExample/SecondData2.tinyhand")));
-var secondData2 = crystal2.Data;
-```
-
-
-
-### Specifying the path
-
-You can set the path to save the data by specifying the **FileConfiguration** of **CrystalConfiguration**.
-
-The path can be a basic local absolute path, a relative path, or an AWS S3 path.
-
-```csharp
-context.AddCrystal<FirstData>(
-    new CrystalConfiguration()
-    {
-        FileConfiguration = new LocalFileConfiguration("Local/FirstExample/FirstData.tinyhand"), // Specify the file name to save.
-    });
-```
-
-
-
-#### Local path
-
-If a relative path is specified, it combines the root directory of **CrystalControl** with the path to create an absolute path.
-
-```csharp
-FileConfiguration = new LocalFileConfiguration("Local/PathExample/FirstData.tinyhand"),
-```
-
-The absolute path will be used as is.
-
-```csharp
-FileConfiguration = new LocalFileConfiguration("C:\\Local/PathExample/FirstData.tinyhand"),
-```
-
-
-
-#### Global path
-
-When specifying **GlobalFileConfiguration**, the path will be combined with **GlobalDirectory** of **CrystalOptions** to create an absolute path.
-
-```csharp
-FileConfiguration = new GlobalFileConfiguration("Global/FirstData.tinyhand"),
-```
-
-```csharp
-var builder = new CrystalControl.Builder()
-    .ConfigureCrystal(context =>
-    {
-    })
-    .SetupOptions<CrystalOptions>((context, options) =>
-    {// You can change the root directory of the CrystalData by modifying CrystalOptions.
-        context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
-        if (unitOptions is not null)
-        {
-            // options.RootPath = Path.Combine(unitOptions.RootDirectory, "Additional"); // Root directory
-            options.GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitOptions.RootDirectory, "Global")); // Global directory
-        }
-    });
-```
-
-
-
-#### AWS S3
-
-You can also save data on AWS S3. Please enter authentication information using **IStorageKey**.
-
-```csharp
-FileConfiguration = new S3FileConfiguration(BucketName, "Test/FirstData.tinyhand"),
-```
-
-```csharp
-if (AccessKeyPair.TryParse(KeyPair, out var accessKeyPair))
-{// AccessKeyId=SecretAccessKey
-    unit.Context.ServiceProvider.GetRequiredService<IStorageKey>().AddKey(BucketName, accessKeyPair);
-}
-```
-
-
-
-### Backup
-
-By setting up a backup configuration, you can recover data from the backup file even if the main file is lost.
-
-```csharp
-context.AddCrystal<BackupData>(
-    new()
-    {
-        SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-        NumberOfFileHistories = 3,
-        FileConfiguration = new LocalFileConfiguration("Local/BackupExample/BackupData.tinyhand"),
-
-        // Specify the location to save the backup files individually.
-        BackupFileConfiguration = new LocalFileConfiguration("Local/BackupExample/Backup/BackupData.tinyhand"),
-    });
-```
-
-```csharp
-.SetupOptions<CrystalOptions>((context, options) =>
-{
-    context.GetOptions<UnitOptions>(out var unitOptions);// Get the application root directory.
-    if (unitOptions is not null)
-    {
-        // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
-        options.DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitOptions.RootDirectory, "DefaultBackup"));
-    }
+    GlobalDirectory = new LocalDirectoryConfiguration("Data"),
+    DefaultBackup = new LocalDirectoryConfiguration("Backup"),
+    DefaultSaveFormat = SaveFormat.Binary,
+    MemoryUsageLimit = 512L * 1024 * 1024,
 });
 ```
 
+Register more than one crystal when an application has independently persisted data sets:
 
+```csharp
+context.AddCrystal<FirstData>(
+    new CrystalConfiguration(new GlobalFileConfiguration("First.tinyhand")));
+context.AddCrystal<SecondData>(
+    new CrystalConfiguration(new GlobalFileConfiguration("Second.tinyhand")));
+```
 
-The process of loading data is as follows:
+Crystals can also be created at runtime with `CreateCrystal<TData>` or retrieved or created with `GetOrCreateCrystal<TData>`.
 
-1. Load the main file.
-2. If it fails, load the backup file.
-3. If there are history files (main or backup), load the latest history file.
-4. When journaling is enabled (detailed later), load the Journal to update to the most recent data.
+## Paths and backups
 
-By performing the above processes, **CrystalData** tries to minimize data loss.
+- `LocalFileConfiguration` and `LocalDirectoryConfiguration` use absolute paths as-is. Relative paths are resolved against `CrystalOptions.DataDirectory`.
+- `GlobalFileConfiguration` and `GlobalDirectoryConfiguration` are resolved relative to `CrystalOptions.GlobalDirectory`.
+- `EmptyFileConfiguration` and `EmptyDirectoryConfiguration` disable the corresponding file or directory.
+- `S3FileConfiguration` and `S3DirectoryConfiguration` identify objects in an S3 bucket.
 
+Set `BackupFileConfiguration` for one crystal, or set `CrystalOptions.DefaultBackup` to derive backup locations for crystals, journals, and auxiliary storage that do not define one explicitly.
 
+Snapshot histories provide recovery candidates when the current file is missing or invalid. Journaling requires at least one history file for every journaled crystal.
+
+## Saving and shutdown
+
+Use the lifecycle method that matches the operation:
+
+| Method | Behavior |
+| --- | --- |
+| `PrepareAndLoad()` | Prepares persistence services and loads registered crystals. |
+| `Store()` | Persists all managed crystals and auxiliary storage. |
+| `StoreAndRelease()` | Persists all managed data and attempts to release its resources. |
+| `StoreAndRip()` | Persists all managed data, records a clean shutdown, and terminates services. |
+
+For a single crystal, call `ICrystal.StoreData()`. For independently loaded nodes, call `StoragePoint<T>.AddToSaveQueue()` to schedule persistence or `StoragePoint<T>.StoreData()` to request it directly.
 
 ## Journaling
 
-**CrystalData** offers a limited journaling feature to enhance data durability.
-
-The goal is to minimize data loss in the event of a failure, reducing potential loss from one hour to one second.
-
-Here is an example class.
+Journaling records changes to Tinyhand structural objects between snapshots. Configure a journal and use `[TinyhandObject(Structural = true)]` on journaled data:
 
 ```csharp
-[TinyhandObject(Structual = true)] // Enable the journaling feature.
-[ValueLinkObject] // You can use ValuLink to handle a collection of objects.
+[TinyhandObject(Structural = true)]
 public partial class JournalData
 {
-    [Key(0, AddProperty = "Id")] // Additional property is required.
-    [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    private int id;
-
-    [Key(1, AddProperty = "Name")]
-    private string name = string.Empty;
-
-    [Key(2, AddProperty = "Count")]
-    private int count;
-
-    public JournalData()
-    {
-    }
-
-    public JournalData(int id, string name)
-    {
-        this.id = id;
-        this.name = name;
-    }
-
-    public override string ToString()
-        => $"Id: {this.id}, Name: {this.name}, Count: {this.count}";
+    [Key(0)]
+    public partial int Count { get; set; }
 }
-```
 
-To use the journal feature, please set **NumberOfFileHistories** to greater than or equal to 1 in **CrystalConfiguration** and configure the journal with `context.SetJournal()`.
-
-```csharp
-var builder = new CrystalControl.Builder()
+var product = new CrystalUnit.Builder()
     .ConfigureCrystal(context =>
     {
-        // Register SimpleData configuration.
-        context.AddCrystal<JournalData.GoshujinClass>(
-            new CrystalConfiguration()
-            {
-                SavePolicy = SavePolicy.Manual, // Timing of saving data is controlled by the application.
-                SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                NumberOfFileHistories = 1, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
-                FileConfiguration = new LocalFileConfiguration("Local/JournalExample/JournalData.tinyhand"), // Specify the file name to save.
-            });
+        context.SetJournal(
+            new SimpleJournalConfiguration(
+                new LocalDirectoryConfiguration("Data/Journal")));
 
-        context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration("Local/JournalExample/Journal")));
+        context.AddCrystal<JournalData>(
+            new CrystalConfiguration(
+                new LocalFileConfiguration("Data/JournalData.tinyhand"))
+            {
+                NumberOfFileHistories = 3,
+            });
+    })
+    .Build();
+```
+
+Structural members must be compatible with Tinyhand's structural serialization rules. ValueLink collections can also be used as journaled roots.
+
+## Auxiliary storage
+
+`StoragePoint<T>` keeps a child object in an independently loaded file. Configure auxiliary storage on the owning crystal:
+
+```csharp
+context.AddCrystal<RootData>(
+    new CrystalConfiguration(new LocalFileConfiguration("Data/Root.tinyhand"))
+    {
+        StorageConfiguration = new SimpleStorageConfiguration(
+            new LocalDirectoryConfiguration("Data/Storage"))
+        {
+            NumberOfHistoryFiles = 3,
+        },
     });
 ```
 
+The type containing a storage point must be a Tinyhand structural object. `StoragePoint<T>` reserves Tinyhand key `0`; derived storage-point types must start their own keys at `1`.
 
-
-## StoragePoint: Evolution of locking and deletion logic
-
- This section explains, step by step, the locking and deletion logic for classes that are subject to data persistence (i.e., **CrystalData** targets).
-
-### Class1
-
- This is the simplest example class. Use locking if necessary.
+Read with `TryGet`. Use `TryLock` whenever data will be changed, and dispose the returned `DataScope<T>` to release the lock:
 
 ```csharp
-[TinyhandObject(LockObject = "syncObject")]
-[ValueLinkObject]
-public partial class Class1
+using var scope = await root.Child.TryLock(AcquisitionMode.GetOrCreate);
+if (scope.IsValid)
 {
-    [Key(0)]
-    [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
-    public int Id { get; set; }
-
-    private readonly Lock syncObject = new();
-
-    public Class1(int id)
-    {
-        this.Id = id;
-    }
-
-    public void Test()
-    {
-        using (this.syncObject.EnterScope())
-        {
-            this.Id++;
-            Console.WriteLine($"Class1: {this}");
-        }
-    }
-
-    public override string ToString()
-        => this.Id.ToString();
+    scope.Data.Count++;
 }
 ```
 
+Avoid replacing a storage-point instance with `Set` unless instance replacement is specifically required.
 
+## S3 storage
 
-### Class2
-
- If a member is large and you want to persist it independently, or if you want to isolate locking, use `StoragePoint<T>`.
-
- These members are stored in a separate storage from the class (the class only references the **StoragePoint** Id).
+Supply bucket credentials through `IStorageKey`, then use an S3 file or directory configuration:
 
 ```csharp
-[TinyhandObject(Structural = true)]
-public partial class Class2
-{
-    [Key(0)]
-    public StoragePoint<Class1> Member1 { get; set; } = new();
+var storageKey = services.GetRequiredService<IStorageKey>();
+storageKey.AddKey(
+    "my-bucket",
+    new AccessKeyPair("ACCESS_KEY_ID", "SECRET_ACCESS_KEY"));
 
-    [Key(1)]
-    public StoragePoint<byte[]> Member2 { get; set; } = new();
-
-    public async Task Test()
-    {
-        using (var dataScope = await this.Member1.TryLock())
-        {
-            if (dataScope.IsValid)
-            {
-                dataScope.Data.Id++;
-            }
-        }
-
-        var data = await this.Member2.TryGet();
-        var newData = new byte[(data is null ? 0 : data.Length) + 100];
-        this.Member2.Set(newData);
-
-        var class1 = await this.Member1.TryGet();
-        data = await this.Member2.TryGet();
-        Console.WriteLine($"Class2: {class1?.Id},{(data is null ? 0 : data.Length)}");
-    }
-}
+var configuration = new CrystalConfiguration(
+    new S3FileConfiguration("my-bucket", "app/FirstData.tinyhand"));
 ```
 
+Do not embed production credentials in source code. Provide them through the application's secret-management mechanism.
 
+## Recovery
 
-### Class3
+`PrepareAndLoad(useQuery: true)` consults the registered `ICrystalDataQuery` when recovery requires a decision. Pass `false` for non-interactive startup behavior. The second argument, `loadCrystals`, can defer loading registered crystals while still preparing persistence services.
 
- **Class3** simply holds a collection of **Class1**, so the entire collection is persisted within **Class3**.
+CrystalData checks the primary snapshot, available histories, and configured backups. For previously stored data with `RequiredForLoading = true`, a load failure is passed to `ICrystalDataQuery`; initialization fails when the query chooses to abort.
 
- Use locking if necessary.
+## Samples
 
-```csharp
-[TinyhandObject]
-public partial class Class3
-{
-    [Key(0)]
-    public Class1.GoshujinClass Goshujin { get; set; } = new();
+- [QuickStart](QuickStart) contains the smallest complete application.
+- [Advanced](Advanced) covers backups, dynamic configuration, journals, paths, dependency injection, save timing, and storage points.
 
-    public void Test()
-    {
-        var c = new Class1(this.Goshujin.Count);
-        c.Goshujin = this.Goshujin;
+## License
 
-        Console.WriteLine($"Class3: {string.Join(',', this.Goshujin.Select(x => x.ToString()))}");
-    }
-}
-```
-
-
-
-### Class4
-
- If you want each element of a **Class1** collection to be persisted independently and also have independent locking, use **ValueLink**'s **ReadCommitted** and `StoragePoint<T>`.
-
- First, create a **Class1Point** class that holds **Class1** (= `StoragePoint<Class1>`).
-
- The code below may look complex, but considering what it does, it is not that complicated.
-
-```csharp
-[TinyhandObject]
-[ValueLinkObject(Isolation = IsolationLevel.ReadCommitted)]
-public partial class Class1Point : StoragePoint<Class1>
-{
-    [Key(1)]
-    [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
-    public int Id { get; private set; }
-
-    public Class1Point()
-    {
-    }
-}
-
-[TinyhandObject(Structural = true)]
-public partial class Class4
-{
-    [Key(0)]
-    public Class1Point.GoshujinClass Goshujin { get; set; } = new();
-
-    public async Task Test()
-    {
-        var id = this.Goshujin.Count;
-        using (var dataScope = await this.Goshujin.TryLock(id, AcquisitionMode.GetOrCreate))
-        {
-            if (dataScope.IsCreated)
-            {
-                dataScope.Data.Id = id;
-            }
-        }
-
-        var ids = this.Goshujin.IdChain.Keys;
-        Console.WriteLine($"Class4: {string.Join(',', ids.Select(x => x.ToString()))}");
-    }
-}
-```
-
-
-
-| **Class**                                   | Persistence | Element     | Data control | Exclusive control |
-| ------------------------------------------- | ----------- | ----------- | ------------ | ----------------- |
-| **Class1.GoshujinClass**                    | Parent      | Class1      | Parent       | Goshujin          |
-| **StoragePoint<Class1.GoshujinClass>**      | Storage     | Class1      | StoragePoint | StoragePoint      |
-| **Class1Point.GoshujinClass**               | Parent      | Class1Point | Parent       | StoragePoint      |
-| **StoragePoint<Class1Point.GoshujinClass>** | Storage     | Class1Point | StoragePoint | StoragePoint x 2  |
-
+CrystalData is licensed under the [MIT License](LICENSE).

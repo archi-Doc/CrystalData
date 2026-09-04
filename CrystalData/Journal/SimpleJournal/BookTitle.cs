@@ -25,8 +25,16 @@ internal readonly struct BookTitle : IEquatable<BookTitle>, IComparable<BookTitl
 
     public static bool TryParse(string base32, out BookTitle bookTitle)
     {
-        var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
-        return TryParse(byteArray, out bookTitle);
+        try
+        {
+            var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
+            return TryParse(byteArray, out bookTitle);
+        }
+        catch
+        {
+            bookTitle = default;
+            return false;
+        }
     }
 
     public static bool TryParse(ReadOnlySpan<byte> span, out BookTitle bookTitle)

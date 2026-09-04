@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Stores an access-key identifier and secret used to authenticate an S3 bucket.
+/// </summary>
 public readonly struct AccessKeyPair : IEquatable<AccessKeyPair>
 {
     public const char Separator = '=';
@@ -20,29 +23,52 @@ public readonly struct AccessKeyPair : IEquatable<AccessKeyPair>
 
     public static bool TryParse(string text, out AccessKeyPair accessKeyPair)
     {// AccessKeyId=SecretAccessKey
-        var array = text.Split(Separator);
-        if (array.Length < 2)
+        if (text is null)
         {
             accessKeyPair = default;
             return false;
         }
 
-        accessKeyPair = new(array[0], array[1]);
+        var separatorIndex = text.IndexOf(Separator, StringComparison.Ordinal);
+        if (separatorIndex < 0)
+        {
+            accessKeyPair = default;
+            return false;
+        }
+
+        accessKeyPair = new(text[..separatorIndex], text[(separatorIndex + 1)..]);
         return true;
     }
 
     public static bool TryParse(string text, out string bucket, out AccessKeyPair accessKeyPair)
     {// Bucket=AccessKeyId=SecretAccessKey
-        var array = text.Split(Separator);
-        if (array.Length < 3)
+        if (text is null)
         {
             bucket = string.Empty;
             accessKeyPair = default;
             return false;
         }
 
-        bucket = array[0];
-        accessKeyPair = new(array[1], array[2]);
+        var firstSeparator = text.IndexOf(Separator, StringComparison.Ordinal);
+        var secondSeparator = -1;
+        if (firstSeparator >= 0)
+        {
+            var relativeIndex = text.AsSpan(firstSeparator + 1).IndexOf(Separator);
+            if (relativeIndex >= 0)
+            {
+                secondSeparator = firstSeparator + relativeIndex + 1;
+            }
+        }
+
+        if (secondSeparator < 0)
+        {
+            bucket = string.Empty;
+            accessKeyPair = default;
+            return false;
+        }
+
+        bucket = text[..firstSeparator];
+        accessKeyPair = new(text[(firstSeparator + 1)..secondSeparator], text[(secondSeparator + 1)..]);
         return true;
     }
 

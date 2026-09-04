@@ -338,6 +338,8 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             return CrystalResult.SerializationFailed;
         }
 
+        using var rentMemoryScope = rentMemory;
+
         if (obj is IStructuralObject structuralObject)
         {// Since data may be released by StoreData(), this should be invoked only after serialization.
             if (await structuralObject.StoreData(storeMode).ConfigureAwait(false) == false)
@@ -448,65 +450,71 @@ Exit:
                     break;
                 }
 
-                // Deserialize
-                (var currentObject, var currentFormat) = SerializeHelper.TryDeserialize<TData>(result.Data.Span, this.CrystalConfiguration.SaveFormat, true, default);
-                if (currentObject is null)
-                {// Deserialization error
-                    result.Return();
-                    logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.DeserializationFailure, base32);
-                    testResult = false;
-                    break;
-                }
-
-                if (currentObject is StorageMap storageMap)
-                {// For StorageMap, initialization is performed (to obtain storage.NumberOfHistoryFiles).
-                    storageMap.Enable(this.CrystalControl.StorageControl, default!, this.Storage);
-                }
-
-                if (currentObject is IStructuralObject structuralObject)
+                TData? currentObject;
+                SaveFormat currentFormat;
+                try
                 {
-                    structuralObject.SetupStructure(this);
-                }
-
-                if (previousObject is not null)
-                {// Compare the previous data
-                    bool compare;
-
-                    if (currentObject is IEquatableObject equatableObject)
-                    {// Compare using IEquatableObject
-                        compare = equatableObject.ObjectEquals(previousObject);
+                    // Deserialize
+                    (currentObject, currentFormat) = SerializeHelper.TryDeserialize<TData>(result.Data.Span, this.CrystalConfiguration.SaveFormat, true, default);
+                    if (currentObject is null)
+                    {// Deserialization error
+                        logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.DeserializationFailure, base32);
+                        testResult = false;
+                        break;
                     }
-                    else
-                    {// Compare by serializing
-                        if (currentFormat == SaveFormat.Binary)
-                        {// Previous (previousObject), Current (currentObject/result.Data.Span): Binary
-                            compare = result.Data.Span.SequenceEqual(TinyhandSerializer.Serialize(previousObject));
+
+                    if (currentObject is StorageMap storageMap)
+                    {// For StorageMap, initialization is performed (to obtain storage.NumberOfHistoryFiles).
+                        storageMap.Enable(this.CrystalControl.StorageControl, default!, this.Storage);
+                    }
+
+                    if (currentObject is IStructuralObject structuralObject)
+                    {
+                        structuralObject.SetupStructure(this);
+                    }
+
+                    if (previousObject is not null)
+                    {// Compare the previous data
+                        bool compare;
+
+                        if (currentObject is IEquatableObject equatableObject)
+                        {// Compare using IEquatableObject
+                            compare = equatableObject.ObjectEquals(previousObject);
                         }
                         else
-                        {// Previous (previousObject), Current (currentObject/result.Data.Span): Utf8
-                            compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
+                        {// Compare by serializing
+                            if (currentFormat == SaveFormat.Binary)
+                            {// Previous (previousObject), Current (currentObject/result.Data.Span): Binary
+                                compare = result.Data.Span.SequenceEqual(TinyhandSerializer.Serialize(previousObject));
+                            }
+                            else
+                            {// Previous (previousObject), Current (currentObject/result.Data.Span): Utf8
+                                compare = result.Data.Span.SequenceEqual(TinyhandSerializer.SerializeToUtf8(previousObject));
+                            }
+                        }
+
+                        if (compare)
+                        {// Success
+                            logger.GetWriter(LogLevel.Information)?.Write(CrystalDataHashed.TestJournal.Success, base32);
+                        }
+                        else
+                        {// Failure
+                            logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.Failure, base32);
+                            testResult = false;
+
+                            /*if (currentObject is StorageMap currentMap &&
+                                previousObject is StorageMap previousMap)
+                            {
+                                var sb = previousMap.Dump();
+                                var sb2 = currentMap.Dump();
+                            }*/
                         }
                     }
-
-                    if (compare)
-                    {// Success
-                        logger.GetWriter(LogLevel.Information)?.Write(CrystalDataHashed.TestJournal.Success, base32);
-                    }
-                    else
-                    {// Failure
-                        logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.TestJournal.Failure, base32);
-                        testResult = false;
-
-                        /*if (currentObject is StorageMap currentMap &&
-                            previousObject is StorageMap previousMap)
-                        {
-                            var sb = previousMap.Dump();
-                            var sb2 = currentMap.Dump();
-                        }*/
-                    }
                 }
-
-                result.Return();
+                finally
+                {
+                    result.Return();
+                }
 
                 if (currentObject is not IStructuralObject journalObject)
                 {
@@ -520,14 +528,21 @@ Exit:
                 // Read journal [waypoints[i].JournalPosition, waypoints[i + 1].JournalPosition)
                 var length = (int)(waypoints[i + 1].JournalPosition - waypoints[i].JournalPosition);
                 var memoryOwner = BytePool.Default.Rent(length).AsMemory(0, length);
-                var journalResult = await journal.ReadJournalAsync(waypoints[i].JournalPosition, waypoints[i + 1].JournalPosition, memoryOwner.Memory).ConfigureAwait(false);
-                if (!journalResult)
-                {// Journal error
-                    testResult = false;
-                    break;
-                }
+                try
+                {
+                    var journalResult = await journal.ReadJournalAsync(waypoints[i].JournalPosition, waypoints[i + 1].JournalPosition, memoryOwner.Memory).ConfigureAwait(false);
+                    if (!journalResult)
+                    {// Journal error
+                        testResult = false;
+                        break;
+                    }
 
-                this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane);
+                    this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane);
+                }
+                finally
+                {
+                    memoryOwner.Return();
+                }
 
                 previousObject = currentObject;
             }
@@ -695,8 +710,7 @@ Exit:
         }
 
         var singletonData = this.data;
-        if (singletonData is null &&
-            this.originalCrystalConfiguration.IsSingleton)
+        if (this.originalCrystalConfiguration.IsSingleton)
         {// For singleton data, it is always treated as a singleton instance, regardless of whether or not ServiceProvider is used.
             singletonData = this.CrystalControl.ServiceProvider.GetRequiredService<TData>();
         }
@@ -878,7 +892,22 @@ Exit:
         this.CrystalControl.UpdateWaypoint(this, ref this.waypoint, hash);
 
         // Save immediately to fix the waypoint.
-        _ = this.crystalFiler?.Save(rentMemory.ReadOnly, this.waypoint);
+        _ = SaveAndReturn(this.crystalFiler, rentMemory.ReadOnly, this.waypoint);
+
+        static async Task SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentReadOnlyMemory memory, Waypoint waypoint)
+        {
+            try
+            {
+                if (crystalFiler is not null)
+                {
+                    await crystalFiler.Save(memory, waypoint).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                memory.Return();
+            }
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -910,7 +939,7 @@ Exit:
             var path = StorageHelper.CombineWithSlash(fileConfiguration.DirectoryName, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
             fileConfiguration = fileConfiguration with { Path = path, };
         }
-        else if (fileName.IndexOf('.') < 0)
+        else if (!fileName.Contains('.', StringComparison.Ordinal))
         {
             fileConfiguration = fileConfiguration with { Path = $"{fileConfiguration.Path}{saveFormat.ToExtension()}", };
         }
@@ -924,7 +953,7 @@ Exit:
                 var path = StorageHelper.CombineWithSlash(backupFileConfiguration.DirectoryName, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
                 backupFileConfiguration = backupFileConfiguration with { Path = path, };
             }
-            else if (backupFileName.IndexOf('.') < 0)
+            else if (!backupFileName.Contains('.', StringComparison.Ordinal))
             {
                 backupFileConfiguration = backupFileConfiguration with { Path = $"{backupFileConfiguration.Path}{saveFormat.ToExtension()}", };
             }

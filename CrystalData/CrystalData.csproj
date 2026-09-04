@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>true</IsAotCompatible>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 
@@ -10,19 +11,20 @@
     <Product>CrystalData</Product>
     <Description>CrystalData is a simple and versatile storage engine for C#.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/archi-Doc/LP</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/archi-Doc/LP</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/archi-Doc/CrystalData</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/archi-Doc/CrystalData</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Arc.Collections" Version="1.44.0" />
-    <PackageReference Include="Arc.Threading" Version="0.51.0" />
-    <PackageReference Include="Arc.Crypto" Version="1.49.0" />
-    <PackageReference Include="Arc.Unit" Version="0.45.0" />
+    <PackageReference Include="Arc.Collections" Version="1.45.0" />
+    <PackageReference Include="Arc.Threading" Version="0.52.0" />
+    <PackageReference Include="Arc.Crypto" Version="1.50.2" />
+    <PackageReference Include="Arc.Unit" Version="0.46.0" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.102.4" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-    <PackageReference Include="Tinyhand" Version="0.143.2" />
-    <PackageReference Include="ValueLink" Version="0.117.1" />
+    <PackageReference Include="Tinyhand" Version="0.144.1" />
+    <PackageReference Include="ValueLink" Version="0.118.2" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -31,6 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
     <EmbeddedResource Include="UserInterface\Strings\strings-en.tinyhand" />
     <EmbeddedResource Include="UserInterface\Strings\strings-ja.tinyhand" />
   </ItemGroup>

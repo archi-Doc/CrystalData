@@ -3,8 +3,7 @@
 namespace CrystalData;
 
 /// <summary>
-/// Represents a configuration for a local directory.<br/>
-/// Specifies the directory path relative to the data directory, defined by <see cref="UnitOptions.DataDirectory"/> or the current directory.
+/// Represents a local directory path resolved against the configured data directory.
 /// </summary>
 [TinyhandObject]
 public partial record LocalDirectoryConfiguration : DirectoryConfiguration
@@ -20,7 +19,7 @@ public partial record LocalDirectoryConfiguration : DirectoryConfiguration
     /// <summary>
     /// Initializes a new instance of the <see cref="LocalDirectoryConfiguration"/> class with the specified directory path.
     /// </summary>
-    /// <param name="directory">The directory path relative to the data directory, defined by <see cref="UnitOptions.DataDirectory"/> or the current directory.</param>
+    /// <param name="directory">The directory path relative to <see cref="CrystalOptions.DataDirectory"/>, or an absolute path.</param>
     public LocalDirectoryConfiguration(string directory)
         : base(directory)
     {

@@ -7,16 +7,13 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 /// <summary>
-/// <see cref="MonoData{TIdentifier, TDatum}"/> is a simple key-value store that uses TinyhandSerializer.<br/>
-/// You can set the data capacity, and data exceeding this limit will be deleted in order from the oldest.<br/>
-/// It is thread-safe (using lock statements).
+/// Provides a thread-safe, Tinyhand-serializable key-value store with oldest-entry eviction.
 /// </summary>
-/// <typeparam name="TIdentifier">The type of the identifier.</typeparam>
-/// <typeparam name="TDatum">The type of the data.</typeparam>
+/// <typeparam name="TIdentifier">The key type.</typeparam>
+/// <typeparam name="TDatum">The value type.</typeparam>
 [TinyhandObject]
 public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerializable<MonoData<TIdentifier, TDatum>>, ITinyhandSingleLayoutSerializable
 {
-    [TinyhandObject]
     [ValueLinkObject(Isolation = IsolationLevel.Serializable)]
     private sealed partial class Item
     {
@@ -39,11 +36,9 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         {
         }
 
-        [Key(0)]
         [Link(Type = ChainType.Unordered)]
         internal TIdentifier Key = default!;
 
-        [Key(1)]
         internal TDatum Datum = default!;
     }
 
@@ -60,7 +55,8 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <param name="capacity">The initial capacity of the MonoData collection.</param>
     public MonoData(int capacity)
     {
-        this.Capacity = capacity;
+        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        this.capacity = capacity;
     }
 
     static void ITinyhandSerializable<MonoData<TIdentifier, TDatum>>.Serialize(ref TinyhandWriter writer, scoped ref MonoData<TIdentifier, TDatum>? value, TinyhandSerializerOptions options)
@@ -71,7 +67,18 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
             return;
         }
 
-        TinyhandSerializer.Serialize(ref writer, value.goshujin, options);
+        using (value.goshujin.LockObject.EnterScope())
+        {
+            writer.WriteArrayHeader(2);
+            writer.Write(value.capacity);
+            writer.WriteArrayHeader(value.goshujin.QueueChain.Count);
+            foreach (var item in value.goshujin.QueueChain)
+            {
+                writer.WriteArrayHeader(2);
+                TinyhandSerializer.Serialize(ref writer, item.Key, options);
+                TinyhandSerializer.Serialize(ref writer, item.Datum, options);
+            }
+        }
     }
 
     static void ITinyhandSerializable<MonoData<TIdentifier, TDatum>>.Deserialize(ref TinyhandReader reader, scoped ref MonoData<TIdentifier, TDatum>? value, TinyhandSerializerOptions options)
@@ -83,9 +90,30 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
 
         value ??= new();
         Item.GoshujinClass? g = default;
+        var capacity = 0;
         try
         {
-            g = TinyhandSerializer.Deserialize<Item.GoshujinClass>(ref reader, options);
+            if (reader.ReadArrayHeader() != 2)
+            {
+                return;
+            }
+
+            capacity = reader.ReadInt32();
+            ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+            var count = reader.ReadArrayHeader();
+            g = new();
+            for (var i = 0; i < count; i++)
+            {
+                if (reader.ReadArrayHeader() != 2)
+                {
+                    g = null;
+                    break;
+                }
+
+                var key = TinyhandSerializer.Deserialize<TIdentifier>(ref reader, options)!;
+                var datum = TinyhandSerializer.Deserialize<TDatum>(ref reader, options)!;
+                g.Add(new(key, datum));
+            }
         }
         catch
         {
@@ -94,22 +122,35 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         if (g is not null)
         {
             value.goshujin = g;
+            Volatile.Write(ref value.capacity, capacity);
         }
     }
 
     /// <summary>
     /// Gets the number of items in the MonoData collection.
     /// </summary>
-    public int Count => this.goshujin.QueueChain.Count;
+    public int Count
+    {
+        get
+        {
+            using (this.goshujin.LockObject.EnterScope())
+            {
+                return this.goshujin.QueueChain.Count;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the capacity of the MonoData collection.
     /// </summary>
     [IgnoreMember]
-    public int Capacity { get; private set; }
+    public int Capacity => Volatile.Read(ref this.capacity);
 
     [IgnoreMember]
     private Item.GoshujinClass goshujin = new();
+
+    [IgnoreMember]
+    private int capacity;
 
     /// <summary>
     /// Sets the capacity of the MonoData collection.
@@ -117,7 +158,15 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <param name="capacity">The new capacity of the MonoData collection.</param>
     public void SetCapacity(int capacity)
     {
-        this.Capacity = capacity;
+        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        using (this.goshujin.LockObject.EnterScope())
+        {
+            Volatile.Write(ref this.capacity, capacity);
+            while (this.goshujin.QueueChain.Count > capacity)
+            {
+                this.goshujin.QueueChain.Dequeue().Goshujin = null;
+            }
+        }
     }
 
     /// <summary>
@@ -140,7 +189,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
                 item = new Item(id, datum);
                 this.goshujin.Add(item);
 
-                if (this.goshujin.QueueChain.Count > this.Capacity)
+                if (this.goshujin.QueueChain.Count > this.capacity)
                 {// Remove the oldest item;
                     this.goshujin.QueueChain.Dequeue().Goshujin = null;
                 }

@@ -2,6 +2,9 @@
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Describes a file or directory returned by a filer listing.
+/// </summary>
 public readonly struct PathInformation
 {
     public PathInformation(string file, long length)
