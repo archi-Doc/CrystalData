@@ -21,3 +21,8 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+    - name: Publish NativeAOT smoke test
+      run: dotnet publish QuickStart/QuickStart.csproj --configuration Release --runtime linux-x64 --self-contained -p:PublishAot=true
+    - name: Run NativeAOT smoke test
+      working-directory: QuickStart/bin/Release/net10.0/linux-x64/publish
+      run: ./QuickStart

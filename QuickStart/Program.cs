@@ -16,7 +16,7 @@ public partial class FirstData
 
     [Key(1)]
     [DefaultValue("Hoge")] // The default value for the name property.
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = "Hoge";
 
     public override string ToString()
         => $"Id: {this.Id}, Name: {this.Name}";
@@ -42,7 +42,11 @@ internal class Program
 
         var product = builder.Build(); // Build.
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
-        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        var result = await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        if (result.IsFailure())
+        {
+            throw new InvalidOperationException($"CrystalData initialization failed: {result}");
+        }
 
         var data = product.Context.ServiceProvider.GetRequiredData<FirstData>(); // Retrieve a data instance from the service provider.
 

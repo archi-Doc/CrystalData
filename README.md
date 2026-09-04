@@ -10,6 +10,7 @@ CrystalData is a persistence engine for .NET. It combines snapshot files, option
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick start](#quick-start)
+- [NativeAOT](#nativeaot)
 - [Configuration](#configuration)
 - [Paths and backups](#paths-and-backups)
 - [Saving and shutdown](#saving-and-shutdown)
@@ -90,6 +91,18 @@ await control.StoreAndRip();
 ```
 
 `StoreAndRip` is terminal: the `CrystalControl` instance cannot be used after it completes. Call it during application shutdown.
+
+## NativeAOT
+
+CrystalData supports NativeAOT. Data types must use Tinyhand source generation and be registered through the generic `AddCrystal<TData>`, `CreateCrystal<TData>`, or `GetOrCreateCrystal<TData>` APIs so their closed generic forms are visible at build time.
+
+Publish an application for a specific runtime identifier:
+
+```shell
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishAot=true
+```
+
+The CrystalData project enables the .NET AOT and trimming compatibility analyzers, and CI publishes and runs QuickStart as a native executable.
 
 ## Configuration
 

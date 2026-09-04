@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>true</IsAotCompatible>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 
@@ -10,8 +11,9 @@
     <Product>CrystalData</Product>
     <Description>CrystalData is a simple and versatile storage engine for C#.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/archi-Doc/LP</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/archi-Doc/LP</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/archi-Doc/CrystalData</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/archi-Doc/CrystalData</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,6 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
     <EmbeddedResource Include="UserInterface\Strings\strings-en.tinyhand" />
     <EmbeddedResource Include="UserInterface\Strings\strings-ja.tinyhand" />
   </ItemGroup>
