@@ -161,8 +161,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(StoragePoint<TData> other)
     {
-        var data = this.TryGet().Result;
-        var otherData = other.TryGet().Result;
+        var data = this.TryGet().AsTask().GetAwaiter().GetResult();
+        var otherData = other.TryGet().AsTask().GetAwaiter().GetResult();
         if (data is null)
         {
             return otherData is null;
@@ -175,7 +175,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(TData? otherData)
     {
-        var data = this.TryGet().Result;
+        var data = this.TryGet().AsTask().GetAwaiter().GetResult();
         if (data is null)
         {
             return otherData is null;

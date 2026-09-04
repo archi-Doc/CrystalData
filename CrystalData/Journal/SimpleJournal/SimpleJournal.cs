@@ -272,6 +272,7 @@ public partial class SimpleJournal : IJournal
         var success = await this.ReadJournalAsync(position, nextPosition, memoryOwner.Memory).ConfigureAwait(false);
         if (!success)
         {
+            memoryOwner.Return();
             return (0, default);
         }
 

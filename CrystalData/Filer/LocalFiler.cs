@@ -110,6 +110,7 @@ TryWrite:
         }
         else if (work.Type == FilerWork.WorkType.Read)
         {// Read
+            BytePool.RentMemory memoryOwner = default;
             try
             {
                 var offset = work.Offset;
@@ -119,6 +120,12 @@ TryWrite:
                     try
                     {
                         var fileInfo = new FileInfo(filePath);
+                        if (fileInfo.Length > int.MaxValue)
+                        {
+                            work.Result = CrystalResult.FileOperationError;
+                            return;
+                        }
+
                         lengthToRead = (int)fileInfo.Length;
                         offset = 0;
                     }
@@ -131,7 +138,7 @@ TryWrite:
 
                 using (var handle = File.OpenHandle(filePath, mode: FileMode.Open, access: FileAccess.Read))
                 {
-                    var memoryOwner = BytePool.Default.Rent(lengthToRead).AsMemory(0, lengthToRead);
+                    memoryOwner = BytePool.Default.Rent(lengthToRead).AsMemory(0, lengthToRead);
                     var read = await RandomAccess.ReadAsync(handle, memoryOwner.Memory, offset, worker.CancellationToken).ConfigureAwait(false);
                     // Console.WriteLine($"Read {filePath} {read.ToString()}");
                     if (read != lengthToRead)
@@ -151,7 +158,8 @@ TryWrite:
 
                     work.Result = CrystalResult.Success;
                     work.ReadData = memoryOwner;
-                    worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read[{memoryOwner.Memory.Length}] {work.Path}");
+                    memoryOwner = default;
+                    worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read[{work.ReadData.Memory.Length}] {work.Path}");
                     return;
                 }
             }
@@ -167,6 +175,7 @@ TryWrite:
             }
             finally
             {
+                memoryOwner.Return();
             }
         }
         else if (work.Type == FilerWork.WorkType.Delete)
@@ -181,22 +190,19 @@ TryWrite:
             {
                 work.Result = CrystalResult.FileOperationError;
             }
-            finally
-            {
-            }
         }
         else if (work.Type == FilerWork.WorkType.DeleteEmptyDirectory ||
             work.Type == FilerWork.WorkType.DeleteDirectory)
         {// Delete directory recursively
-            if (work.Type == FilerWork.WorkType.DeleteEmptyDirectory &&
-                StorageHelper.ContainsAnyFile(filePath))
-            {// Directory is not empty
-                work.Result = CrystalResult.FileOperationError;
-                return;
-            }
-
             try
             {
+                if (work.Type == FilerWork.WorkType.DeleteEmptyDirectory &&
+                    StorageHelper.ContainsAnyFile(filePath))
+                {// Directory is not empty
+                    work.Result = CrystalResult.FileOperationError;
+                    return;
+                }
+
                 Directory.Delete(filePath, true);
                 work.Result = CrystalResult.Success;
             }
@@ -226,7 +232,7 @@ TryWrite:
                 var directoryInfo = new DirectoryInfo(directory);
                 foreach (var x in directoryInfo.EnumerateFileSystemInfos())
                 {
-                    if (string.IsNullOrEmpty(prefix) || x.Name.StartsWith(prefix))
+                    if (string.IsNullOrEmpty(prefix) || x.Name.StartsWith(prefix, StringComparison.Ordinal))
                     {
                         if (x is FileInfo fi)
                         {

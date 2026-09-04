@@ -21,35 +21,25 @@ public sealed class ReadOnlyMemoryStream : Stream
     public override long Position
     {
         get => this.position;
-        set => this.position = value;
+        set
+        {
+            if ((ulong)value > int.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            this.position = value;
+        }
     }
 
-    public override void Flush() => throw new NotSupportedException();
+    public override void Flush()
+    {
+    }
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        if (this.position < this.memory.Length)
-        {
-            var lengthToRead = this.memory.Length - (int)this.position;
-            var bufferRemaining = buffer.Length - offset;
-            lengthToRead = (lengthToRead < count) ? lengthToRead : count;
-            lengthToRead = (lengthToRead < bufferRemaining) ? lengthToRead : bufferRemaining;
-
-            if (lengthToRead > 0)
-            {
-                this.memory.Span.Slice((int)this.position, lengthToRead).CopyTo(buffer.AsSpan(offset));
-                this.position += lengthToRead;
-                return lengthToRead;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-        else
-        {
-            return 0;
-        }
+        ArgumentNullException.ThrowIfNull(buffer);
+        return this.Read(buffer.AsSpan(offset, count));
     }
 
     public override int Read(Span<byte> buffer)
@@ -83,20 +73,24 @@ public sealed class ReadOnlyMemoryStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        if (origin == SeekOrigin.Begin)
+        long newPosition;
+        try
         {
-            this.position = offset;
+            newPosition = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => checked(this.position + offset),
+                SeekOrigin.End => checked(this.memory.Length + offset),
+                _ => throw new ArgumentException("Invalid seek origin.", nameof(origin)),
+            };
         }
-        else if (origin == SeekOrigin.Current)
+        catch (OverflowException ex)
         {
-            this.position += offset;
-        }
-        else if (origin == SeekOrigin.End)
-        {
-            this.position = this.memory.Length + offset;
+            throw new IOException("An attempt was made to move the position outside the valid stream range.", ex);
         }
 
-        return this.position;
+        this.Position = newPosition;
+        return newPosition;
     }
 
     public override void SetLength(long value) => throw new NotSupportedException();

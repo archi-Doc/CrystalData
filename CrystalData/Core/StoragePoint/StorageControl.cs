@@ -155,6 +155,7 @@ public partial class StorageControl : IPersistable
 
         foreach (var x in list)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
@@ -166,6 +167,7 @@ public partial class StorageControl : IPersistable
 
         foreach (var x in list)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
     }
@@ -180,6 +182,7 @@ public partial class StorageControl : IPersistable
 
         foreach (var x in list)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
@@ -193,6 +196,7 @@ public partial class StorageControl : IPersistable
 
             foreach (var x in list)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await x.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
 
@@ -228,6 +232,7 @@ public partial class StorageControl : IPersistable
                 this.UpdateLinkInternal(node);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
         }
     }

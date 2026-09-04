@@ -341,9 +341,15 @@ public sealed partial class CrystalSupplement
             if (this.ripFiler is not null)
             {
                 var rent = BytePool.Default.Rent(32);
-                Utf8Formatter.TryFormat(this.ripCount, rent.AsSpan(), out var written);
-                await this.ripFiler.WriteAsync(0, rent.AsReadOnly(0, written)).ConfigureAwait(false);
-                rent.Return();
+                try
+                {
+                    Utf8Formatter.TryFormat(this.ripCount, rent.AsSpan(), out var written);
+                    await this.ripFiler.WriteAsync(0, rent.AsReadOnly(0, written)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    rent.Return();
+                }
             }
         }
 

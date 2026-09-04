@@ -14,9 +14,27 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
 
     #region PropertyAndField
 
-    public long StorageUsage => this.storageUsage;
+    public long StorageUsage
+    {
+        get
+        {
+            using (this.lockObject.EnterScope())
+            {
+                return this.storageUsage;
+            }
+        }
+    }
 
-    public int Count => this.fileToSize.Count;
+    public int Count
+    {
+        get
+        {
+            using (this.lockObject.EnterScope())
+            {
+                return this.fileToSize.Count;
+            }
+        }
+    }
 
     private Lock lockObject = new();
     private long storageUsage; // syncObject
@@ -153,7 +171,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
         while (true)
         {
             var file = RandomVault.Default.NextUInt32();
-            if (this.fileToSize.TryAdd(file, size))
+            if (file != 0 && this.fileToSize.TryAdd(file, size))
             {
                 if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {

@@ -33,6 +33,10 @@ internal static class HashHelper
         {
             return hash;
         }
+        finally
+        {
+            result.Return();
+        }
 
         return hash;
     }

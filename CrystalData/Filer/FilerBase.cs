@@ -140,6 +140,6 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     protected override void OnJobFinished(FilerWork job)
     {
-        var result = this.pathToTask.TryRemove(new(job.Path, job.Task));
+        this.pathToTask.TryRemove(new(job.Path, job.Task));
     }
 }

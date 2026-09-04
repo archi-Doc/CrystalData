@@ -104,21 +104,28 @@ TryWrite:
         }
         else if (work.Type == FilerWork.WorkType.Read)
         {// Read
+            if (work.Length == 0)
+            {
+                work.ReadData = BytePool.RentMemory.Empty;
+                work.Result = CrystalResult.Success;
+                return;
+            }
+
             try
             {
                 var request = new Amazon.S3.Model.GetObjectRequest() { BucketName = worker.bucket, Key = filePath, };
                 if (work.Length > 0)
                 {
-                    request.ByteRange = new(work.Offset, work.Length);
+                    request.ByteRange = new(work.Offset, checked(work.Offset + work.Length - 1));
                 }
 
-                var response = await worker.client.GetObjectAsync(request, worker.CancellationToken).ConfigureAwait(false);
+                using var response = await worker.client.GetObjectAsync(request, worker.CancellationToken).ConfigureAwait(false);
                 if (response.HttpStatusCode == System.Net.HttpStatusCode.OK ||
                     response.HttpStatusCode == System.Net.HttpStatusCode.PartialContent)
                 {
                     using (var ms = new MemoryStream())
                     {
-                        response.ResponseStream.CopyTo(ms);
+                        await response.ResponseStream.CopyToAsync(ms, worker.CancellationToken).ConfigureAwait(false);
                         work.Result = CrystalResult.Success;
                         work.ReadData = BytePool.RentMemory.CreateFrom(ms.ToArray());
                         worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read {filePath}, {work.ReadData.Memory.Length}");
@@ -134,9 +141,6 @@ TryWrite:
             catch
             {
             }
-            finally
-            {
-            }
 
             work.Result = CrystalResult.FileOperationError;
             worker.logger?.GetWriter(LogLevel.Error)?.Write($"Read exception {filePath}");
@@ -150,6 +154,7 @@ TryWrite:
                 if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
                 {
                     work.Result = CrystalResult.Success;
+                    return;
                 }
             }
             catch
@@ -160,6 +165,7 @@ TryWrite:
         }
         else if (work.Type == FilerWork.WorkType.DeleteEmptyDirectory)
         {// Delete empty directory
+            work.Result = CrystalResult.Success;
         }
         else if (work.Type == FilerWork.WorkType.DeleteDirectory)
         {// Delete directory recursively
@@ -171,7 +177,7 @@ TryWrite:
             while (true)
             {
                 var listRequest = new ListObjectsV2Request() { BucketName = worker.bucket, Prefix = filePath, };
-                var listResponse = await worker.client.ListObjectsV2Async(listRequest).ConfigureAwait(false);
+                var listResponse = await worker.client.ListObjectsV2Async(listRequest, worker.CancellationToken).ConfigureAwait(false);
                 if (listResponse.HttpStatusCode != System.Net.HttpStatusCode.OK)
                 {
                     work.Result = CrystalResult.FileOperationError;
@@ -190,7 +196,7 @@ TryWrite:
                     deleteRequest.AddKey(x.Key);
                 }
 
-                var deleteResponse = await worker.client.DeleteObjectsAsync(deleteRequest).ConfigureAwait(false);
+                var deleteResponse = await worker.client.DeleteObjectsAsync(deleteRequest, worker.CancellationToken).ConfigureAwait(false);
                 if (deleteResponse.HttpStatusCode != System.Net.HttpStatusCode.OK)
                 {
                     work.Result = CrystalResult.FileOperationError;
@@ -307,9 +313,18 @@ NoAccess:
         await this.WaitForCompletion().ConfigureAwait(false);
         if (terminate)
         {
-            this.client?.Dispose();
-            this.client = null;
             this.Dispose();
         }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            this.client?.Dispose();
+            this.client = null;
+        }
+
+        base.Dispose(disposing);
     }
 }

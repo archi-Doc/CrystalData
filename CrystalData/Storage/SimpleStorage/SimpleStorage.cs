@@ -152,12 +152,20 @@ internal partial class SimpleStorage : IStorage
     {
         if (this.storageCrystal is not null)
         {
-            await this.storageCrystal.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+            var result = await this.storageCrystal.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
         }
 
         if (this.mapCrystal is not null)
         {
-            await this.mapCrystal.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+            var result = await this.mapCrystal.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
         }
 
         return CrystalResult.Success;
@@ -233,7 +241,11 @@ internal partial class SimpleStorage : IStorage
             return Task.FromResult(CrystalResult.NotFound);
         }
 
-        this.storageData.Remove(file);
+        if (!this.storageData.Remove(file))
+        {
+            fileId = 0;
+            return Task.FromResult(CrystalResult.NotFound);
+        }
 
         var path = this.FileToPath(FileIdToFile(fileId));
         fileId = 0;

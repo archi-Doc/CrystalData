@@ -141,44 +141,55 @@ public partial class SimpleJournal
 
             book.memoryOwner = toBeMoved;
             book.hash = FarmHash.Hash64(toBeMoved.Memory.Span);
-
-            // Save the merged book first
-            if (await book.SaveAsync().ConfigureAwait(false) == false)
+            var succeeded = false;
+            try
             {
-                return false;
-            }
-
-            using (simpleJournal.lockBooks.EnterScope())
-            {
-                var range = simpleJournal.books.PositionChain.GetRange(start, end - 1);
-                if (range.Lower == null || range.Upper == null)
-                {
-                    return false;
-                }
-                else if (range.Lower.position != start || range.Upper.NextPosition != end)
+                // Save the merged book first
+                if (await book.SaveAsync().ConfigureAwait(false) == false)
                 {
                     return false;
                 }
 
-                // Delete books
-                var b = range.Lower;
-                while (b != null)
+                using (simpleJournal.lockBooks.EnterScope())
                 {
-                    var b2 = b.PositionLink.Next;
-                    b.DeleteInternal();
-                    if (b == range.Upper)
+                    var range = simpleJournal.books.PositionChain.GetRange(start, end - 1);
+                    if (range.Lower == null || range.Upper == null)
                     {
-                        break;
+                        return false;
+                    }
+                    else if (range.Lower.position != start || range.Upper.NextPosition != end)
+                    {
+                        return false;
                     }
 
-                    b = b2;
+                    // Delete books
+                    var b = range.Lower;
+                    while (b != null)
+                    {
+                        var b2 = b.PositionLink.Next;
+                        b.DeleteInternal();
+                        if (b == range.Upper)
+                        {
+                            break;
+                        }
+
+                        b = b2;
+                    }
+
+                    // Add the merged book
+                    book.Goshujin = simpleJournal.books;
                 }
 
-                // Add the merged book
-                book.Goshujin = simpleJournal.books;
+                succeeded = true;
+                return true; // Success
             }
-
-            return true; // Success
+            finally
+            {
+                if (!succeeded)
+                {
+                    book.memoryOwner.Return();
+                }
+            }
         }
 
         public void SaveInternal()

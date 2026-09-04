@@ -228,10 +228,7 @@ public partial class CrystalControl
             }
             else if (configuration is LocalFileConfiguration)
             {// Local file
-                if (this.localFiler == null)
-                {
-                    this.localFiler ??= new LocalFiler(this.Root);
-                }
+                this.localFiler ??= new LocalFiler(this.Root);
 
                 return (this.localFiler, configuration);
             }
@@ -268,10 +265,7 @@ public partial class CrystalControl
             }
             else if (configuration is LocalDirectoryConfiguration)
             {// Local directory
-                if (this.localFiler == null)
-                {
-                    this.localFiler ??= new LocalFiler(this.Root);
-                }
+                this.localFiler ??= new LocalFiler(this.Root);
 
                 return (this.localFiler, configuration);
             }
@@ -536,7 +530,7 @@ public partial class CrystalControl
     {
         var crystals = this.crystals.GetCrystals(false);
         var tasks = crystals.Select(x => x.Delete()).ToArray();
-        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     public void DeleteDirectory(DirectoryConfiguration directoryConfiguration)
@@ -1000,10 +994,11 @@ public partial class CrystalControl
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
-        var releaseTasks = new Task[this.Options.ConcurrentUnload];
-        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
+        var concurrentUnload = Math.Max(1, this.Options.ConcurrentUnload);
+        var releaseTasks = new Task[concurrentUnload];
+        for (var i = 0; i < concurrentUnload; i++)
         {
-            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode, cancellationToken);
         }
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
@@ -1016,16 +1011,16 @@ public partial class CrystalControl
             goshujin.Add(new(x));
         }
 
-        for (var i = 0; i < this.Options.ConcurrentUnload; i++)
+        for (var i = 0; i < concurrentUnload; i++)
         {
-            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode);
+            releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode, cancellationToken);
         }
 
         await Task.WhenAll(releaseTasks).ConfigureAwait(false);
 
         if (this.Journal is { } journal)
         {// Journal
-            await journal.StoreData().ConfigureAwait(false);
+            await journal.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
         }
 
         await this.CrystalSupplement.Store(terminate).ConfigureAwait(false);

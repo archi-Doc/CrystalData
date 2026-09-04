@@ -1,7 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Linq.Expressions;
-
 namespace CrystalData.Storage;
 
 public partial class EmptyStorage : IStorage
@@ -15,12 +13,13 @@ public partial class EmptyStorage : IStorage
     long IStorage.StorageUsage => 0;
 
     void IStorage.SetTimeout(TimeSpan timeout)
-        => Expression.Empty();
+    {
+    }
 
     Task<CrystalResult> IStorage.PrepareAndCheck(PrepareParam param, StorageConfiguration storageConfiguration)
         => Task.FromResult(CrystalResult.Success);
 
-    Type IPersistable.DataType => throw new NotImplementedException();
+    Type IPersistable.DataType => typeof(EmptyStorage);
 
     Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
         => Task.FromResult(CrystalResult.Success);
