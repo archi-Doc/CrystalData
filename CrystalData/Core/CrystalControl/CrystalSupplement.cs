@@ -5,6 +5,9 @@ using Arc;
 
 namespace CrystalData.Supplement;
 
+/// <summary>
+/// Maintains persisted metadata used to coordinate crystal snapshots and journal positions.
+/// </summary>
 public sealed partial class CrystalSupplement
 {
     public const string DefaultSupplementFileName = "CrystalData.Supplement";

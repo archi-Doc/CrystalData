@@ -7,12 +7,10 @@ using Tinyhand.IO;
 namespace CrystalData;
 
 /// <summary>
-/// <see cref="MonoData{TIdentifier, TDatum}"/> is a simple key-value store that uses TinyhandSerializer.<br/>
-/// You can set the data capacity, and data exceeding this limit will be deleted in order from the oldest.<br/>
-/// It is thread-safe (using lock statements).
+/// Provides a thread-safe, Tinyhand-serializable key-value store with oldest-entry eviction.
 /// </summary>
-/// <typeparam name="TIdentifier">The type of the identifier.</typeparam>
-/// <typeparam name="TDatum">The type of the data.</typeparam>
+/// <typeparam name="TIdentifier">The key type.</typeparam>
+/// <typeparam name="TDatum">The value type.</typeparam>
 [TinyhandObject]
 public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDatum>, ITinyhandSerializable<MonoData<TIdentifier, TDatum>>, ITinyhandSingleLayoutSerializable
 {

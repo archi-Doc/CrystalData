@@ -9,6 +9,9 @@ internal abstract partial class CrystalObjectBase
 {
     #region Goshujin
 
+    /// <summary>
+    /// Maintains the indexed collection of crystal registrations owned by a control instance.
+    /// </summary>
     public partial class GoshujinClass
     {
         public ICrystalInternal[] GetCrystals(bool includeUnmanaged)

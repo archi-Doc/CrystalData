@@ -3,7 +3,7 @@
 namespace CrystalData;
 
 /// <summary>
-/// An interface for operating on a single, pre-specified file.
+/// Defines asynchronous operations for one preconfigured file.
 /// </summary>
 public interface ISingleFiler
 {

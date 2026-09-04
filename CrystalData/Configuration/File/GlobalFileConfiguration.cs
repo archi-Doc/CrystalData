@@ -3,8 +3,7 @@
 namespace CrystalData;
 
 /// <summary>
-/// Represents a global file configuration, inheriting from <see cref="FileConfiguration"/>.<br/>
-/// Specifies the file path relative to the common root directory, as defined by <see cref="CrystalOptions.GlobalDirectory"/>.
+/// Represents a file path resolved relative to <see cref="CrystalOptions.GlobalDirectory"/>.
 /// </summary>
 [TinyhandObject]
 public partial record GlobalFileConfiguration : FileConfiguration

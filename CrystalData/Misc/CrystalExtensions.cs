@@ -5,6 +5,9 @@ using CrystalData;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand.IO;
 
+/// <summary>
+/// Provides convenience methods for crystal formats, dependency injection, and journal access.
+/// </summary>
 public static class CrystalExtensions
 {
     public const bool GroupIndependence = true;

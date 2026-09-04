@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Provides the common path representation for file and directory configurations.
+/// </summary>
 [TinyhandUnion("EmptyFile", typeof(EmptyFileConfiguration))]
 [TinyhandUnion("EmptyDirectory", typeof(EmptyDirectoryConfiguration))]
 [TinyhandUnion("LocalFile", typeof(LocalFileConfiguration))]

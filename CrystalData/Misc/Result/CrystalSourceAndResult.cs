@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies the source and outcome of a crystal load operation.
+/// </summary>
 public readonly struct CrystalSourceAndResult
 {
     public CrystalSourceAndResult(CrystalSource source, CrystalResult result)

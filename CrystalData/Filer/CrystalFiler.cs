@@ -4,6 +4,9 @@ using System.IO;
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Manages primary and backup crystal files, including snapshot histories.
+/// </summary>
 public class CrystalFiler
 {
     internal class Output

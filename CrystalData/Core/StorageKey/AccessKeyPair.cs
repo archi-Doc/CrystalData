@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Stores an access-key identifier and secret used to authenticate an S3 bucket.
+/// </summary>
 public readonly struct AccessKeyPair : IEquatable<AccessKeyPair>
 {
     public const char Separator = '=';

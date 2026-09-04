@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Exposes generated identifiers for localized CrystalData messages.
+/// </summary>
 [TinyhandGenerateHash("strings-en.tinyhand")]
 public static partial class CrystalDataHashed
 {

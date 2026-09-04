@@ -11,6 +11,9 @@ namespace CrystalData.Internal;
 #pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
 #pragma warning disable SA1401 // Fields should be private
 
+/// <summary>
+/// Stores the metadata and synchronization state for one independently persisted value.
+/// </summary>
 [TinyhandObject(ExplicitKeysOnly = true)]
 [ValueLinkObject]
 public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IStructuralRoot, IDataUnlocker, IEquatable<StorageObject>

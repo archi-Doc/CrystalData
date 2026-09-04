@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Contains an operation result and owned pooled memory that must be returned by the consumer.
+/// </summary>
 public readonly struct CrystalMemoryOwnerResult
 {
     public CrystalMemoryOwnerResult(CrystalResult result, BytePool.RentReadOnlyMemory data)

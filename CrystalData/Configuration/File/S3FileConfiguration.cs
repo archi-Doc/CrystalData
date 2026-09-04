@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies an object key in an Amazon S3 bucket.
+/// </summary>
 [TinyhandObject]
 public partial record S3FileConfiguration : FileConfiguration
 {

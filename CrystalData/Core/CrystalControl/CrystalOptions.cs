@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines global runtime defaults and resource limits for <see cref="CrystalControl"/>.
+/// </summary>
 public partial record class CrystalOptions
 {
     public const int DefaultMemoryUsageLimit = 1024 * 1024 * 500; // 500MB

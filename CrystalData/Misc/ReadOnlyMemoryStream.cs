@@ -2,6 +2,9 @@
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Exposes a <see cref="ReadOnlyMemory{T}"/> of bytes as a readable, seekable stream.
+/// </summary>
 public sealed class ReadOnlyMemoryStream : Stream
 {
     public ReadOnlyMemoryStream(ReadOnlyMemory<byte> memory)

@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Configures the built-in file-backed journal.
+/// </summary>
 [TinyhandObject]
 public partial record SimpleJournalConfiguration : JournalConfiguration
 {

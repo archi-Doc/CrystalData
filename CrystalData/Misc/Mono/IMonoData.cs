@@ -2,6 +2,11 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines a bounded key-value collection that evicts older entries.
+/// </summary>
+/// <typeparam name="TIdentifier">The key type.</typeparam>
+/// <typeparam name="TDatum">The value type.</typeparam>
 public interface IMonoData<TIdentifier, TDatum>
 {
     int Count { get; }

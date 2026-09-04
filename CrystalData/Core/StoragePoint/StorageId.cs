@@ -6,6 +6,9 @@ using Arc;
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies stored data by journal position, file identifier, and content hash.
+/// </summary>
 [TinyhandObject]
 public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<StorageId>
 {// StorageId: JournalPosition 8 bytes, File id 8 bytes, Hash 8 bytes

@@ -2,6 +2,9 @@
 
 namespace CrystalData.Storage;
 
+/// <summary>
+/// Provides a no-op auxiliary storage implementation.
+/// </summary>
 public partial class EmptyStorage : IStorage
 {
     public static readonly EmptyStorage Default = new();

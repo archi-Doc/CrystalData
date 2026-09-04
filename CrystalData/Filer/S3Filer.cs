@@ -9,6 +9,9 @@ using CrystalData.Results;
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Performs filer operations against objects in an Amazon S3 bucket.
+/// </summary>
 public class S3Filer : FilerBase, IFiler
 {// Vault: S3Bucket/BucketName "AccessKeyId=SecretAccessKey"
     private const string WriteTestFile = "Write.test";

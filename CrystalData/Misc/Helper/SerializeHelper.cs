@@ -9,6 +9,9 @@ namespace CrystalData;
     bool Deserialize(ReadOnlySpan<byte> span, out int bytesRead);
 }*/
 
+/// <summary>
+/// Provides safe Tinyhand serialization and deserialization helpers for crystal data.
+/// </summary>
 public static class SerializeHelper
 {
     // public const int StandardFragmentSize = 1024 * 4; // 4KB

@@ -9,6 +9,9 @@ using Tinyhand.IO;
 
 namespace CrystalData.Journal;
 
+/// <summary>
+/// Implements an append-only, file-backed journal with optional backup storage.
+/// </summary>
 public partial class SimpleJournal : IJournal
 {
     public const string CompleteSuffix = ".complete";

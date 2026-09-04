@@ -4,6 +4,9 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines append, replay, checkpoint, and lifecycle operations for a crystal journal.
+/// </summary>
 public interface IJournal : IPersistable
 {
     int MaxRecordLength { get; }

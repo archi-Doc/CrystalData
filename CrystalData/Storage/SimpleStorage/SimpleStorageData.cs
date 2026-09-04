@@ -5,6 +5,9 @@ using Tinyhand.IO;
 
 namespace CrystalData.Storage;
 
+/// <summary>
+/// Persists the file index and usage metadata for the built-in auxiliary storage.
+/// </summary>
 [TinyhandObject(Structural = true)]
 public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData>, ITinyhandCustomJournal
 {

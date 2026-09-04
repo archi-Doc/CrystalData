@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Contains an operation result and a non-owning read-only memory value.
+/// </summary>
 public readonly struct CrystalMemoryResult
 {
     public CrystalMemoryResult(CrystalResult result, ReadOnlyMemory<byte> data)

@@ -2,6 +2,10 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Contains an operation result and an optional deserialized object.
+/// </summary>
+/// <typeparam name="T">The object type.</typeparam>
 public readonly struct CrystalObjectResult<T>
 {
     public CrystalObjectResult(CrystalResult result, T? obj)

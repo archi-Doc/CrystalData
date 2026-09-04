@@ -4,6 +4,9 @@ using Tinyhand.IO;
 
 namespace CrystalData.Journal;
 
+/// <summary>
+/// Provides a no-op journal for configurations that disable journaling.
+/// </summary>
 public class EmptyJournal : IJournal
 {
     public static readonly EmptyJournal Default = new();

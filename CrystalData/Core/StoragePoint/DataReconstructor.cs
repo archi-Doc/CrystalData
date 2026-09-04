@@ -5,6 +5,9 @@ using Tinyhand.IO;
 
 namespace CrystalData;
 
+/// <summary>
+/// Provides helpers for reconstructing structural data from journal records.
+/// </summary>
 public static class JournalExtensions
 {
     public static Task<object?> RestoreData<TData>(this IJournal journal, ulong startPosition, ulong upperLimit, TData data, uint plane, ulong pointId = 0)

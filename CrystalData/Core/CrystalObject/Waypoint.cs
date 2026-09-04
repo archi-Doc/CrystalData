@@ -6,6 +6,9 @@ using Arc;
 
 namespace CrystalData;
 
+/// <summary>
+/// Identifies a crystal snapshot by journal position, content hash, and journal plane.
+/// </summary>
 [TinyhandObject]
 public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Waypoint>
 {// JournalPosition, Plane, Hash

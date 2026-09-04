@@ -5,6 +5,9 @@ using CrystalData.Results;
 
 namespace CrystalData.Filer;
 
+/// <summary>
+/// Performs filer operations against the local file system.
+/// </summary>
 public class LocalFiler : FilerBase, IFiler
 {
     public LocalFiler(ExecutionRoot root)

@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Represents a directory configuration whose operations do not access external storage.
+/// </summary>
 [TinyhandObject]
 public partial record EmptyDirectoryConfiguration : DirectoryConfiguration
 {

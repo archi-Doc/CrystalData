@@ -3,7 +3,7 @@
 namespace CrystalData.Filer;
 
 /// <summary>
-/// An interface for operating on files by specifying a path.
+/// Defines asynchronous file operations for caller-supplied paths.
 /// </summary>
 public interface IFiler
 {

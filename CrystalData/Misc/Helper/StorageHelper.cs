@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace CrystalData;
 
+/// <summary>
+/// Provides path, size-formatting, and file-system helpers used by storage components.
+/// </summary>
 public static partial class StorageHelper
 {
     public const char Slash = '/';

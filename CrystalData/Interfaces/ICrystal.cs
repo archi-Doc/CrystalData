@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Defines the non-generic lifecycle and storage contract for a registered crystal.
+/// </summary>
 public interface ICrystal : IStructuralObject, IStructuralRoot, IPersistable
 {
     CrystalControl CrystalControl { get; }
@@ -27,6 +30,10 @@ public interface ICrystal : IStructuralObject, IStructuralRoot, IPersistable
     Task<CrystalResult> Delete();
 }
 
+/// <summary>
+/// Provides strongly typed access to a registered crystal.
+/// </summary>
+/// <typeparam name="TData">The serializable data type.</typeparam>
 public interface ICrystal<TData> : ICrystal
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {

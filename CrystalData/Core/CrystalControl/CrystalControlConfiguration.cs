@@ -2,6 +2,9 @@
 
 namespace CrystalData;
 
+/// <summary>
+/// Holds the crystal and journal registrations consumed by <see cref="CrystalControl"/>.
+/// </summary>
 public record class CrystalControlConfiguration
 {
     public CrystalControlConfiguration()
