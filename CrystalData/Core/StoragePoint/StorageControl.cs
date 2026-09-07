@@ -151,11 +151,6 @@ public partial class StorageControl : IPersistable
     internal async Task StoreObjects(CancellationToken cancellationToken)
     {
         var list = this.CreateOnMemoryList();
-        if (list is null)
-        {
-            return;
-        }
-
         foreach (var x in list)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -163,11 +158,6 @@ public partial class StorageControl : IPersistable
         }
 
         list = this.CreatePinnedList();
-        if (list is null)
-        {
-            return;
-        }
-
         foreach (var x in list)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -178,11 +168,6 @@ public partial class StorageControl : IPersistable
     internal async Task ReleaseObjects(CancellationToken cancellationToken)
     {
         var list = this.CreatePinnedList();
-        if (list is null)
-        {
-            return;
-        }
-
         foreach (var x in list)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -192,11 +177,6 @@ public partial class StorageControl : IPersistable
         while (!cancellationToken.IsCancellationRequested)
         {
             list = this.CreateOnMemoryList();
-            if (list is null)
-            {
-                return;
-            }
-
             foreach (var x in list)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -236,7 +216,16 @@ public partial class StorageControl : IPersistable
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
+            try
+            {
+                await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
+            }
+            catch (IOException ex)
+            {
+                this.Logger?.GetWriter(LogLevel.Error)?.Write($"Background storage release failed: {ex.Message}");
+                await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
+                return;
+            }
         }
     }
 
@@ -513,7 +502,18 @@ public partial class StorageControl : IPersistable
 
             for (var i = 0; i < count; i++)
             {
-                await tempArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+                try
+                {
+                    if (!await tempArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false))
+                    {
+                        this.AddToSaveQueue(tempArray[i]);
+                    }
+                }
+                catch (IOException ex)
+                {
+                    this.AddToSaveQueue(tempArray[i]);
+                    this.Logger?.GetWriter(LogLevel.Error)?.Write($"Queued storage save failed: {ex.Message}");
+                }
             }
 
             Array.Clear(tempArray, 0, count);
@@ -764,16 +764,16 @@ public partial class StorageControl : IPersistable
         this.onMemoryHead = node;
     }
 
-    private List<StorageObject>? CreateOnMemoryList()
+    private IReadOnlyList<StorageObject> CreateOnMemoryList()
     {
-        List<StorageObject> list = new();
         using (this.lowestLockObject.EnterScope())
         {
             if (this.onMemoryHead is null)
             {// No storage objects to release.
-                return null;
+                return Array.Empty<StorageObject>();
             }
 
+            List<StorageObject> list = new();
             StorageObject node = this.onMemoryHead;
             while (true)
             {
@@ -784,25 +784,31 @@ public partial class StorageControl : IPersistable
                     break;
                 }
             }
-        }
 
-        return list;
+            return list;
+        }
     }
 
-    private List<StorageObject>? CreatePinnedList()
+    private IReadOnlyList<StorageObject> CreatePinnedList()
     {
-        List<StorageObject> list = new();
         using (this.lowestLockObject.EnterScope())
         {
             var node = this.pinnedHead;
-            while (node is not null)
+            if (node is null)
+            {
+                return Array.Empty<StorageObject>();
+            }
+
+            List<StorageObject> list = new();
+            do
             {
                 list.Add(node);
-                node = node.onMemoryNext;
+                node = node.onMemoryNext!;
             }
-        }
+            while (node != this.pinnedHead);
 
-        return list;
+            return list;
+        }
     }
 
     internal void PinObject(StorageObject node)

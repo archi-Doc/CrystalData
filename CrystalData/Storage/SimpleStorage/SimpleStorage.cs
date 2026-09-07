@@ -11,7 +11,7 @@ namespace CrystalData.Storage;
 internal partial class SimpleStorage : IStorage
 {
     private const string Filename = "Simple";
-    private const int DefaultNumberOfHistoryFiles = 2;
+    private readonly SemaphoreLock prepareLock = new();
 
     public SimpleStorage(CrystalControl crystalControl)
     {
@@ -34,6 +34,7 @@ internal partial class SimpleStorage : IStorage
     private IFiler? mainFiler;
     private IFiler? backupFiler;
     private TimeSpan timeout;
+    private bool prepared;
 
     public int NumberOfHistoryFiles { get; private set; }
 
@@ -56,6 +57,12 @@ internal partial class SimpleStorage : IStorage
 
     async Task<CrystalResult> IStorage.PrepareAndCheck(PrepareParam param, StorageConfiguration storageConfiguration)
     {
+        using var prepareScope = await this.prepareLock.EnterScopeAsync().ConfigureAwait(false);
+        if (this.prepared)
+        {
+            return CrystalResult.Success;
+        }
+
         CrystalResult result;
         var directoryConfiguration = storageConfiguration.DirectoryConfiguration;
         this.NumberOfHistoryFiles = storageConfiguration.NumberOfHistoryFiles;
@@ -69,14 +76,11 @@ internal partial class SimpleStorage : IStorage
             }
         }
 
-        if (this.mainFiler is null)
+        (this.mainFiler, directoryConfiguration) = this.crystalControl.ResolveFiler(directoryConfiguration);
+        result = await this.mainFiler.PrepareAndCheck(param, directoryConfiguration).ConfigureAwait(false);
+        if (result.IsFailure())
         {
-            (this.mainFiler, directoryConfiguration) = this.crystalControl.ResolveFiler(directoryConfiguration);
-            result = await this.mainFiler.PrepareAndCheck(param, directoryConfiguration).ConfigureAwait(false);
-            if (result.IsFailure())
-            {
-                return result;
-            }
+            return result;
         }
 
         // Backup
@@ -89,14 +93,11 @@ internal partial class SimpleStorage : IStorage
                 this.backupDirectory += "/";
             }
 
-            if (this.backupFiler is null)
+            (this.backupFiler, backupDirectoryConfiguration) = this.crystalControl.ResolveFiler(backupDirectoryConfiguration);
+            result = await this.backupFiler.PrepareAndCheck(param, backupDirectoryConfiguration).ConfigureAwait(false);
+            if (result.IsFailure())
             {
-                (this.backupFiler, backupDirectoryConfiguration) = this.crystalControl.ResolveFiler(backupDirectoryConfiguration);
-                result = await this.backupFiler.PrepareAndCheck(param, backupDirectoryConfiguration).ConfigureAwait(false);
-                if (result.IsFailure())
-                {
-                    return result;
-                }
+                return result;
             }
         }
 
@@ -111,12 +112,12 @@ internal partial class SimpleStorage : IStorage
                 NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
                 RequiredForLoading = true,
             });
+        }
 
-            result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
-            if (result.IsFailure())
-            {
-                return result;
-            }
+        result = await this.storageCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
+        if (result.IsFailure())
+        {
+            return result;
         }
 
         if (this.mapCrystal == null)
@@ -133,18 +134,17 @@ internal partial class SimpleStorage : IStorage
             });
 
             ((ICrystalInternal)this.mapCrystal).SetStorage(this);
-            result = await this.mapCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
-            if (result.IsFailure())
-            {
-                return result;
-            }
-            else
-            {
-                this.storageMap = this.mapCrystal.Data;
-                this.storageMap.Enable(this.crystalControl.StorageControl, (CrystalObjectBase)this.mapCrystal, this);
-            }
         }
 
+        result = await this.mapCrystal.PrepareAndLoad(param.UseQuery).ConfigureAwait(false);
+        if (result.IsFailure())
+        {
+            return result;
+        }
+
+        this.storageMap = this.mapCrystal.Data;
+        this.storageMap.Enable(this.crystalControl.StorageControl, (CrystalObjectBase)this.mapCrystal, this);
+        this.prepared = true;
         return CrystalResult.Success;
     }
 
@@ -302,10 +302,16 @@ internal partial class SimpleStorage : IStorage
         var task = this.mainFiler.WriteAsync(this.MainFile(path), 0, dataToBeShared, this.timeout);
         if (this.backupFiler is not null)
         {
-            _ = this.backupFiler.WriteAsync(this.BackupFile(path), 0, dataToBeShared, this.timeout);
+            return CompleteWrites(task, this.backupFiler.WriteAsync(this.BackupFile(path), 0, dataToBeShared, this.timeout));
         }
 
         return task;
+
+        static async Task<CrystalResult> CompleteWrites(Task<CrystalResult> main, Task<CrystalResult> backup)
+        {
+            var results = await Task.WhenAll(main, backup).ConfigureAwait(false);
+            return results[0].IsFailure() ? results[0] : results[1];
+        }
     }
 
     async Task<CrystalResult> IStorage.DeleteStorageAsync()

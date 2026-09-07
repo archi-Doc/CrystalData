@@ -103,12 +103,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         => this.GetOrCreateStorageObject().GetOrCreate<TData>();*/
 
     /// <summary>
-    /// Attempts to acquire a lock on the storage object and returns the data if successful.<br/>
-    /// If storage is deleted or shutting down, return <c>null</c>.<br/>
-    /// Since data may be saved and released during storage operations, always lock the data when making changes.<br/>
-    /// This TryLock/Unlock mechanism provides exclusive control over both the storage lifecycle (loading and deletion) and the data itself.<br/>
-    /// <b>To prevent deadlocks, always maintain a consistent lock order and never forget to unlock.</b>
+    /// Acquires exclusive access to the data and its storage lifecycle.
     /// </summary>
+    /// <remarks>Check the returned scope's validity and dispose it before awaiting persistence. Use a consistent parent-to-child lock order.</remarks>
     /// <param name="acquisitionMode">The data acquisition mode specifying get, create, or get-or-create behavior.</param>
     /// <param name="timeout">The maximum time to wait for the lock. If <see cref="TimeSpan.Zero"/>, the method returns immediately.</param>
     /// <param name="cancellationToken">
@@ -116,11 +113,18 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// </param>
     /// <param name="factory">An optional factory function to create the data instance if it does not exist.</param>
     /// <returns>
-    /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation. The result contains the data if the lock was acquired; otherwise, <c>null</c>.
+    /// A valid data scope when acquisition succeeds; otherwise, a scope describing the failure.
     /// </returns>
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default, Func<IStructuralObject, TData>? factory = default)
         => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken, factory);
 
+    /// <summary>
+    /// Acquires a disposable data scope using the default lock timeout.
+    /// </summary>
+    /// <param name="acquisitionMode">The get, create, or get-or-create behavior.</param>
+    /// <param name="factory">An optional factory for new data.</param>
+    /// <returns>A valid data scope on success, or a scope describing the failure.</returns>
+    /// <remarks>Dispose the scope before awaiting a save of this point or its containing crystal.</remarks>
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate, Func<IStructuralObject, TData>? factory = default)
         => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default, factory);
 
@@ -135,7 +139,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     /// <summary>
     /// Pins the data associated with this storage point in memory.<br/>
-    /// This operation ensures the data remains in memory and is not released.
+    /// This prevents eviction but does not grant exclusive mutation access.
     /// </summary>
     /// <returns>
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation.<br/>
@@ -195,6 +199,13 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     int IStructuralObject.StructuralKey { get; set; }
 
+    /// <summary>
+    /// Saves the node and releases unpinned data only after a successful save when requested.
+    /// </summary>
+    /// <param name="storeMode">The persistence and release mode.</param>
+    /// <returns>Whether the node and its children were saved; false can indicate a locked node during try-release.</returns>
+    /// <remarks>Store-only and force-release wait for the node lock. Dispose mutation scopes before awaiting this method.</remarks>
+    /// <exception cref="IOException">A storage write fails.</exception>
     public Task<bool> StoreData(StoreMode storeMode)
     {
         if (this.storageObject is { } storageObject)

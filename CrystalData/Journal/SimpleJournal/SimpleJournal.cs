@@ -36,6 +36,7 @@ public partial class SimpleJournal : IJournal
 
     public DirectoryConfiguration? BackupConfiguration { get; private set; }
 
+    private readonly SemaphoreLock storeLock = new();
     private CrystalControl crystalControl;
     private bool prepared;
     private IFiler? rawFiler;
@@ -43,7 +44,7 @@ public partial class SimpleJournal : IJournal
     private SimpleJournalTask? task;
 
     // Record buffer: lockRecordBuffer
-    private Lock lockRecordBuffer = new(); // lockBooks > lockRecordBuffer
+    private Lock lockRecordBuffer = new(); // Acquire before lockBooks when both are needed.
     private byte[] recordBuffer = new byte[RecordBufferLength];
     private ulong recordBufferPosition = 1; // JournalPosition
     private int recordBufferLength = 0;
@@ -73,6 +74,7 @@ public partial class SimpleJournal : IJournal
             var result = await this.rawFiler.PrepareAndCheck(param, this.MainConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {
+                this.rawFiler = null;
                 return result;
             }
         }
@@ -84,6 +86,7 @@ public partial class SimpleJournal : IJournal
             var result = await this.backupFiler.PrepareAndCheck(param, this.BackupConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {
+                this.backupFiler = null;
                 return result;
             }
         }
@@ -99,6 +102,8 @@ public partial class SimpleJournal : IJournal
             var backupList = await this.ListBooks(this.backupFiler, this.BackupConfiguration).ConfigureAwait(false);
         }
 
+        await this.Merge(false).ConfigureAwait(false);
+
         if (this.task is null)
         {
             this.task = new(this.crystalControl.Root, this);
@@ -106,8 +111,6 @@ public partial class SimpleJournal : IJournal
         }
 
         this.logger.GetWriter()?.Write($"Prepared: {this.books.PositionChain.First?.Position} - {this.books.PositionChain.Last?.NextPosition} ({this.books.PositionChain.Count})");
-
-        await this.Merge(false).ConfigureAwait(false);
 
         this.prepared = true;
         return CrystalResult.Success;
@@ -232,6 +235,8 @@ public partial class SimpleJournal : IJournal
 
     void IJournal.ResetJournal(ulong position)
     {
+        using var storeScope = this.storeLock.EnterScope();
+        using var bufferScope = this.lockRecordBuffer.EnterScope();
         using (this.lockBooks.EnterScope())
         {
             var array = this.books.ToArray();
@@ -242,11 +247,8 @@ public partial class SimpleJournal : IJournal
 
             this.books.ClearChains();
 
-            using (this.lockRecordBuffer.EnterScope())
-            {
-                this.recordBufferPosition = position;
-                this.recordBufferLength = 0;
-            }
+            this.recordBufferPosition = position;
+            this.recordBufferLength = 0;
         }
     }
 
@@ -390,35 +392,54 @@ Load:
 
     internal async Task<CrystalResult> StoreJournalAsync(bool mergeBooks, StoreMode storeMode, CancellationToken cancellationToken)
     {
+        using var storeScope = await this.storeLock.EnterScopeAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        using (this.lockRecordBuffer.EnterScope())
+        {
+            this.FlushRecordBufferInternal();
+        }
+
+        List<Book>? pending = null;
         using (this.lockBooks.EnterScope())
         {
-            using (this.lockRecordBuffer.EnterScope())
-            {// Flush record buffer
-                this.FlushRecordBufferInternal();
-            }
-
-            // Save all books
-            Book? book = this.books.PositionChain.Last;
-            Book? next = null;
-            while (book != null && !book.IsSaved)
+            foreach (var book in this.books.PositionChain)
             {
-                next = book;
-                book = book.PositionLink.Previous;
+                if (!book.IsSaved)
+                {
+                    (pending ??= new()).Add(book);
+                }
             }
+        }
 
-            book = next;
-            while (book != null)
+        if (pending is not null)
+        {
+            foreach (var book in pending)
             {
-                book.SaveInternal();
-                book = book.PositionLink.Next;
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!await book.SaveAsync().ConfigureAwait(false))
+                {
+                    return CrystalResult.FileOperationError;
+                }
             }
+        }
 
+        using (this.lockBooks.EnterScope())
+        {
             // Limit memory usage
             while (this.memoryUsage > this.SimpleJournalConfiguration.MaxMemoryCapacity)
             {
                 if (this.books.InMemoryChain.First is { } b)
                 {
-                    b.Goshujin = null;
+                    if (!b.IsSaved)
+                    {
+                        break;
+                    }
+
+                    b.ReleaseMemoryInternal();
+                }
+                else
+                {
+                    break;
                 }
             }
 

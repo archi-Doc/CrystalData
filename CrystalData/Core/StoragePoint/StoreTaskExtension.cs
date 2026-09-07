@@ -56,13 +56,13 @@ internal static class StoreTaskExtension
 
             if (storeMode == StoreMode.StoreOnly)
             {// Store only
-                await task.PersistableObject.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
+                CheckResult(await task.PersistableObject.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false), task);
                 unloaded++;
             }
             else if (storeMode == StoreMode.ForceRelease ||
                 (utc - task.FirstProcessed) > crystalControl.Options.TimeoutUntilForcedRelease)
             {// Force release
-                await task.PersistableObject.StoreData(StoreMode.ForceRelease, cancellationToken).ConfigureAwait(false);
+                CheckResult(await task.PersistableObject.StoreData(StoreMode.ForceRelease, cancellationToken).ConfigureAwait(false), task);
                 crystalControl.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Unload.ForceUnloaded, task.PersistableObject.DataType.FullName!);
                 unloaded++;
             }
@@ -81,10 +81,19 @@ internal static class StoreTaskExtension
                 }
                 else
                 {
+                    CheckResult(result, task);
                     crystalControl.Logger.GetWriter(LogLevel.Information)?.Write(CrystalDataHashed.Unload.Unloaded, task.PersistableObject.DataType.FullName!);
                     unloaded++;
                 }
             }
+        }
+    }
+
+    private static void CheckResult(CrystalResult result, ReleaseTask task)
+    {
+        if (result != CrystalResult.Success && result != CrystalResult.NotPrepared && result != CrystalResult.Deleted)
+        {
+            throw new IOException($"Failed to store {task.PersistableObject.DataType.FullName}: {result}.");
         }
     }
 }

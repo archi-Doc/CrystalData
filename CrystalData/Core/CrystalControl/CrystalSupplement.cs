@@ -338,24 +338,6 @@ public sealed partial class CrystalSupplement
 
     internal async Task Store(bool rip)
     {
-        if (rip)
-        {
-            this.ripCount++;
-            if (this.ripFiler is not null)
-            {
-                var rent = BytePool.Default.Rent(32);
-                try
-                {
-                    Utf8Formatter.TryFormat(this.ripCount, rent.AsSpan(), out var written);
-                    await this.ripFiler.WriteAsync(0, rent.AsReadOnly(0, written)).ConfigureAwait(false);
-                }
-                finally
-                {
-                    rent.Return();
-                }
-            }
-        }
-
         BytePool.RentMemory rentMemory = default;
         try
         {
@@ -370,20 +352,41 @@ public sealed partial class CrystalSupplement
 
             if (this.mainFiler is not null)
             {
-                await this.mainFiler.WriteAsync(0, rentMemory.ReadOnly).ConfigureAwait(false);
+                CheckWrite(await this.mainFiler.WriteAsync(0, rentMemory.ReadOnly).ConfigureAwait(false));
             }
 
             if (this.backupFiler is not null)
             {
-                await this.backupFiler.WriteAsync(0, rentMemory.ReadOnly).ConfigureAwait(false);
+                CheckWrite(await this.backupFiler.WriteAsync(0, rentMemory.ReadOnly).ConfigureAwait(false));
             }
-        }
-        catch
-        {
         }
         finally
         {
             rentMemory.Return();
+        }
+
+        if (rip && this.ripFiler is not null)
+        {
+            var rent = BytePool.Default.Rent(32);
+            try
+            {
+                var nextRipCount = this.ripCount + 1;
+                Utf8Formatter.TryFormat(nextRipCount, rent.AsSpan(), out var written);
+                CheckWrite(await this.ripFiler.WriteAsync(0, rent.AsReadOnly(0, written)).ConfigureAwait(false));
+                this.ripCount = nextRipCount;
+            }
+            finally
+            {
+                rent.Return();
+            }
+        }
+
+        static void CheckWrite(CrystalResult result)
+        {
+            if (result.IsFailure())
+            {
+                throw new IOException($"Failed to store shutdown metadata: {result}.");
+            }
         }
     }
 

@@ -55,16 +55,10 @@ TryWrite:
 
                         if (work.Truncate)
                         {
-                            try
+                            var newSize = checked(work.Offset + work.WriteData.Memory.Length);
+                            if (RandomAccess.GetLength(handle) > newSize)
                             {
-                                var newSize = work.Offset + work.WriteData.Memory.Length;
-                                if (RandomAccess.GetLength(handle) > newSize)
-                                {
-                                    RandomAccess.SetLength(handle, newSize);
-                                }
-                            }
-                            catch
-                            {
+                                RandomAccess.SetLength(handle, newSize);
                             }
                         }
 
@@ -118,43 +112,38 @@ TryWrite:
             {
                 var offset = work.Offset;
                 var lengthToRead = work.Length;
+                using var handle = File.OpenHandle(filePath, mode: FileMode.Open, access: FileAccess.Read);
                 if (lengthToRead < 0)
                 {
-                    try
-                    {
-                        var fileInfo = new FileInfo(filePath);
-                        if (fileInfo.Length > int.MaxValue)
-                        {
-                            work.Result = CrystalResult.FileOperationError;
-                            return;
-                        }
-
-                        lengthToRead = (int)fileInfo.Length;
-                        offset = 0;
-                    }
-                    catch
+                    var fileLength = RandomAccess.GetLength(handle);
+                    if (fileLength > int.MaxValue)
                     {
                         work.Result = CrystalResult.FileOperationError;
                         return;
                     }
+
+                    lengthToRead = (int)fileLength;
+                    offset = 0;
                 }
 
-                using (var handle = File.OpenHandle(filePath, mode: FileMode.Open, access: FileAccess.Read))
                 {
                     memoryOwner = BytePool.Default.Rent(lengthToRead).AsMemory(0, lengthToRead);
-                    var read = await RandomAccess.ReadAsync(handle, memoryOwner.Memory, offset, worker.CancellationToken).ConfigureAwait(false);
+                    var read = 0;
+                    while (read < lengthToRead)
+                    {
+                        var count = await RandomAccess.ReadAsync(handle, memoryOwner.Memory[read..], checked(offset + read), worker.CancellationToken).ConfigureAwait(false);
+                        if (count == 0)
+                        {
+                            break;
+                        }
+
+                        read += count;
+                    }
+
                     // Console.WriteLine($"Read {filePath} {read.ToString()}");
                     if (read != lengthToRead)
                     {
-                        try
-                        {
-                            File.Delete(filePath);
-                        }
-                        catch
-                        {
-                        }
-
-                        worker.logger?.GetWriter(LogLevel.Error)?.Write($"Read error and deleted: {work.Path}");
+                        worker.logger?.GetWriter(LogLevel.Error)?.Write($"Unexpected end of file: {work.Path}");
                         work.Result = CrystalResult.FileOperationError;
                         return;
                     }
@@ -281,9 +270,20 @@ TryWrite:
 
         if (!this.checkedPath.TryGetValue(directoryPath, out var accessible))
         {
-            Directory.CreateDirectory(directoryPath);
-            accessible = StorageHelper.IsDirectoryWritable(directoryPath);
-            this.checkedPath.TryAdd(directoryPath, accessible);
+            try
+            {
+                Directory.CreateDirectory(directoryPath);
+                accessible = StorageHelper.IsDirectoryWritable(directoryPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return CrystalResult.NoAccess;
+            }
+
+            if (accessible)
+            {
+                this.checkedPath.TryAdd(directoryPath, true);
+            }
 
             if (!accessible)
             {

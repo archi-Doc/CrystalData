@@ -14,11 +14,13 @@ CrystalData is a persistence engine for .NET. It combines snapshot files, option
 - [Configuration](#configuration)
 - [Paths and backups](#paths-and-backups)
 - [Saving and shutdown](#saving-and-shutdown)
+- [Concurrency and durability](#concurrency-and-durability)
 - [Journaling](#journaling)
 - [Auxiliary storage](#auxiliary-storage)
 - [S3 storage](#s3-storage)
 - [Recovery](#recovery)
 - [Samples](#samples)
+- [Testing](#testing)
 
 ## Requirements
 
@@ -52,7 +54,7 @@ public partial class FirstData
 
     [Key(1)]
     [DefaultValue("Hoge")]
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = "Hoge";
 }
 ```
 
@@ -90,7 +92,7 @@ data.Name = "Updated";
 await control.StoreAndRip();
 ```
 
-`StoreAndRip` is terminal: the `CrystalControl` instance cannot be used after it completes. Call it during application shutdown.
+`StoreAndRip` is terminal: it stops new storage-point lock acquisitions as soon as shutdown begins. Stop application updates before calling it; if it fails, resolve the storage error and retry shutdown.
 
 ## NativeAOT
 
@@ -140,7 +142,7 @@ context.AddCrystal<SecondData>(
     new CrystalConfiguration(new GlobalFileConfiguration("Second.tinyhand")));
 ```
 
-Crystals can also be created at runtime with `CreateCrystal<TData>` or retrieved or created with `GetOrCreateCrystal<TData>`.
+`CreateCrystal<TData>` creates an independent instance on each call. `GetOrCreateCrystal<TData>` returns the registered instance for that type, or atomically creates and registers one. When an instance already exists, the supplied configuration is ignored. Use different paths for independent crystals.
 
 ## Paths and backups
 
@@ -152,6 +154,8 @@ Crystals can also be created at runtime with `CreateCrystal<TData>` or retrieved
 Set `BackupFileConfiguration` for one crystal, or set `CrystalOptions.DefaultBackup` to derive backup locations for crystals, journals, and auxiliary storage that do not define one explicitly.
 
 Snapshot histories provide recovery candidates when the current file is missing or invalid. Journaling requires at least one history file for every journaled crystal.
+
+Controls must not share writable files. Give each control its own `DataDirectory`, or explicitly separate all paths, including `CrystalOptions.SupplementFile` and `BackupSupplementFile`. Changing only `GlobalDirectory` does not relocate the default local supplement file.
 
 ## Saving and shutdown
 
@@ -165,6 +169,18 @@ Use the lifecycle method that matches the operation:
 | `StoreAndRip()` | Persists all managed data, records a clean shutdown, and terminates services. |
 
 For a single crystal, call `ICrystal.StoreData()`. For independently loaded nodes, call `StoragePoint<T>.AddToSaveQueue()` to schedule persistence or `StoragePoint<T>.StoreData()` to request it directly.
+
+Check the `CrystalResult` returned by `PrepareAndLoad` and individual crystal saves. Failed preparation can be retried; `IsPrepared` alone does not confirm that every crystal loaded successfully. `Store`, `StoreAndRelease`, and `StoreAndRip` throw `IOException` for reported persistence failures. Unloaded and deleted crystals are skipped. These operations can also throw cancellation or serialization exceptions.
+
+Snapshot and auxiliary-data saves await configured backup writes. A failed storage-point write retains its in-memory data and previous storage identifiers for retry. The clean-shutdown marker is written only after the data, journal, and supplement saves succeed.
+
+## Concurrency and durability
+
+Persistence operations are serialized per crystal, and full-control saves are serialized per control. This does not make arbitrary application changes to `ICrystal<T>.Data` thread-safe. Coordinate root-data mutations with saves, or use the appropriate ValueLink isolation and locking model.
+
+Use `StoragePoint<T>.TryLock` for mutations. Dispose its `DataScope<T>` before awaiting a save of that point or any containing crystal. `StoreOnly` and `ForceRelease` wait for the point's lock; `TryRelease` returns `false` if it cannot acquire the lock. Keep a consistent parent-to-child lock order. `TryGet` and `PinData` return references without granting exclusive mutation access; pinning only prevents data eviction.
+
+Saving is not a transaction across crystals, snapshots, journal files, or backups. A failure can leave some writes completed. File-write completion does not guarantee survival of an immediate power loss. With histories disabled, snapshots are overwritten in place. Use histories and separate backups for recoverability, and test your application's recovery policy. Cross-process writers and different controls targeting the same files are not supported.
 
 ## Journaling
 
@@ -218,11 +234,16 @@ The type containing a storage point must be a Tinyhand structural object. `Stora
 Read with `TryGet`. Use `TryLock` whenever data will be changed, and dispose the returned `DataScope<T>` to release the lock:
 
 ```csharp
-using var scope = await root.Child.TryLock(AcquisitionMode.GetOrCreate);
-if (scope.IsValid)
+using (var scope = await root.Child.TryLock(AcquisitionMode.GetOrCreate))
 {
-    scope.Data.Count++;
+    if (scope.IsValid)
+    {
+        scope.Data.Count++;
+    }
 }
+
+// The mutation lock has been released; saving can now acquire it.
+await root.Child.StoreData(StoreMode.StoreOnly);
 ```
 
 Avoid replacing a storage-point instance with `Set` unless instance replacement is specifically required.
@@ -245,14 +266,35 @@ Do not embed production credentials in source code. Provide them through the app
 
 ## Recovery
 
-`PrepareAndLoad(useQuery: true)` consults the registered `ICrystalDataQuery` when recovery requires a decision. Pass `false` for non-interactive startup behavior. The second argument, `loadCrystals`, can defer loading registered crystals while still preparing persistence services.
+`PrepareAndLoad(useQuery: true)` consults the registered `ICrystalDataQuery` when recovery requires a decision. Pass `false` for non-interactive startup behavior. The second argument, `loadCrystals`, can defer loading after a clean shutdown; recovery after an unclean shutdown always loads crystals and replays the journal.
 
 CrystalData checks the primary snapshot, available histories, and configured backups. For previously stored data with `RequiredForLoading = true`, a load failure is passed to `ICrystalDataQuery`; initialization fails when the query chooses to abort.
+
+History snapshots and auxiliary data are hash-checked before deserialization. A damaged primary snapshot can fall back to a valid backup with the same waypoint. Recovery queries may choose to reconstruct defaults when data cannot be loaded; review that policy before using unattended startup with valuable data.
 
 ## Samples
 
 - [QuickStart](QuickStart) contains the smallest complete application.
 - [Advanced](Advanced) covers backups, dynamic configuration, journals, paths, dependency injection, save timing, and storage points.
+
+## Testing
+
+```shell
+dotnet test CrystalData.slnx -c Release
+```
+
+The persistence regression tests cover concurrent registration and saves, journal append/save contention, failed primary and backup writes, retry behavior, corrupt hashes, short reads, storage-point locks, pinned data, and clean-shutdown metadata. Tests use isolated local files; they do not replace S3 integration tests or process-crash and power-loss testing.
+
+To collect coverage with Microsoft's `dotnet-coverage` tool:
+
+```shell
+dotnet tool install dotnet-coverage --tool-path artifacts/tools
+artifacts/tools/dotnet-coverage collect "dotnet test CrystalData.slnx -c Release --no-build --no-restore" -f cobertura -o artifacts/coverage.cobertura.xml
+```
+
+Build the tests before using `--no-build`. Coverage includes source-generated code; inspect the `CrystalData` package and uncovered hand-written source separately.
+
+See the [persistence review](docs/persistence-review.md) for measured coverage, regression coverage, and verification limits.
 
 ## License
 
