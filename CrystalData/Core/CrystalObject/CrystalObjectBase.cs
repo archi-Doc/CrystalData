@@ -49,13 +49,13 @@ internal abstract partial class CrystalObjectBase
     #endregion
 
     /// <summary>
-    /// Gets or sets a value indicating whether this crystal object is registered in the Unit builder.
+    /// Gets or sets a value indicating whether this crystal is registered by type with its control.
     /// </summary>
     public bool IsRegistered { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether this crystal object is unmanaged.<br/>
-    /// Unmanaged crystals are not subject to Load, Store, or Delete operations by the CrystalControl (except during journal reading).
+    /// Unmanaged crystals are excluded from bulk saves and deletion, but are included when loading for recovery.
     /// </summary>
     public bool IsUnmanaged { get; set; }
 

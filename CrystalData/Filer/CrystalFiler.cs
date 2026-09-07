@@ -137,16 +137,23 @@ public class CrystalFiler
             }
         }
 
-        public Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
+        public async Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
         {
             if (this.rawFiler == null)
             {
-                return Task.FromResult(CrystalResult.NotPrepared);
+                return CrystalResult.NotPrepared;
             }
 
             if (!this.crystalFiler.IsProtected)
             {// Prefix.Extension
-                return this.rawFiler.WriteAsync(this.GetFilePath(), 0, rentMemory);
+                return await this.rawFiler.WriteAsync(this.GetFilePath(), 0, rentMemory).ConfigureAwait(false);
+            }
+
+            var path = this.GetFilePath(waypoint);
+            var result = await this.rawFiler.WriteAsync(path, 0, rentMemory).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
             }
 
             using (this.lockObject.EnterScope())
@@ -155,8 +162,7 @@ public class CrystalFiler
                 this.waypoints.Add(waypoint);
             }
 
-            var path = this.GetFilePath(waypoint);
-            return this.rawFiler.WriteAsync(path, 0, rentMemory);
+            return CrystalResult.Success;
         }
 
         public async Task<CrystalResult> LimitNumberOfFiles()
@@ -489,7 +495,15 @@ public class CrystalFiler
         }
 
         var result = await this.main.Save(rentMemory, waypoint).ConfigureAwait(false);
-        _ = this.backup?.Save(rentMemory, waypoint);
+        if (this.backup is not null)
+        {
+            var backupResult = await this.backup.Save(rentMemory, waypoint).ConfigureAwait(false);
+            if (result.IsSuccess())
+            {
+                result = backupResult;
+            }
+        }
+
         return result;
     }
 
@@ -501,7 +515,15 @@ public class CrystalFiler
         }
 
         var result = await this.main.LimitNumberOfFiles().ConfigureAwait(false);
-        _ = this.backup?.LimitNumberOfFiles();
+        if (this.backup is not null)
+        {
+            var backupResult = await this.backup.LimitNumberOfFiles().ConfigureAwait(false);
+            if (result.IsSuccess())
+            {
+                result = backupResult;
+            }
+        }
+
         return result;
     }
 
@@ -522,7 +544,7 @@ public class CrystalFiler
                 if (result.Result.IsSuccess)
                 {// Backup restored
                     // Save the loaded backup also to Main.
-                    _ = this.backup.CopyTo(this.main, result.Waypoint);
+                    await this.backup.CopyTo(this.main, result.Waypoint).ConfigureAwait(false);
 
                     this.logger.GetWriter(LogLevel.Warning)?.Write(string.Format(HashedString.Get(CrystalDataHashed.CrystalFiler.BackupLoaded), result.Path));
                 }
@@ -550,6 +572,11 @@ public class CrystalFiler
             }
 
             var result = await this.main.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
+            if (result.Result.IsFailure && this.backup is not null)
+            {
+                result = await this.backup.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
+            }
+
             return result;
         }
     }
@@ -562,7 +589,15 @@ public class CrystalFiler
         }
 
         var result = await this.main.Delete(waypoint).ConfigureAwait(false);
-        _ = this.backup?.Delete(waypoint);
+        if (this.backup is not null)
+        {
+            var backupResult = await this.backup.Delete(waypoint).ConfigureAwait(false);
+            if (result.IsSuccess())
+            {
+                result = backupResult;
+            }
+        }
+
         return result;
     }
 
@@ -574,7 +609,15 @@ public class CrystalFiler
         }
 
         var result = await this.main.DeleteAll().ConfigureAwait(false);
-        _ = this.backup?.DeleteAll();
+        if (this.backup is not null)
+        {
+            var backupResult = await this.backup.DeleteAll().ConfigureAwait(false);
+            if (result.IsSuccess())
+            {
+                result = backupResult;
+            }
+        }
+
         return result;
     }
 }

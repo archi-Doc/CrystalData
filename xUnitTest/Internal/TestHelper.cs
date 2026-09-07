@@ -26,6 +26,7 @@ public static class TestHelper
         var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
+            context.SetCrystalOptions(new CrystalOptions { SupplementFile = new LocalFileConfiguration(Path.Combine(directory, "State", "Supplement")), });
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
             context.AddCrystal<TData>(
                 new(new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
@@ -53,6 +54,7 @@ public static class TestHelper
         var builder = new CrystalUnit.Builder();
         builder.ConfigureCrystal(context =>
         {
+            context.SetCrystalOptions(new CrystalOptions { SupplementFile = new GlobalFileConfiguration("State/Supplement"), });
             context.SetJournal(new SimpleJournalConfiguration(new GlobalDirectoryConfiguration("Journal")));
             context.AddCrystal<TData>(
                 new(new GlobalFileConfiguration("Test.tinyhand"))
@@ -101,6 +103,7 @@ public static class TestHelper
         var directory = Path.GetDirectoryName(crystal.CrystalConfiguration.FileConfiguration.Path);
         if (!string.IsNullOrEmpty(directory))
         {
+            crystalControl.DeleteDirectory(new LocalDirectoryConfiguration(Path.Combine(directory, "State")));
             StorageHelper.ContainsAnyFile(directory).IsFalse(); // Directory is empty
             Directory.Delete(directory, true);
         }

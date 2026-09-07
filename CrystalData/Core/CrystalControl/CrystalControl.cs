@@ -31,6 +31,9 @@ public partial class CrystalControl
 
     public ExecutionRoot Root { get; }
 
+    /// <summary>
+    /// Gets a value indicating whether persistence services are prepared; check the startup result for crystal-loading failures.
+    /// </summary>
     public bool IsPrepared { get; private set; }
 
     public int SystemTimeInSeconds { get; private set; } // System time in seconds
@@ -62,10 +65,14 @@ public partial class CrystalControl
     private readonly CrystalControlConfiguration configuration;
     private readonly CrystalControlCore crystalControlCore;
 
+    private readonly Lock registrationLock = new();
+    private readonly SemaphoreLock prepareLock = new();
+    private readonly SemaphoreLock storeLock = new();
     private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
 
     private Lock lockObject = new();
+    private bool preparationCompleted;
     private IFiler? localFiler;
     private Dictionary<string, IFiler> bucketToS3Filer = new();
     private Dictionary<StorageConfiguration, IStorage> configurationToStorage = new(StorageConfiguration.MainDirectoryComparer.Instance);
@@ -380,12 +387,18 @@ public partial class CrystalControl
         return result;
     }
 
+    /// <summary>
+    /// Loads all tracked crystals, including internal storage metadata.
+    /// </summary>
+    /// <param name="useQuery">Whether to consult the recovery query.</param>
+    /// <returns>A task that completes when loading finishes.</returns>
+    /// <exception cref="IOException">A crystal cannot be prepared or loaded.</exception>
     public async Task LoadAllCrystals(bool useQuery = false)
     {
-        var crystals = this.crystals.GetCrystals(true);
-        foreach (var x in crystals)
+        var result = await this.LoadAllCrystalsCore(useQuery).ConfigureAwait(false);
+        if (result.IsFailure())
         {
-            await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
+            throw new IOException($"Failed to load crystals: {result}.");
         }
     }
 
@@ -445,17 +458,20 @@ public partial class CrystalControl
     /// Prepares persistence services and optionally loads every registered crystal.
     /// </summary>
     /// <param name="useQuery">Whether to consult <see cref="ICrystalDataQuery"/> when recovery requires a decision.</param>
-    /// <param name="loadCrystals">Whether to load all registered crystals during preparation.</param>
-    /// <returns>The result of preparing the persistence services.</returns>
+    /// <param name="loadCrystals">Whether to load crystals after a clean shutdown. Recovery always loads them.</param>
+    /// <returns>The first preparation or crystal-loading failure, or success.</returns>
     public async Task<CrystalResult> PrepareAndLoad(bool useQuery = true, bool loadCrystals = true)
     {
-        if (this.IsPrepared)
+        using var prepareScope = await this.prepareLock.EnterScopeAsync().ConfigureAwait(false);
+        if (this.preparationCompleted)
         {
             return CrystalResult.Success;
         }
 
-        await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
-        this.crystalControlCore.SendSignal(ExecutionSignal.Start);
+        if (!this.IsPrepared)
+        {
+            await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
+        }
 
         // Journal
         var result = await this.PrepareJournal(useQuery).ConfigureAwait(false);
@@ -471,7 +487,11 @@ public partial class CrystalControl
 
             if (loadCrystals)
             {// Load all crystals
-                await this.LoadAllCrystals(useQuery).ConfigureAwait(false);
+                result = await this.LoadAllCrystalsCore(useQuery).ConfigureAwait(false);
+                if (result.IsFailure())
+                {
+                    return result;
+                }
             }
         }
         else
@@ -479,12 +499,18 @@ public partial class CrystalControl
             this.Logger.GetWriter(LogLevel.Warning)?.Write(CrystalDataHashed.CrystalSupplement.RipFailure);
 
             // Load all crystals
-            await this.LoadAllCrystals(useQuery).ConfigureAwait(false);
+            result = await this.LoadAllCrystalsCore(useQuery).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
 
             // Read journal
             await this.ReadJournal().ConfigureAwait(false);
         }
 
+        this.preparationCompleted = true;
+        this.crystalControlCore.SendSignal(ExecutionSignal.Start);
         return CrystalResult.Success;
     }
 
@@ -493,6 +519,7 @@ public partial class CrystalControl
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous store operation.</returns>
+    /// <exception cref="IOException">A reported persistence failure prevents completion.</exception>
     public Task Store(CancellationToken cancellationToken = default)
         => this.Store(false, StoreMode.StoreOnly, cancellationToken);
 
@@ -501,6 +528,7 @@ public partial class CrystalControl
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous store and release operation.</returns>
+    /// <exception cref="IOException">A reported persistence failure prevents completion.</exception>
     public Task StoreAndRelease(CancellationToken cancellationToken = default)
         => this.Store(false, StoreMode.TryRelease, cancellationToken);
 
@@ -509,7 +537,8 @@ public partial class CrystalControl
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the terminal shutdown operation.</returns>
-    /// <remarks>This instance cannot be used after the operation completes.</remarks>
+    /// <remarks>Stops new storage-point locks immediately. Stop application mutations first; on failure, fix the storage error and retry shutdown.</remarks>
+    /// <exception cref="IOException">A reported persistence failure prevents clean shutdown.</exception>
     public async Task StoreAndRip(CancellationToken cancellationToken = default)
     {
         this.StorageControl.Rip();
@@ -560,6 +589,13 @@ public partial class CrystalControl
         }
     }
 
+    /// <summary>
+    /// Creates an independent crystal without registering it for lookup by type.
+    /// </summary>
+    /// <typeparam name="TData">The Tinyhand-serializable data type.</typeparam>
+    /// <param name="configuration">The optional crystal configuration.</param>
+    /// <param name="isUnmanaged">Whether to exclude the crystal from bulk saves and deletion.</param>
+    /// <returns>A newly created crystal.</returns>
     public ICrystal<TData> CreateCrystal<TData>(CrystalConfiguration? configuration = null, bool isUnmanaged = false)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
@@ -578,6 +614,12 @@ public partial class CrystalControl
         return crystal;
     }
 
+    /// <summary>
+    /// Gets the registered crystal for a type, or atomically creates and registers one.
+    /// </summary>
+    /// <typeparam name="TData">The Tinyhand-serializable data type.</typeparam>
+    /// <param name="configuration">The configuration used only when creating a new registration.</param>
+    /// <returns>The single registered crystal for the type.</returns>
     public ICrystal<TData> GetOrCreateCrystal<TData>(CrystalConfiguration configuration)
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
     {
@@ -587,14 +629,24 @@ public partial class CrystalControl
             return crystalData;
         }
 
-        var crystalObject = new CrystalObject<TData>(this);
-        using (this.crystals.LockObject.EnterScope())
+        using (this.registrationLock.EnterScope())
         {
-            crystalObject.Goshujin = this.crystals;
-        }
+            if (this.typeToCrystal.TryGetValue(typeof(TData), out crystal))
+            {
+                return (ICrystal<TData>)crystal;
+            }
 
-        ((ICrystal)crystalObject).Configure(configuration);
-        return crystalObject;
+            var crystalObject = new CrystalObject<TData>(this);
+            using (this.crystals.LockObject.EnterScope())
+            {
+                crystalObject.IsRegistered = true;
+                crystalObject.Goshujin = this.crystals;
+            }
+
+            ((ICrystal)crystalObject).Configure(configuration);
+            this.typeToCrystal.TryAdd(typeof(TData), crystalObject);
+            return crystalObject;
+        }
     }
 
     public ICrystal<TData> GetCrystal<TData>()
@@ -802,7 +854,6 @@ public partial class CrystalControl
                     this.crystals.TimeForDataSavingChain.Remove(first);
                     first.TimeForDataSaving = 0;
 
-                    var crystalInternal = (ICrystalInternal)first;
                     tempArray[count++] = (ICrystalInternal)first;
                 }
             }
@@ -818,7 +869,18 @@ public partial class CrystalControl
 
             for (var i = 0; i < count; i++)
             {
-                await tempArray[i].StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
+                try
+                {
+                    var saveResult = await tempArray[i].StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
+                    if (saveResult.IsFailure() && saveResult != CrystalResult.NotPrepared && saveResult != CrystalResult.Deleted)
+                    {
+                        this.Logger.GetWriter(LogLevel.Error)?.Write($"Queued crystal save failed: {saveResult}");
+                    }
+                }
+                catch (IOException ex)
+                {
+                    this.Logger.GetWriter(LogLevel.Error)?.Write($"Queued crystal save failed: {ex.Message}");
+                }
             }
 
             Array.Clear(tempArray, 0, count);
@@ -992,6 +1054,8 @@ public partial class CrystalControl
 
     private async Task Store(bool terminate, StoreMode storeMode, CancellationToken cancellationToken)
     {
+        using var storeScope = await this.storeLock.EnterScopeAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var goshujin = new ReleaseTask.GoshujinClass();
         var crystals = this.crystals.GetCrystals(false);
         foreach (var x in crystals)
@@ -1028,7 +1092,11 @@ public partial class CrystalControl
 
         if (this.Journal is { } journal)
         {// Journal
-            await journal.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
+            var result = await journal.StoreData(StoreMode.StoreOnly, cancellationToken).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                throw new IOException($"Failed to store the journal: {result}.");
+            }
         }
 
         await this.CrystalSupplement.Store(terminate).ConfigureAwait(false);
@@ -1048,7 +1116,7 @@ public partial class CrystalControl
 
             foreach (var x in this.bucketToS3Filer.Values)
             {
-                tasks.Add(x.FlushAsync(false));
+                tasks.Add(x.FlushAsync(terminate));
             }
 
             if (terminate)
@@ -1062,12 +1130,19 @@ public partial class CrystalControl
 
     #endregion
 
-    private void DumpPlane()
+    private async Task<CrystalResult> LoadAllCrystalsCore(bool useQuery)
     {
-        foreach (var x in this.crystals.GetPlaneKeyValue())
+        var crystals = this.crystals.GetCrystals(true);
+        foreach (var x in crystals)
         {
-            this.Logger.GetWriter(LogLevel.Debug)?.Write($"Plane: {x.Key} = {x.Value.GetType().FullName}");
+            var result = await x.PrepareAndLoad(useQuery).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
         }
+
+        return CrystalResult.Success;
     }
 
     private IStorage[] GetStorageArray()

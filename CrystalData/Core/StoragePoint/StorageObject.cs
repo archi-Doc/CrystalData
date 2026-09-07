@@ -229,50 +229,58 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             return new(DataScopeResult.Obsolete);
         }
 
-        if (this.data is null)
-        {// PrepareAndLoad
-            await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
-        }
-        else
-        {// Already loaded
-            this.storageControl.UpdateLink(this);
-        }
-
-        if (this.data is not null)
-        {// Data loaded
-            if (acquisitionMode == AcquisitionMode.CreateOnly)
-            {
-                this.Exit();
-                return new(DataScopeResult.AlreadyExists);
-            }
-
-            // Get or GetOrCreate
-        }
-        else
-        {// Data not loaded
-            if (acquisitionMode == AcquisitionMode.GetOnly)
-            {// Get only
-                this.Exit();
-                return new(DataScopeResult.NotFound);
+        try
+        {
+            if (this.data is null)
+            {// PrepareAndLoad
+                await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
             }
             else
-            {// Create or GetOrCreate -> Reconstruct
-                TData newData;
-                if (factory is null)
+            {// Already loaded
+                this.storageControl.UpdateLink(this);
+            }
+
+            if (this.data is not null)
+            {// Data loaded
+                if (acquisitionMode == AcquisitionMode.CreateOnly)
                 {
-                    newData = TinyhandSerializer.Reconstruct<TData>();
+                    this.Unlock();
+                    return new(DataScopeResult.AlreadyExists);
+                }
+
+                // Get or GetOrCreate
+            }
+            else
+            {// Data not loaded
+                if (acquisitionMode == AcquisitionMode.GetOnly)
+                {// Get only
+                    this.Unlock();
+                    return new(DataScopeResult.NotFound);
                 }
                 else
-                {
-                    newData = factory(storagePoint);
+                {// Create or GetOrCreate -> Reconstruct
+                    TData newData;
+                    if (factory is null)
+                    {
+                        newData = TinyhandSerializer.Reconstruct<TData>();
+                    }
+                    else
+                    {
+                        newData = factory(storagePoint);
+                    }
+
+                    this.SetDataInternal(newData, false, default);
+                    result = DataScopeResult.Created;
                 }
-
-                this.SetDataInternal(newData, false, default);
-                result = DataScopeResult.Created;
             }
-        }
 
-        return new(result, (TData)this.data, this, storagePoint);
+            return new(result, (TData)this.data, this, storagePoint);
+        }
+        catch
+        {
+            this.Unlock();
+            throw;
+        }
     }
 
     public void Unlock()
@@ -471,67 +479,35 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     internal async Task<bool> StoreData(StoreMode storeMode)
     {
-        object? dataCopy;
-
         if (storeMode == StoreMode.TryRelease)
         {
             if (!this.TryEnter())
             {// Already locked
                 return false;
             }
-
-            try
-            {
-                this.storageControl.Release(this, false); // Release
-                dataCopy = this.data;
-                if (!this.IsPinned)
-                {
-                    this.data = default;
-                }
-
-                if (dataCopy is null)
-                {// No data
-                    return true;
-                }
-            }
-            finally
-            {
-                this.Exit();
-            }
-        }
-        else if (storeMode == StoreMode.ForceRelease)
-        {
-            var entered = this.TryEnter();
-            // await this.EnterAsync().ConfigureAwait(false);
-            try
-            {
-                this.storageControl.Release(this, false); // Release
-                dataCopy = this.data;
-                if (!this.IsPinned)
-                {
-                    this.data = default;
-                }
-
-                if (dataCopy is null)
-                {// No data
-                    return true;
-                }
-            }
-            finally
-            {
-                if (entered)
-                {
-                    this.Exit();
-                }
-            }
         }
         else
-        {// Store data
-            dataCopy = this.data;
-            if (dataCopy is null)
-            {// No data
-                return true;
-            }
+        {
+            // await this.EnterAsync().ConfigureAwait(false);
+            await this.EnterAsync().ConfigureAwait(false);
+        }
+
+        try
+        {
+            return await this.StoreDataLocked(storeMode).ConfigureAwait(false);
+        }
+        finally
+        {
+            this.Exit();
+        }
+    }
+
+    private async Task<bool> StoreDataLocked(StoreMode storeMode)
+    {
+        var dataCopy = this.data;
+        if (dataCopy is null)
+        {
+            return true;
         }
 
         bool result = true;
@@ -547,14 +523,20 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
                 }
             }
 
+            if (result)
+            {
+                this.ReleaseAfterStore(storeMode);
+            }
+
             return result;
         }
 
         // Serialize and get hash.
         (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, dataCopy);
+        using var memoryScope = rentMemory;
         if (rentMemory.IsEmpty)
         {// No data
-            return false;
+            throw new IOException($"Failed to serialize storage point {this.pointId}.");
         }
 
         // Store children (code is redundant because it is placed after serialization)
@@ -562,7 +544,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         {
             if (!await structuralObject2.StoreData(storeMode).ConfigureAwait(false))
             {
-                result = false;
+                return false;
             }
         }
 
@@ -577,7 +559,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         {// Different data
             // Put
             ulong fileId = 0;
-            this.storageMap.Storage.PutAndForget(ref fileId, rentMemory.ReadOnly);
+            var putResult = await this.storageMap.Storage.PutAsync(ref fileId, rentMemory.ReadOnly).ConfigureAwait(false);
+            if (putResult.IsFailure())
+            {
+                throw new IOException($"Failed to store storage point {this.pointId}: {putResult}.");
+            }
+
             var currentPosition = this.storageMap.Journal is null ? Waypoint.ValidJournalPosition : this.storageMap.Journal.GetCurrentPosition();
             var storageId = new StorageId(currentPosition, fileId, hash);
 
@@ -593,9 +580,18 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             }
         }
 
-        rentMemory.Return();
+        this.ReleaseAfterStore(storeMode);
 
         return result;
+    }
+
+    private void ReleaseAfterStore(StoreMode storeMode)
+    {
+        if (storeMode != StoreMode.StoreOnly && !this.IsPinned)
+        {
+            this.storageControl.Release(this, false);
+            this.data = null;
+        }
     }
 
     void IStructuralObject.SetupStructure(IStructuralObject? parent, int key)
@@ -697,6 +693,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
                 break;
             }
 
+            result.Return();
+            result = new(CrystalResult.CorruptedData);
             journalPosition = this.storageId1.JournalPosition;
             this.storageId0 = this.storageId1;
             this.storageId1 = this.storageId2;
@@ -872,10 +870,17 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             {// Load the data and delete child objects.
                 var fileId = this.storageId0.FileId;
                 var result = await this.storageMap.Storage.GetAsync(ref fileId).ConfigureAwait(false);
-                if (result.IsSuccess &&
-                    FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
+                try
                 {
-                    dataToDelete = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                    if (result.IsSuccess &&
+                        FarmHash.Hash64(result.Data.Span) == this.storageId0.Hash)
+                    {
+                        dataToDelete = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, result.Data.Span);
+                    }
+                }
+                finally
+                {
+                    result.Return();
                 }
             }
 

@@ -17,7 +17,9 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     #region FieldAndProperty
 
+    private readonly SemaphoreLock storeSemaphore = new();
     private SemaphoreLock semaphore = new();
+    private Task<CrystalResult>? initialSaveTask;
     private TData? data;
     private CrystalFiler? crystalFiler;
     private IStorage? storage;
@@ -135,6 +137,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     void ICrystal.Configure(CrystalConfiguration configuration)
     {
+        using var storeScope = this.storeSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = configuration;
@@ -147,6 +150,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     void ICrystal.ConfigureFile(FileConfiguration configuration)
     {
+        using var storeScope = this.storeSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { FileConfiguration = configuration, };
@@ -158,6 +162,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     void ICrystal.ConfigureStorage(StorageConfiguration configuration)
     {
+        using var storeScope = this.storeSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { StorageConfiguration = configuration, };
@@ -186,6 +191,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     async Task<CrystalResult> ICrystal.Delete()
     {
+        using var storeScope = await this.storeSemaphore.EnterScopeAsync().ConfigureAwait(false);
         using (this.semaphore.EnterScope())
         {
             if (this.State == CrystalState.Initial)
@@ -198,14 +204,27 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
 
             // Delete file
+            if (this.initialSaveTask is not null)
+            {
+                await this.initialSaveTask.ConfigureAwait(false);
+            }
+
             this.ResolveAndPrepareFiler();
-            await this.crystalFiler.DeleteAll().ConfigureAwait(false);
+            var deleteResult = await this.crystalFiler.DeleteAll().ConfigureAwait(false);
+            if (deleteResult.IsFailure())
+            {
+                return deleteResult;
+            }
 
             // Delete storage
             if (this.CrystalConfiguration.StorageConfiguration != EmptyStorageConfiguration.Default)
             {// StorageMap uses Storage internally, and this prevents infinite recursive calls caused by it.
                 this.ResolveAndPrepareStorage();
-                await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+                deleteResult = await this.storage.DeleteStorageAsync().ConfigureAwait(false);
+                if (deleteResult.IsFailure())
+                {
+                    return deleteResult;
+                }
             }
 
             // Journal/Waypoint
@@ -252,6 +271,10 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     async Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
     {
+        using var storeScope = await this.storeSemaphore.EnterScopeAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var initialSaveSucceeded = this.initialSaveTask is null ||
+            await this.initialSaveTask.ConfigureAwait(false) == CrystalResult.Success;
         // this.TryGetLogger(LogLevel.Debug)?.Log("Store called");
         using (this.Goshujin!.LockObject.EnterScope())
         {// Set the next save time for periodic data saving.
@@ -355,7 +378,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         // Get hash
         var hash = FarmHash.Hash64(rentMemory.Span);
-        if (hash == currentWaypoint.Hash)
+        if (initialSaveSucceeded && hash == currentWaypoint.Hash)
         {// Identical data
             goto Exit;
         }
@@ -377,6 +400,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         }
 
         this.CrystalControl.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
+        this.initialSaveTask = null;
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
@@ -392,7 +416,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         // this.SetTimeForDataSaving(this.CrystalConfiguration.SaveInterval);
         this.LastSavedTime = DateTime.UtcNow;
 
-        _ = filer.LimitNumberOfFiles();
+        await filer.LimitNumberOfFiles().ConfigureAwait(false);
         return CrystalResult.Success;
 
 Exit:
@@ -686,6 +710,7 @@ Exit:
             result = await this.crystalFiler.PrepareAndCheck(param, this.CrystalConfiguration).ConfigureAwait(false);
             if (result.IsFailure())
             {
+                this.crystalFiler = null;
                 return result;
             }
         }
@@ -698,6 +723,7 @@ Exit:
             result = await this.storage.PrepareAndCheck(param, storageConfiguration).ConfigureAwait(false);
             if (result.IsFailure())
             {
+                this.storage = null;
                 return result;
             }
         }
@@ -885,6 +911,8 @@ Exit:
         }
         catch
         {
+            this.initialSaveTask = Task.FromResult(CrystalResult.SerializationFailed);
+            return;
         }
 
         var hash = FarmHash.Hash64(rentMemory.Span);
@@ -892,16 +920,18 @@ Exit:
         this.CrystalControl.UpdateWaypoint(this, ref this.waypoint, hash);
 
         // Save immediately to fix the waypoint.
-        _ = SaveAndReturn(this.crystalFiler, rentMemory.ReadOnly, this.waypoint);
+        this.initialSaveTask = SaveAndReturn(this.crystalFiler, rentMemory.ReadOnly, this.waypoint);
 
-        static async Task SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentReadOnlyMemory memory, Waypoint waypoint)
+        static async Task<CrystalResult> SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentReadOnlyMemory memory, Waypoint waypoint)
         {
             try
             {
                 if (crystalFiler is not null)
                 {
-                    await crystalFiler.Save(memory, waypoint).ConfigureAwait(false);
+                    return await crystalFiler.Save(memory, waypoint).ConfigureAwait(false);
                 }
+
+                return CrystalResult.NotPrepared;
             }
             finally
             {

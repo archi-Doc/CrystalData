@@ -192,33 +192,6 @@ public partial class SimpleJournal
             }
         }
 
-        public void SaveInternal()
-        {// using (core.simpleJournal.lockBooks.EnterScope())
-            if (this.IsSaved)
-            {
-                return;
-            }
-            else if (!this.IsInMemory)
-            {
-                return;
-            }
-            else if (this.simpleJournal.rawFiler == null)
-            {
-                return;
-            }
-
-            // Write (IsSaved -> true)
-            this.path = StorageHelper.CombineWithSlash(this.simpleJournal.MainConfiguration.Path, this.GetFileName());
-            this.simpleJournal.rawFiler.WriteAndForget(this.path, 0, this.memoryOwner);
-
-            if (this.simpleJournal.BackupConfiguration is not null &&
-                this.simpleJournal.backupFiler is not null)
-            {
-                this.backupPath ??= StorageHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
-                this.simpleJournal.backupFiler.WriteAndForget(this.backupPath, 0, this.memoryOwner);
-            }
-        }
-
         public bool TryReadBufferInternal(ulong position, Span<byte> destination, out int readLength)
         {
             readLength = 0;
@@ -247,7 +220,7 @@ public partial class SimpleJournal
         {
             if (this.IsSaved)
             {
-                return false;
+                return true;
             }
             else if (!this.IsInMemory)
             {
@@ -258,18 +231,38 @@ public partial class SimpleJournal
                 return false;
             }
 
-            // Write (IsSaved -> true)
-            this.path = StorageHelper.CombineWithSlash(this.simpleJournal.SimpleJournalConfiguration.DirectoryConfiguration.Path, this.GetFileName());
-            var result = await this.simpleJournal.rawFiler.WriteAsync(this.path, 0, this.memoryOwner).ConfigureAwait(false);
+            var path = StorageHelper.CombineWithSlash(this.simpleJournal.MainConfiguration.Path, this.GetFileName());
+            var result = await this.simpleJournal.rawFiler.WriteAsync(path, 0, this.memoryOwner).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return false;
+            }
 
             if (this.simpleJournal.BackupConfiguration is not null &&
                 this.simpleJournal.backupFiler is not null)
             {
                 this.backupPath ??= StorageHelper.CombineWithSlash(this.simpleJournal.BackupConfiguration.Path, this.GetFileName());
-                _ = this.simpleJournal.backupFiler.WriteAsync(this.backupPath, 0, this.memoryOwner);
+                result = await this.simpleJournal.backupFiler.WriteAsync(this.backupPath, 0, this.memoryOwner).ConfigureAwait(false);
+                if (result.IsFailure())
+                {
+                    return false;
+                }
             }
 
-            return result.IsSuccess();
+            using (this.simpleJournal.lockBooks.EnterScope())
+            {
+                this.path = path;
+            }
+
+            return true;
+        }
+
+        public void ReleaseMemoryInternal()
+        {
+            if (this.simpleJournal.books.InMemoryChain.Remove(this))
+            {
+                this.InMemoryLinkRemoved();
+            }
         }
 
         public void DeleteInternal()
