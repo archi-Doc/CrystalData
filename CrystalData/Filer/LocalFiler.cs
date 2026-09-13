@@ -15,7 +15,7 @@ public class LocalFiler : FilerBase, IFiler
     {
     }
 
-    public static AddStorageResult Check(CrystalControl crystalControl, string directory)
+    public static AddStorageResult CheckDirectory(CrystalControl crystalControl, string directory)
     {
         var result = CheckPath(crystalControl, directory);
         if (!result.Success)
@@ -26,7 +26,7 @@ public class LocalFiler : FilerBase, IFiler
         return AddStorageResult.Success;
     }
 
-    protected override async Task OnJobProcessing(FilerWork work, CancellationToken cancellationToken)
+    protected override async Task ProcessJobAsync(FilerWork work, CancellationToken cancellationToken)
     {
         var worker = (LocalFiler)this;
         var tryCount = 0;
@@ -107,7 +107,7 @@ TryWrite:
         }
         else if (work.Type == FilerWork.WorkType.Read)
         {// Read
-            BytePool.RentMemory memoryOwner = default;
+            BytePool.RentedMemory memoryOwner = default;
             try
             {
                 var offset = work.Offset;
@@ -247,7 +247,7 @@ TryWrite:
 
     #region FieldAndProperty
 
-    bool IFiler.SupportPartialWrite => true;
+    bool IFiler.SupportsPartialWrite => true;
 
     private ILogger? logger;
     private ConcurrentDictionary<string, bool> checkedPath = new();

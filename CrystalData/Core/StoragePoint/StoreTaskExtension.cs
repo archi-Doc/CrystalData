@@ -72,7 +72,7 @@ internal static class StoreTaskExtension
                 if (result == CrystalResult.DataIsLocked)
                 {
                     crystalControl.Logger.GetWriter(LogLevel.Warning)?.Write(CrystalDataHashed.Unload.Locked, task.PersistableObject.DataType.FullName!);
-                    task.RepeatableReadSemaphore?.LockAndForceRelease();
+                    task.RepeatableReadSemaphore?.LockAndSetReleasing();
                     using (goshujin.LockObject.EnterScope())
                     {
                         task.LastProcessed = utc;

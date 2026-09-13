@@ -204,7 +204,7 @@ public class StoragePointTest4
         await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(TestContext.Current.CancellationToken); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
-        (await crystal.CrystalControl.TestJournalAll()).IsTrue();
+        (await crystal.CrystalControl.TestAllJournals()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
@@ -230,7 +230,7 @@ public class StoragePointTest4
         {
             dataScope.IsValid.IsTrue();
             dataScope.Result.Is(DataScopeResult.Retrieved);
-            dataScope.SetControlState(DataControlState.Default);
+            dataScope.SetControlState(DataControlState.None);
         }
 
         using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOnly, TestContext.Current.CancellationToken))

@@ -173,20 +173,20 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// Sets the specified identifier and data in the MonoData collection.
     /// </summary>
     /// <param name="id">The identifier.</param>
-    /// <param name="datum">The data associated with the identifier.</param>
-    public void Set(in TIdentifier id, in TDatum datum)
+    /// <param name="value">The data associated with the identifier.</param>
+    public void Set(in TIdentifier id, in TDatum value)
     {
         using (this.goshujin.LockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {// Update
-                item.Datum = datum;
+                item.Datum = value;
                 this.goshujin.QueueChain.Remove(item);
                 this.goshujin.QueueChain.Enqueue(item);
             }
             else
             {// New
-                item = new Item(id, datum);
+                item = new Item(id, value);
                 this.goshujin.Add(item);
 
                 if (this.goshujin.QueueChain.Count > this.capacity)
@@ -201,20 +201,20 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// Tries to get the data associated with the specified identifier from the MonoData collection.
     /// </summary>
     /// <param name="id">The identifier.</param>
-    /// <param name="datum">When this method returns, contains the data associated with the specified identifier, if the identifier is found; otherwise, the default value for the data type.</param>
+    /// <param name="value">When this method returns, contains the data associated with the specified identifier, if the identifier is found; otherwise, the default value for the data type.</param>
     /// <returns><c>true</c> if the identifier is found in the MonoData collection; otherwise, <c>false</c>.</returns>
-    public bool TryGet(in TIdentifier id, out TDatum datum)
+    public bool TryGet(in TIdentifier id, out TDatum value)
     {
         using (this.goshujin.LockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {// Get
-                datum = item.Datum;
+                value = item.Datum;
                 return true;
             }
         }
 
-        datum = default!;
+        value = default!;
         return false;
     }
 

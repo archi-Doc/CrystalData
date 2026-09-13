@@ -26,12 +26,12 @@ public partial record LocalFileConfiguration : FileConfiguration
     }
 
     /// <summary>
-    /// Appends the specified file path to the current path and returns a new <see cref="LocalFileConfiguration"/> instance.
+    /// Appends the specified suffix to the current path and returns a new <see cref="LocalFileConfiguration"/> instance.
     /// </summary>
-    /// <param name="file">The relative path to append.</param>
+    /// <param name="suffix">The suffix to append to the current path.</param>
     /// <returns>A new <see cref="LocalFileConfiguration"/> with the appended path.</returns>
-    public override LocalFileConfiguration AppendPath(string file)
-        => new LocalFileConfiguration(this.Path + file);
+    public override LocalFileConfiguration AppendPath(string suffix)
+        => new LocalFileConfiguration(this.Path + suffix);
 
     /// <summary>
     /// Returns a string that represents the current local file configuration.

@@ -6,7 +6,7 @@ namespace CrystalData;
 
 public static partial class StoragePointHelper2
 {
-    private const int DefaultNumberOfFileHistories = 3;
+    private const int DefaultNumberOfHistoryFiles = 3;
 
     public static async Task<ICrystal<TData>> CreateAndStartCrystal<TData>()
         where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
@@ -14,7 +14,7 @@ public static partial class StoragePointHelper2
         var directory = $"Crystal[{RandomVault.Default.NextUInt32():x4}]";
         var storageConfiguration = new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Storage")))
         {
-            NumberOfHistoryFiles = DefaultNumberOfFileHistories,
+            NumberOfHistoryFiles = DefaultNumberOfHistoryFiles,
         };
 
         var builder = new CrystalUnit.Builder();
@@ -25,7 +25,7 @@ public static partial class StoragePointHelper2
                 new(new LocalFileConfiguration(Path.Combine(directory, "Test.tinyhand")))
                 {
                     SaveFormat = SaveFormat.Utf8,
-                    NumberOfFileHistories = DefaultNumberOfFileHistories,
+                    NumberOfHistoryFiles = DefaultNumberOfHistoryFiles,
                     StorageConfiguration = storageConfiguration,
                 });
         });

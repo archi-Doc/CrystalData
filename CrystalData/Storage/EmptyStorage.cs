@@ -33,10 +33,10 @@ public partial class EmptyStorage : IStorage
     Task<CrystalMemoryOwnerResult> IStorage.GetAsync(ref ulong fileId)
         => Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.Success));
 
-    CrystalResult IStorage.PutAndForget(ref ulong fileId, BytePool.RentReadOnlyMemory memoryToBeShared)
+    CrystalResult IStorage.PutAndForget(ref ulong fileId, BytePool.RentedReadOnlyMemory dataToBeShared)
         => CrystalResult.Success;
 
-    Task<CrystalResult> IStorage.PutAsync(ref ulong fileId, BytePool.RentReadOnlyMemory memoryToBeShared)
+    Task<CrystalResult> IStorage.PutAsync(ref ulong fileId, BytePool.RentedReadOnlyMemory dataToBeShared)
         => Task.FromResult(CrystalResult.Success);
 
     CrystalResult IStorage.DeleteAndForget(ref ulong fileId)

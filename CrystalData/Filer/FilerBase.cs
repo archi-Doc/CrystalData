@@ -24,7 +24,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     #region FieldAndProperty
 
-    bool IFiler.SupportPartialWrite => true;
+    bool IFiler.SupportsPartialWrite => true;
 
     protected CrystalControl? CrystalControl { get; set; }
 
@@ -55,21 +55,21 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletion().ConfigureAwait(false);
+        await this.WaitForCompletionAsync().ConfigureAwait(false);
         if (terminate)
         {
             this.Dispose();
         }
     }
 
-    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
     {
-        if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
+        if (!((IFiler)this).SupportsPartialWrite && (offset != 0 || !truncate))
         {// Not supported
             return CrystalResult.NoPartialWriteSupport;
         }
 
-        var job = this.Rent(ReusableJobFlags.ReturnToPoolOnCompletion);
+        var job = this.Rent(ReusableJobOptions.ReturnToPoolOnCompletion);
         job.Initialize(path, offset, dataToBeShared, truncate);
         _ = this.Add(job);
         return CrystalResult.Started;
@@ -77,7 +77,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     CrystalResult IFiler.DeleteAndForget(string path)
     {
-        var job = this.Rent(ReusableJobFlags.ReturnToPoolOnCompletion);
+        var job = this.Rent(ReusableJobOptions.ReturnToPoolOnCompletion);
         job.Initialize(FilerWork.WorkType.Delete, path);
         _ = this.Add(job);
         return CrystalResult.Started;
@@ -92,9 +92,9 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         return new(job.Result, job.ReadData.ReadOnly);
     }
 
-    async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
+    async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
     {
-        if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
+        if (!((IFiler)this).SupportsPartialWrite && (offset != 0 || !truncate))
         {// Not supported
             return CrystalResult.NoPartialWriteSupport;
         }

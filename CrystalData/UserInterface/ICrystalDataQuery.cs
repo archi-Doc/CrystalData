@@ -7,7 +7,7 @@ namespace CrystalData.UserInterface;
 /// </summary>
 public interface ICrystalDataQuery
 {
-    Task<AbortOrContinue> NoCheckFile();
+    Task<AbortOrContinue> NoSupplementFile();
 
     Task<AbortOrContinue> InconsistentJournal(string path);
 

@@ -68,7 +68,7 @@ public partial class CrystalControl
     private readonly Lock registrationLock = new();
     private readonly SemaphoreLock prepareLock = new();
     private readonly SemaphoreLock storeLock = new();
-    private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
+    private ThreadSafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
 
     private Lock lockObject = new();
@@ -382,7 +382,7 @@ public partial class CrystalControl
         }
 
         var bytes = TinyhandSerializer.SerializeToUtf8(data);
-        result = await resolved.Filer.WriteAsync(0, BytePool.RentReadOnlyMemory.CreateFrom(bytes)).ConfigureAwait(false);
+        result = await resolved.Filer.WriteAsync(0, BytePool.RentedReadOnlyMemory.CreateFrom(bytes)).ConfigureAwait(false);
 
         return result;
     }
@@ -670,7 +670,7 @@ public partial class CrystalControl
         }
     }
 
-    public async Task<bool> TestJournalAll()
+    public async Task<bool> TestAllJournals()
     {
         var crystals = this.crystals.GetCrystals(false);
         var result = true;
@@ -908,7 +908,7 @@ public partial class CrystalControl
             }
             else if (configuration is SimpleJournalConfiguration simpleJournalConfiguration)
             {
-                if (this.Options.DefaultBackup is { } globalBackup)
+                if (this.Options.DefaultBackupDirectory is { } globalBackup)
                 {
                     if (simpleJournalConfiguration.BackupDirectoryConfiguration == null)
                     {
@@ -1000,7 +1000,7 @@ public partial class CrystalControl
         var reader = new TinyhandReader(data.Span);
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadJournal(out var length, out var journalType))
+            if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {
                 this.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Journal.Corrupted);
                 return;
@@ -1011,7 +1011,7 @@ public partial class CrystalControl
             {
                 if (journalType == JournalType.Record)
                 {
-                    reader.Read_Locator();
+                    reader.ReadLocatorRecord();
                     var plane = reader.ReadUInt32();
                     if (dictionary.TryGetValue(plane, out var crystal))
                     {
@@ -1066,7 +1066,7 @@ public partial class CrystalControl
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
-        var concurrentUnload = Math.Max(1, this.Options.ConcurrentUnload);
+        var concurrentUnload = Math.Max(1, this.Options.MaxConcurrentUnloads);
         var releaseTasks = new Task[concurrentUnload];
         for (var i = 0; i < concurrentUnload; i++)
         {

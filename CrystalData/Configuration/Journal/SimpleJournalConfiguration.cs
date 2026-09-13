@@ -16,10 +16,10 @@ public partial record SimpleJournalConfiguration : JournalConfiguration
     {
     }
 
-    public SimpleJournalConfiguration(DirectoryConfiguration configuration, int journalCapacityInMBs = DefaultJournalCapacityInMBs, int saveIntervalInMilliseconds = DefaultSaveIntervalInMilliseconds)
+    public SimpleJournalConfiguration(DirectoryConfiguration directoryConfiguration, int journalCapacityInMBs = DefaultJournalCapacityInMBs, int saveIntervalInMilliseconds = DefaultSaveIntervalInMilliseconds)
         : base()
     {
-        this.DirectoryConfiguration = configuration;
+        this.DirectoryConfiguration = directoryConfiguration;
 
         this.JournalCapacityInMBs = journalCapacityInMBs;
         if (this.JournalCapacityInMBs < DefaultJournalCapacityInMBs)

@@ -7,10 +7,10 @@ namespace QuickStart;
 [TinyhandObject(Structural = true)]
 public partial class BackupData
 {
-    [Key(0, AddProperty = "Id")]
+    [Key(0, PropertyName = "Id")]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     [DefaultValue("Back")]
     private string name = string.Empty;
 
@@ -32,7 +32,7 @@ public partial class Program
                     new()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 3,
+                        NumberOfHistoryFiles = 3,
                         FileConfiguration = new LocalFileConfiguration("Local/BackupExample/FirstData.tinyhand"),
                     });
 
@@ -40,7 +40,7 @@ public partial class Program
                     new()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 3,
+                        NumberOfHistoryFiles = 3,
                         FileConfiguration = new LocalFileConfiguration("Local/BackupExample/BackupData.tinyhand"),
 
                         // Specify the location to save the backup files individually.
@@ -49,10 +49,10 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
                 {
-                    // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
-                    DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "DefaultBackup")),
+                    // When you set DefaultBackupDirectory, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
+                    DefaultBackupDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "DefaultBackup")),
                 });
             });
 

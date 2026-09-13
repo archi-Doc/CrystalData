@@ -20,8 +20,8 @@ public partial record EmptyFileConfiguration : FileConfiguration
     {
     }
 
-    public override EmptyFileConfiguration AppendPath(string file)
-        => new EmptyFileConfiguration(this.Path + file);
+    public override EmptyFileConfiguration AppendPath(string suffix)
+        => new EmptyFileConfiguration(this.Path + suffix);
 
     public override string ToString()
         => $"Empty file";

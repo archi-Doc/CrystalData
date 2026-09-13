@@ -7,7 +7,7 @@ namespace CrystalData;
 /// </summary>
 public interface ISingleFiler
 {
-    bool SupportPartialWrite { get; }
+    bool SupportsPartialWrite { get; }
 
     void SetTimeout(TimeSpan timeout);
 
@@ -24,9 +24,9 @@ public interface ISingleFiler
 
     Task<CrystalMemoryOwnerResult> ReadAsync(long offset, int length);
 
-    Task<CrystalResult> WriteAsync(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true);
+    Task<CrystalResult> WriteAsync(long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate = true);
 
-    CrystalResult WriteAndForget(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true);
+    CrystalResult WriteAndForget(long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate = true);
 
     CrystalResult DeleteAndForget();
 

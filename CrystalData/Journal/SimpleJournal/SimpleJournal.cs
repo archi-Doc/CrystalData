@@ -195,7 +195,7 @@ public partial class SimpleJournal : IJournal
         if (this.task is { } task)
         {// Wait for the task to complete; the journal is written upon termination.
             task.RequestTermination();
-            await task.WaitForTermination().ConfigureAwait(false);
+            await task.WaitForTerminationAsync().ConfigureAwait(false);
         }
 
         using (this.lockBooks.EnterScope())
@@ -252,7 +252,7 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    public async Task<(ulong NextPosition, BytePool.RentMemory Data)> ReadJournalAsync(ulong position)
+    public async Task<(ulong NextPosition, BytePool.RentedMemory Data)> ReadJournalAsync(ulong position)
     {
         ulong length, nextPosition;
         using (this.lockBooks.EnterScope())
@@ -516,7 +516,7 @@ Load:
             return;
         }
 
-        if (await Book.MergeBooks(this, start, end, owner.AsReadOnly(0, lastLength)).ConfigureAwait(false))
+        if (await Book.MergeBooks(this, start, end, owner.AsReadOnlyMemory(0, lastLength)).ConfigureAwait(false))
         {// Success
             this.logger.GetWriter()?.Write($"Merged: {start} - {end}");
         }

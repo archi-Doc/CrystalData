@@ -281,7 +281,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             this.TimeForDataSavingValue = this.CrystalControl.SystemTimeInSeconds + this.saveIntervalInSeconds;
         }
 
-        if (this.CrystalConfiguration.Volatile)
+        if (this.CrystalConfiguration.IsVolatile)
         {// Volatile
             if (storeMode != StoreMode.StoreOnly)
             {// Release
@@ -324,7 +324,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
                 }
                 else if (state == GoshujinState.Releasing)
                 {// Unload (Success)
-                    if (semaphore.SemaphoreCount > 0)
+                    if (semaphore.AcquisitionCount > 0)
                     {
                         return CrystalResult.DataIsLocked;
                     }
@@ -336,7 +336,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
             else if (storeMode == StoreMode.ForceRelease)
             {
-                semaphore.LockAndForceRelease();
+                semaphore.LockAndSetReleasing();
             }
         }
 
@@ -344,7 +344,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         var startingPosition = this.CrystalControl.GetJournalPosition();
 
         // Serialize
-        BytePool.RentMemory rentMemory;
+        BytePool.RentedMemory rentMemory;
         try
         {
             if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
@@ -592,7 +592,7 @@ Exit:
         {
             journal.GetWriter(recordType, out writer);
 
-            writer.Write_Locator();
+            writer.WriteLocatorRecord();
             writer.Write(this.waypoint.Plane);
             return true;
         }
@@ -648,7 +648,7 @@ Exit:
 
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadJournal(out var length, out var journalType))
+            if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {
                 return false;
             }
@@ -658,7 +658,7 @@ Exit:
             {
                 if (journalType == JournalType.Record)
                 {
-                    reader.Read_Locator();
+                    reader.ReadLocatorRecord();
                     var plane = reader.ReadUInt32();
 
                     if (plane == currentPlane)
@@ -784,7 +784,7 @@ Exit:
             this.data = data;
             this.waypoint = loadResult.Waypoint;
             this.LeadingJournalPosition = this.CrystalControl.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
-            if (this.CrystalConfiguration.HasFileHistories)
+            if (this.CrystalConfiguration.HasHistoryFiles)
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
@@ -837,12 +837,12 @@ Exit:
             return (CrystalResult.Success, default, default); // New
         }
 
-        var deserializedData = data.Result.Object;
+        var deserializedData = data.Result.Data;
         if (this.CrystalControl.Journal is { } journal &&
             data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
             var journalPosition = journal.GetCurrentPosition();
-            if (await journal.RestoreData(data.Waypoint.JournalPosition, journalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
+            if (await journal.RestoreData(data.Waypoint.JournalPosition, journalPosition, data.Result.Data, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
             {
                 this.LeadingJournalPosition = journalPosition; // To prevent double loading when ReadJournal is called later, update LeadingJournalPosition.
                 deserializedData = restoredData;
@@ -855,7 +855,7 @@ Exit:
             }
         }
 
-        if (configuration.HasFileHistories)
+        if (configuration.HasHistoryFiles)
         {
             return (CrystalResult.Success, deserializedData, data.Waypoint);
         }
@@ -897,7 +897,7 @@ Exit:
             TinyhandSerializer.ReconstructObject<TData>(ref this.data);
         }
 
-        BytePool.RentMemory rentMemory = default;
+        BytePool.RentedMemory rentMemory = default;
         try
         {
             if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
@@ -922,7 +922,7 @@ Exit:
         // Save immediately to fix the waypoint.
         this.initialSaveTask = SaveAndReturn(this.crystalFiler, rentMemory.ReadOnly, this.waypoint);
 
-        static async Task<CrystalResult> SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentReadOnlyMemory memory, Waypoint waypoint)
+        static async Task<CrystalResult> SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentedReadOnlyMemory memory, Waypoint waypoint)
         {
             try
             {
@@ -989,7 +989,7 @@ Exit:
             }
         }
 
-        if (this.CrystalControl.Options.DefaultBackup is { } globalBackup)
+        if (this.CrystalControl.Options.DefaultBackupDirectory is { } globalBackup)
         {
             if (backupFileConfiguration is null)
             {

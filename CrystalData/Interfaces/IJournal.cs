@@ -25,7 +25,7 @@ public interface IJournal : IPersistable
 
     void ResetJournal(ulong position);
 
-    Task<(ulong NextPosition, BytePool.RentMemory Data)> ReadJournalAsync(ulong position);
+    Task<(ulong NextPosition, BytePool.RentedMemory Data)> ReadJournalAsync(ulong position);
 
     Task Terminate();
 }

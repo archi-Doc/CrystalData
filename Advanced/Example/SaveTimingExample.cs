@@ -8,7 +8,7 @@ namespace QuickStart;
 [TinyhandObject(Structural = true)] // Journaling feature is necessary to allow the function to save data when properties are changed.
 public partial class SaveTimingData
 {
-    [Key(0, AddProperty = "Id")] // Add a property to save data when the value is changed.
+    [Key(0, PropertyName = "Id")] // Add a property to save data when the value is changed.
     internal int id;
 
     public override string ToString()
@@ -29,7 +29,7 @@ public partial class Program
                     {
                         SaveInterval = TimeSpan.FromMinutes(1), // The interval at which data is stored.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                        NumberOfFileHistories = 0, // No history file.
+                        NumberOfHistoryFiles = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/SaveTimingExample/SaveTimingData.tinyhand"), // Specify the file name to save.
                     });
             });

@@ -37,7 +37,7 @@ public class CrystalFiler
                 return CrystalResult.NotPrepared;
             }
 
-            var path = this.crystalFiler.IsProtected ? this.GetFilePath(waypoint) : this.GetFilePath();
+            var path = this.crystalFiler.HasHistoryFiles ? this.GetFilePath(waypoint) : this.GetFilePath();
             var r = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
             if (r.IsFailure)
             {
@@ -46,7 +46,7 @@ public class CrystalFiler
 
             try
             {
-                var path2 = target.crystalFiler.IsProtected ? target.GetFilePath(waypoint) : target.GetFilePath();
+                var path2 = target.crystalFiler.HasHistoryFiles ? target.GetFilePath(waypoint) : target.GetFilePath();
                 return await target.rawFiler.WriteAsync(path2, 0, r.Data).ConfigureAwait(false);
             }
             finally
@@ -124,7 +124,7 @@ public class CrystalFiler
 
                     var waypointString = path.Substring(path.Length - Waypoint.LengthInBase32, Waypoint.LengthInBase32);
                     path = path.Substring(0, path.Length - Waypoint.LengthInBase32);
-                    if (!StorageHelper.EndsWith_SlashInsensitive(path, this.prefix))
+                    if (!StorageHelper.EndsWithSlashInsensitive(path, this.prefix))
                     {
                         continue;
                     }
@@ -137,20 +137,20 @@ public class CrystalFiler
             }
         }
 
-        public async Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
+        public async Task<CrystalResult> Save(BytePool.RentedReadOnlyMemory rentedMemory, Waypoint waypoint)
         {
             if (this.rawFiler == null)
             {
                 return CrystalResult.NotPrepared;
             }
 
-            if (!this.crystalFiler.IsProtected)
+            if (!this.crystalFiler.HasHistoryFiles)
             {// Prefix.Extension
-                return await this.rawFiler.WriteAsync(this.GetFilePath(), 0, rentMemory).ConfigureAwait(false);
+                return await this.rawFiler.WriteAsync(this.GetFilePath(), 0, rentedMemory).ConfigureAwait(false);
             }
 
             var path = this.GetFilePath(waypoint);
-            var result = await this.rawFiler.WriteAsync(path, 0, rentMemory).ConfigureAwait(false);
+            var result = await this.rawFiler.WriteAsync(path, 0, rentedMemory).ConfigureAwait(false);
             if (result.IsFailure())
             {
                 return result;
@@ -176,7 +176,7 @@ public class CrystalFiler
                 return CrystalResult.Success;
             }
 
-            var numberOfFiles = this.crystalFiler.configuration.NumberOfFileHistories;
+            var numberOfFiles = this.crystalFiler.configuration.NumberOfHistoryFiles;
             if (numberOfFiles < 1)
             {
                 numberOfFiles = 1;
@@ -230,7 +230,7 @@ public class CrystalFiler
             }
 
             string path;
-            if (!this.crystalFiler.IsProtected)
+            if (!this.crystalFiler.HasHistoryFiles)
             {// No file history
                 path = this.GetFilePath();
                 var result = await this.rawFiler.ReadAsync(path, 0, -1).ConfigureAwait(false);
@@ -440,7 +440,7 @@ public class CrystalFiler
     private Output? main;
     private Output? backup;
 
-    public bool IsProtected => this.configuration.HasFileHistories;
+    public bool HasHistoryFiles => this.configuration.HasHistoryFiles;
 
     internal Output? Main => this.main;
 
@@ -475,7 +475,7 @@ public class CrystalFiler
             }
         }
 
-        if (this.IsProtected)
+        if (this.HasHistoryFiles)
         {// List data
             await this.main.ListData().ConfigureAwait(false);
             if (this.backup is not null)
@@ -487,17 +487,17 @@ public class CrystalFiler
         return CrystalResult.Success;
     }
 
-    public async Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
+    public async Task<CrystalResult> Save(BytePool.RentedReadOnlyMemory rentedMemory, Waypoint waypoint)
     {
         if (this.main is null)
         {
             return CrystalResult.NotPrepared;
         }
 
-        var result = await this.main.Save(rentMemory, waypoint).ConfigureAwait(false);
+        var result = await this.main.Save(rentedMemory, waypoint).ConfigureAwait(false);
         if (this.backup is not null)
         {
-            var backupResult = await this.backup.Save(rentMemory, waypoint).ConfigureAwait(false);
+            var backupResult = await this.backup.Save(rentedMemory, waypoint).ConfigureAwait(false);
             if (result.IsSuccess())
             {
                 result = backupResult;
@@ -535,7 +535,7 @@ public class CrystalFiler
             return (new(CrystalResult.NotPrepared), Waypoint.Invalid, string.Empty);
         }
 
-        if (!this.IsProtected)
+        if (!this.HasHistoryFiles)
         {// Not protected (no file history)
             var result = await this.main.LoadLatest<TData>(param, formatHint, singletonData).ConfigureAwait(false);
             if (result.Result.IsFailure && this.backup is not null)

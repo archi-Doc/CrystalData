@@ -61,7 +61,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 3, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
+                        NumberOfHistoryFiles = 3, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
                         FileConfiguration = new GlobalFileConfiguration("JournalData.tinyhand"), // Specify the file name to save.
                     });
 
@@ -69,7 +69,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 1,
+                        NumberOfHistoryFiles = 1,
                         FileConfiguration = new GlobalFileConfiguration("JournalData2.tinyhand"), // Specify the file name to save.
                     });
             });

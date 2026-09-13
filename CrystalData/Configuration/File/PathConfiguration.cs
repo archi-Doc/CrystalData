@@ -15,7 +15,7 @@ namespace CrystalData;
 [TinyhandUnion("GlobalDirectory", typeof(GlobalDirectoryConfiguration))]
 public abstract partial record PathConfiguration
 {
-    public enum Type
+    public enum PathKind
     {
         Unknown,
         File,
@@ -32,7 +32,7 @@ public abstract partial record PathConfiguration
         this.Path = path;
     }
 
-    public virtual Type PathType => Type.Unknown;
+    public virtual PathKind Kind => PathKind.Unknown;
 
     [Key("Path")]
     public string Path { get; init; }

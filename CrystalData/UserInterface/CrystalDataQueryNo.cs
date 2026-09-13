@@ -4,7 +4,7 @@ namespace CrystalData.UserInterface;
 
 internal class CrystalDataQueryNo : ICrystalDataQuery
 {
-    Task<AbortOrContinue> ICrystalDataQuery.NoCheckFile()
+    Task<AbortOrContinue> ICrystalDataQuery.NoSupplementFile()
         => Task.FromResult(AbortOrContinue.Continue);
 
     Task<AbortOrContinue> ICrystalDataQuery.InconsistentJournal(string path)

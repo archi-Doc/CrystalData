@@ -102,7 +102,7 @@ public class PersistenceTest
         var (filer, _) = await scope.Control.ResolveAndPrepareAndCheckSingleFiler<PersistenceData>(scope.Configuration.FileConfiguration);
         Assert.NotNull(filer);
         byte[] expected = [1, 2, 3, 4];
-        Assert.Equal(CrystalResult.Success, await filer.WriteAsync(0, BytePool.RentReadOnlyMemory.CreateFrom(expected)));
+        Assert.Equal(CrystalResult.Success, await filer.WriteAsync(0, BytePool.RentedReadOnlyMemory.CreateFrom(expected)));
         var result = await filer.ReadAsync(0, expected.Length + 1);
         try
         {
@@ -413,7 +413,7 @@ public class PersistenceTest
             this.Configuration = new CrystalConfiguration(new LocalFileConfiguration(Path.Combine(this.DirectoryPath, "data", "value.tinyhand")))
             {
                 SaveFormat = SaveFormat.Utf8,
-                NumberOfFileHistories = histories,
+                NumberOfHistoryFiles = histories,
                 BackupFileConfiguration = backup ? new LocalFileConfiguration(Path.Combine(this.DirectoryPath, "backup.tinyhand")) : null,
             };
             var product = new CrystalUnit.Builder().ConfigureCrystal(context =>

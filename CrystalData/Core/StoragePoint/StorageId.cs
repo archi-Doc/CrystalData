@@ -54,7 +54,7 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         try
         {
             var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
-            return TryParse(byteArray, out storageId);
+            return TryRead(byteArray, out storageId);
         }
         catch
         {
@@ -63,7 +63,7 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         }
     }
 
-    public static bool TryParse(ReadOnlySpan<byte> span, out StorageId storageId)
+    public static bool TryRead(ReadOnlySpan<byte> span, out StorageId storageId)
     {
         if (span.Length >= Length)
         {
@@ -99,7 +99,7 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         Span<byte> span = stackalloc byte[Length];
         this.WriteSpan(span);
 
-        return Base32Sort.Default.FromByteArrayToString(span);
+        return Base32Sort.Default.FromBytesToString(span);
     }
 
     public override string ToString()
@@ -115,11 +115,11 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         this.FileId == other.FileId &&
         this.Hash == other.Hash;
 
-    public static bool operator >(StorageId w1, StorageId w2)
-        => w1.CompareTo(w2) > 0;
+    public static bool operator >(StorageId left, StorageId right)
+        => left.CompareTo(right) > 0;
 
-    public static bool operator <(StorageId w1, StorageId w2)
-        => w1.CompareTo(w2) < 0;
+    public static bool operator <(StorageId left, StorageId right)
+        => left.CompareTo(right) < 0;
 
     public int CompareTo(StorageId other)
     {

@@ -54,7 +54,7 @@ public partial class CrystalControl
 
                 if (delayFlag)
                 {
-                    await core.Delay(IntervalInMilliseconds).ConfigureAwait(false);
+                    await core.TryDelay(IntervalInMilliseconds).ConfigureAwait(false);
                 }
             }
         }

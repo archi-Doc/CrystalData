@@ -16,7 +16,7 @@ namespace CrystalData;
 [TinyhandObject(ExplicitKeysOnly = true)]
 public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 {
-    public const string Filename = "Map";
+    public const string FileName = "Map";
 
     public static readonly StorageMap Disabled = new();
 
@@ -75,7 +75,7 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
         {
             this.crystalControl.Journal.GetWriter(recordType, out writer);
 
-            writer.Write_Locator();
+            writer.WriteLocatorRecord();
             writer.Write(this.);
             return true;
         }
@@ -123,12 +123,12 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 
     bool IStructuralObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (!reader.TryReadJournalRecord(out JournalRecord record))
+        if (!reader.TryReadJournalRecord(out JournalRecordType record))
         {
             return false;
         }
 
-        if (record == JournalRecord.AddItem)
+        if (record == JournalRecordType.AddItem)
         {
             var pointId = reader.ReadUInt64();
             var typeIdentifier = reader.ReadUInt32();
@@ -141,7 +141,7 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 
             return true;
         }
-        else if (record == JournalRecord.Locator)
+        else if (record == JournalRecordType.Locator)
         {
             var pointId = reader.ReadUInt64();
             if (this.storageObjects.PointIdChain.TryGetValue(pointId, out var storageObject))

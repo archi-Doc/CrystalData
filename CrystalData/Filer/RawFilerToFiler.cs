@@ -18,7 +18,7 @@ internal class RawFilerToFiler : ISingleFiler
 
     public string Path { get; }
 
-    bool ISingleFiler.SupportPartialWrite => this.RawFiler.SupportPartialWrite;
+    bool ISingleFiler.SupportsPartialWrite => this.RawFiler.SupportsPartialWrite;
 
     void ISingleFiler.SetTimeout(TimeSpan timeout)
     {
@@ -37,10 +37,10 @@ internal class RawFilerToFiler : ISingleFiler
     Task<CrystalMemoryOwnerResult> ISingleFiler.ReadAsync(long offset, int length)
         => this.RawFiler.ReadAsync(this.Path, offset, length, this.timeout);
 
-    CrystalResult ISingleFiler.WriteAndForget(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult ISingleFiler.WriteAndForget(long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
         => this.RawFiler.WriteAndForget(this.Path, offset, dataToBeShared, truncate);
 
-    Task<CrystalResult> ISingleFiler.WriteAsync(long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    Task<CrystalResult> ISingleFiler.WriteAsync(long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
         => this.RawFiler.WriteAsync(this.Path, offset, dataToBeShared, this.timeout, truncate);
 
     ISingleFiler ISingleFiler.CloneWithExtension(string extension)

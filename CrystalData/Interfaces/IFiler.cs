@@ -7,7 +7,7 @@ namespace CrystalData.Filer;
 /// </summary>
 public interface IFiler
 {
-    bool SupportPartialWrite { get; }
+    bool SupportsPartialWrite { get; }
 
     /// <summary>
     /// Prepare the filer and check if the path is valid.<br/>
@@ -22,9 +22,9 @@ public interface IFiler
 
     Task<CrystalMemoryOwnerResult> ReadAsync(string path, long offset, int length, TimeSpan timeout);
 
-    CrystalResult WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true);
+    CrystalResult WriteAndForget(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate = true);
 
-    Task<CrystalResult> WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate = true);
+    Task<CrystalResult> WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate = true);
 
     /// <summary>
     /// Delete the file matching the path.
@@ -52,7 +52,7 @@ public interface IFiler
     Task<CrystalMemoryOwnerResult> ReadAsync(string path, long offset, int length)
         => this.ReadAsync(path, offset, length, Timeout.InfiniteTimeSpan);
 
-    Task<CrystalResult> WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate = true)
+    Task<CrystalResult> WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate = true)
         => this.WriteAsync(path, offset, dataToBeShared, Timeout.InfiniteTimeSpan, truncate);
 
     Task<CrystalResult> DeleteAsync(string path)

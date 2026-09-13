@@ -18,7 +18,7 @@ public static partial class StorageHelper
     public const long Megabytes = 1024 * 1024;
     public const long Gigabytes = 1024 * 1024 * 1024;
 
-    public static string ByteToString(long size)
+    public static string FormatByteSize(long size)
     {
         // MaxValue = 9_223_372_036_854_775_807
         // B, K, M, G, T, P, E
@@ -98,7 +98,7 @@ public static partial class StorageHelper
         return $"{size}E";
     }
 
-    public static bool EndsWith_SlashInsensitive(string path, string value)
+    public static bool EndsWithSlashInsensitive(string path, string value)
     {
         if (path.Length < value.Length)
         {
@@ -129,7 +129,7 @@ public static partial class StorageHelper
         return true;
     }
 
-    public static string GetPathNotRoot(string path)
+    public static string GetPathWithoutRoot(string path)
     {
         if (!Path.IsPathRooted(path))
         {

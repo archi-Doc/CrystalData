@@ -7,7 +7,7 @@ namespace CrystalData;
 /// </summary>
 public readonly struct CrystalMemoryOwnerResult
 {
-    public CrystalMemoryOwnerResult(CrystalResult result, BytePool.RentReadOnlyMemory data)
+    public CrystalMemoryOwnerResult(CrystalResult result, BytePool.RentedReadOnlyMemory data)
     {
         this.Result = result;
         this.Data = data;
@@ -27,7 +27,7 @@ public readonly struct CrystalMemoryOwnerResult
 
     public readonly CrystalResult Result;
 
-    public readonly BytePool.RentReadOnlyMemory Data;
+    public readonly BytePool.RentedReadOnlyMemory Data;
 
     public override string ToString()
         => $"{this.Result} Data[{this.Data.Memory.Length}]";

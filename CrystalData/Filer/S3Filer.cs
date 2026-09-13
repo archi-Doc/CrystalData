@@ -49,7 +49,7 @@ public class S3Filer : FilerBase, IFiler
 
     #endregion
 
-    protected override async Task OnJobProcessing(FilerWork work, CancellationToken cancellationToken)
+    protected override async Task ProcessJobAsync(FilerWork work, CancellationToken cancellationToken)
     {
         var worker = (S3Filer)this;
         if (worker.client == null)
@@ -109,7 +109,7 @@ TryWrite:
         {// Read
             if (work.Length == 0)
             {
-                work.ReadData = BytePool.RentMemory.Empty;
+                work.ReadData = BytePool.RentedMemory.Empty;
                 work.Result = CrystalResult.Success;
                 return;
             }
@@ -130,7 +130,7 @@ TryWrite:
                     {
                         await response.ResponseStream.CopyToAsync(ms, worker.CancellationToken).ConfigureAwait(false);
                         work.Result = CrystalResult.Success;
-                        work.ReadData = BytePool.RentMemory.CreateFrom(ms.ToArray());
+                        work.ReadData = BytePool.RentedMemory.CreateFrom(ms.ToArray());
                         worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read {filePath}, {work.ReadData.Memory.Length}");
                         return;
                     }
@@ -248,7 +248,7 @@ RepeatList:
         return;
     }
 
-    bool IFiler.SupportPartialWrite => false;
+    bool IFiler.SupportsPartialWrite => false;
 
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {
@@ -313,7 +313,7 @@ NoAccess:
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletion().ConfigureAwait(false);
+        await this.WaitForCompletionAsync().ConfigureAwait(false);
         if (terminate)
         {
             this.Dispose();

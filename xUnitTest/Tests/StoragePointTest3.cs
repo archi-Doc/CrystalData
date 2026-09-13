@@ -276,7 +276,7 @@ public class StoragePointTest3
         c1.Name = "Nuu";
 
         await crystal.CrystalControl.StoreAndRelease(TestContext.Current.CancellationToken);
-        (await crystal.CrystalControl.TestJournalAll()).IsTrue();
+        (await crystal.CrystalControl.TestAllJournals()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }
@@ -302,7 +302,7 @@ public class StoragePointTest3
         await this.Validate3(c1);
 
         await crystal.CrystalControl.StoreAndRelease(TestContext.Current.CancellationToken); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
-        (await crystal.CrystalControl.TestJournalAll()).IsTrue();
+        (await crystal.CrystalControl.TestAllJournals()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }

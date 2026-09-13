@@ -15,21 +15,21 @@ public partial record StorageDataClass : IEquatableObject, IEquatable<StorageDat
     {
     }
 
-    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(0, PropertyName = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     [Link(Type = ChainType.Ordered)]
     private string name = string.Empty;
 
-    [Key(2, AddProperty = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(2, PropertyName = "Child", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StoragePoint<StorageDataClass> child = new();
 
-    [Key(3, AddProperty = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(3, PropertyName = "Children", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StoragePoint<StorageDataClass.GoshujinClass> children = new();
 
-    [Key(4, AddProperty = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(4, PropertyName = "ByteArray", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     private StoragePoint<byte[]> byteArray = new();
 
     public bool ObjectEquals(object? other)
@@ -69,7 +69,7 @@ public class StorageDataTest
         // Save & Test journal
         await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
-        var result = await crystal.CrystalControl.TestJournalAll();
+        var result = await crystal.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         // g3: +1 -1
@@ -104,7 +104,7 @@ public class StorageDataTest
         // Save & Test journal
         await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
-        result = await crystal.CrystalControl.TestJournalAll();
+        result = await crystal.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);

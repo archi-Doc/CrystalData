@@ -8,14 +8,14 @@ namespace QuickStart;
 [ValueLinkObject(Isolation = IsolationLevel.RepeatableRead)]
 public partial record IntegratedData
 {
-    [Key(0, AddProperty = "Id")]
+    [Key(0, PropertyName = "Id")]
     [Link(Primary = true, Unique = true, Type = ChainType.Unordered)]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     private string name = string.Empty;
 
-    [Key(2, AddProperty = "Count")]
+    [Key(2, PropertyName = "Count")]
     private int count;
 
     public IntegratedData()
@@ -48,7 +48,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                        NumberOfFileHistories = 1, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
+                        NumberOfHistoryFiles = 1, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
                         FileConfiguration = new LocalFileConfiguration("Local/IntegratedExample/IntegratedData.tinyhand"), // Specify the file name to save.
                     });
 
