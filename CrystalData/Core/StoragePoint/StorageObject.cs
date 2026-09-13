@@ -26,7 +26,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     internal byte protectionState;
 
     [Key(0)]
-    [Link(Primary = true, Unique = true, Type = ChainType.Unordered, AddValue = false)]
+    [Link(Primary = true, Unique = true, Type = ChainType.Unordered, GenerateValue = false)]
     private ulong pointId; // Lock:StorageControl
 
     [Key(1)]
@@ -793,7 +793,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         => this.typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
 
     [MemberNotNull(nameof(data))]
-    internal void SetDataInternal<TData>(TData newData, bool recordJournal, BytePool.RentReadOnlyMemory original)
+    internal void SetDataInternal<TData>(TData newData, bool recordJournal, BytePool.RentedReadOnlyMemory original)
         where TData : class
     {// Lock:this
         if (this.IsPinned)
@@ -803,7 +803,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 #pragma warning restore CS8774 // Member must have a non-null value when exiting.
         }
 
-        BytePool.RentMemory rentMemory = default;
+        BytePool.RentedMemory rentMemory = default;
         this.data = newData!;
         if (this.data is IStructuralObject structuralObject)
         {

@@ -116,7 +116,7 @@ public static class SerializeHelper
         }
     }
 
-    /*public static bool TrySerialize<T>(T obj, out BytePool.RentMemory rentMemory)
+    /*public static bool TrySerialize<T>(T obj, out BytePool.RentedMemory rentMemory)
         where T : ITinyhandSerializable<T>
     {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
@@ -134,7 +134,7 @@ public static class SerializeHelper
             else
             {
                 arrayOwner.Return();
-                rentMemory = new BytePool.RentMemory(array);
+                rentMemory = new BytePool.RentedMemory(array);
                 return true;
             }
         }
@@ -146,7 +146,7 @@ public static class SerializeHelper
         }
     }
 
-    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentMemory rentMemory)
+    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentedMemory rentMemory)
     {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
@@ -163,7 +163,7 @@ public static class SerializeHelper
             else
             {
                 arrayOwner.Return();
-                rentMemory = new BytePool.RentMemory(array);
+                rentMemory = new BytePool.RentedMemory(array);
                 return true;
             }
         }

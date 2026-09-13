@@ -29,9 +29,9 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
     public bool Truncate { get; private set; }
 
-    public BytePool.RentReadOnlyMemory WriteData { get; private set; }
+    public BytePool.RentedReadOnlyMemory WriteData { get; private set; }
 
-    public BytePool.RentMemory ReadData { get; internal set; }
+    public BytePool.RentedMemory ReadData { get; internal set; }
 
     public object? OutputObject { get; internal set; }
 
@@ -39,7 +39,7 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
     {
     }
 
-    public void Initialize(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    public void Initialize(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
     {// Write
         this.Type = WorkType.Write;
         this.Path = path;

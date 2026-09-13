@@ -62,7 +62,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         }
     }
 
-    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
     {
         if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
         {// Not supported
@@ -92,7 +92,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         return new(job.Result, job.ReadData.ReadOnly);
     }
 
-    async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
+    async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
     {
         if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
         {// Not supported

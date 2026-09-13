@@ -26,7 +26,7 @@ public class LocalFiler : FilerBase, IFiler
         return AddStorageResult.Success;
     }
 
-    protected override async Task OnJobProcessing(FilerWork work, CancellationToken cancellationToken)
+    protected override async Task ProcessJobAsync(FilerWork work, CancellationToken cancellationToken)
     {
         var worker = (LocalFiler)this;
         var tryCount = 0;
@@ -107,7 +107,7 @@ TryWrite:
         }
         else if (work.Type == FilerWork.WorkType.Read)
         {// Read
-            BytePool.RentMemory memoryOwner = default;
+            BytePool.RentedMemory memoryOwner = default;
             try
             {
                 var offset = work.Offset;

@@ -20,10 +20,10 @@ public partial class EmptyFiler : IFiler
     Task<CrystalMemoryOwnerResult> IFiler.ReadAsync(string path, long offset, int length, TimeSpan timeout)
         => Task.FromResult(new CrystalMemoryOwnerResult(CrystalResult.NotFound));
 
-    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, bool truncate)
+    CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
         => CrystalResult.Success;
 
-    Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate)
+    Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate)
         => Task.FromResult(CrystalResult.Success);
 
     CrystalResult IFiler.DeleteAndForget(string path)

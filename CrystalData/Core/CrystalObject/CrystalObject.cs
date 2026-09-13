@@ -344,7 +344,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         var startingPosition = this.CrystalControl.GetJournalPosition();
 
         // Serialize
-        BytePool.RentMemory rentMemory;
+        BytePool.RentedMemory rentMemory;
         try
         {
             if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
@@ -897,7 +897,7 @@ Exit:
             TinyhandSerializer.ReconstructObject<TData>(ref this.data);
         }
 
-        BytePool.RentMemory rentMemory = default;
+        BytePool.RentedMemory rentMemory = default;
         try
         {
             if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
@@ -922,7 +922,7 @@ Exit:
         // Save immediately to fix the waypoint.
         this.initialSaveTask = SaveAndReturn(this.crystalFiler, rentMemory.ReadOnly, this.waypoint);
 
-        static async Task<CrystalResult> SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentReadOnlyMemory memory, Waypoint waypoint)
+        static async Task<CrystalResult> SaveAndReturn(CrystalFiler? crystalFiler, BytePool.RentedReadOnlyMemory memory, Waypoint waypoint)
         {
             try
             {

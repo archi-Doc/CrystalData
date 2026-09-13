@@ -68,7 +68,7 @@ public partial class CrystalControl
     private readonly Lock registrationLock = new();
     private readonly SemaphoreLock prepareLock = new();
     private readonly SemaphoreLock storeLock = new();
-    private ThreadsafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
+    private ThreadSafeTypeKeyHashtable<ICrystalInternal> typeToCrystal = new(); // Type to ICrystal
     private CrystalObjectBase.GoshujinClass crystals = new(); // Crystals
 
     private Lock lockObject = new();
@@ -382,7 +382,7 @@ public partial class CrystalControl
         }
 
         var bytes = TinyhandSerializer.SerializeToUtf8(data);
-        result = await resolved.Filer.WriteAsync(0, BytePool.RentReadOnlyMemory.CreateFrom(bytes)).ConfigureAwait(false);
+        result = await resolved.Filer.WriteAsync(0, BytePool.RentedReadOnlyMemory.CreateFrom(bytes)).ConfigureAwait(false);
 
         return result;
     }

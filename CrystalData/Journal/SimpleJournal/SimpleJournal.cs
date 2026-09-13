@@ -252,7 +252,7 @@ public partial class SimpleJournal : IJournal
         }
     }
 
-    public async Task<(ulong NextPosition, BytePool.RentMemory Data)> ReadJournalAsync(ulong position)
+    public async Task<(ulong NextPosition, BytePool.RentedMemory Data)> ReadJournalAsync(ulong position)
     {
         ulong length, nextPosition;
         using (this.lockBooks.EnterScope())

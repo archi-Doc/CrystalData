@@ -15,7 +15,7 @@ public sealed partial class CrystalSupplement
     private const int ItemLimit = 100;
     private static readonly SaveFormat Format = SaveFormat.Binary; // SaveFormat.Utf8;
 
-    [TinyhandObject(LockObject = "lockObject")]
+    [TinyhandObject(LockMemberName = "lockObject")]
     private sealed partial class Data
     {
 #pragma warning disable SA1401 // Fields should be private
@@ -338,7 +338,7 @@ public sealed partial class CrystalSupplement
 
     internal async Task Store(bool rip)
     {
-        BytePool.RentMemory rentMemory = default;
+        BytePool.RentedMemory rentMemory = default;
         try
         {
             if (Format == SaveFormat.Binary)

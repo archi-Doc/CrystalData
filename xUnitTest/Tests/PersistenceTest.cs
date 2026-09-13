@@ -102,7 +102,7 @@ public class PersistenceTest
         var (filer, _) = await scope.Control.ResolveAndPrepareAndCheckSingleFiler<PersistenceData>(scope.Configuration.FileConfiguration);
         Assert.NotNull(filer);
         byte[] expected = [1, 2, 3, 4];
-        Assert.Equal(CrystalResult.Success, await filer.WriteAsync(0, BytePool.RentReadOnlyMemory.CreateFrom(expected)));
+        Assert.Equal(CrystalResult.Success, await filer.WriteAsync(0, BytePool.RentedReadOnlyMemory.CreateFrom(expected)));
         var result = await filer.ReadAsync(0, expected.Length + 1);
         try
         {

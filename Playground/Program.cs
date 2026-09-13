@@ -187,7 +187,7 @@ public partial class SpClassPoint : StoragePoint<SpClass>
 public static class Helper
 {// TData:SpClass, TObject:SpClassPoint, TGoshujin: SpClassPoint.GoshujinClass
     /*public static ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode = AcquisitionMode.GetOnly, CancellationToken cancellationToken = default)
-        => Find(storagePoint, key, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+        => Find(storagePoint, key, acquisitionMode, ValueLinkSettings.LockTimeout, cancellationToken);
 
     public static async ValueTask<SpClassPoint?> Find(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
@@ -199,7 +199,7 @@ public static class Helper
     }
 
     public static ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, CancellationToken cancellationToken = default)
-        => TryLock(storagePoint, key, acquisitionMode, ValueLinkGlobal.LockTimeout, cancellationToken);
+        => TryLock(storagePoint, key, acquisitionMode, ValueLinkSettings.LockTimeout, cancellationToken);
 
     public static async ValueTask<DataScope<SpClass>> TryLock(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
@@ -214,7 +214,7 @@ public static class Helper
         else return await point.TryLock(AcquisitionMode.GetOrCreate, timeout, cancellationToken).ConfigureAwait(false);
     }
 
-    public static ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, CancellationToken cancellationToken = default) => TryGet(storagePoint, key, ValueLinkGlobal.LockTimeout, cancellationToken);
+    public static ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, CancellationToken cancellationToken = default) => TryGet(storagePoint, key, ValueLinkSettings.LockTimeout, cancellationToken);
 
     public static async ValueTask<SpClass?> TryGet(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
@@ -224,7 +224,7 @@ public static class Helper
     }
 
     public static Task<DataScopeResult> Delete(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, DateTime forceDeleteAfter = default)
-        => Delete(storagePoint, key, ValueLinkGlobal.LockTimeout, default, forceDeleteAfter);
+        => Delete(storagePoint, key, ValueLinkSettings.LockTimeout, default, forceDeleteAfter);
 
     public static async Task<DataScopeResult> Delete(this CrystalData.StoragePoint<SpClassPoint.GoshujinClass> storagePoint, int key, TimeSpan timeout, CancellationToken cancellationToken, DateTime forceDeleteAfter = default)
     {

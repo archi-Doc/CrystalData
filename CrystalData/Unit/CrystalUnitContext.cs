@@ -34,7 +34,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
         return true;
     }
 
-    void IUnitCustomContext.ProcessContext(IUnitConfigurationContext context)
+    void IUnitCustomContext.Configure(IUnitConfigurationContext context)
     {
         if (this.crystalOptions is null)
         {
@@ -94,7 +94,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
             }
         }
 
-        var crystalControlConfiguration = context.GetOptions<CrystalControlConfiguration>();
+        var crystalControlConfiguration = context.GetOrCreateOptions<CrystalControlConfiguration>();
         crystalControlConfiguration = crystalControlConfiguration with
         {
             JournalConfiguration = this.journalConfiguration,

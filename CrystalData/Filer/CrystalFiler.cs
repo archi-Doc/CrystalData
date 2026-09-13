@@ -137,7 +137,7 @@ public class CrystalFiler
             }
         }
 
-        public async Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
+        public async Task<CrystalResult> Save(BytePool.RentedReadOnlyMemory rentMemory, Waypoint waypoint)
         {
             if (this.rawFiler == null)
             {
@@ -487,7 +487,7 @@ public class CrystalFiler
         return CrystalResult.Success;
     }
 
-    public async Task<CrystalResult> Save(BytePool.RentReadOnlyMemory rentMemory, Waypoint waypoint)
+    public async Task<CrystalResult> Save(BytePool.RentedReadOnlyMemory rentMemory, Waypoint waypoint)
     {
         if (this.main is null)
         {

@@ -91,7 +91,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         => this.GetOrCreateStorageObject().TryGet<TData>(timeout, cancellationToken);
 
     public ValueTask<TData?> TryGet()
-        => this.GetOrCreateStorageObject().TryGet<TData>(ValueLinkGlobal.LockTimeout, default);
+        => this.GetOrCreateStorageObject().TryGet<TData>(ValueLinkSettings.LockTimeout, default);
 
     /*/// <summary>
     /// Asynchronously gets the data associated with this storage point, or creates it if it does not exist.
@@ -126,7 +126,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// <returns>A valid data scope on success, or a scope describing the failure.</returns>
     /// <remarks>Dispose the scope before awaiting a save of this point or its containing crystal.</remarks>
     public ValueTask<DataScope<TData>> TryLock(AcquisitionMode acquisitionMode = AcquisitionMode.GetOrCreate, Func<IStructuralObject, TData>? factory = default)
-        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkGlobal.LockTimeout, default, factory);
+        => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, ValueLinkSettings.LockTimeout, default, factory);
 
     ValueTask<DataScope<TData>> IDataLocker<TData>.TryLock(AcquisitionMode acquisitionMode, TimeSpan timeout, CancellationToken cancellationToken, Func<IStructuralObject, TData>? factory)
         => this.GetOrCreateStorageObject().TryLock<TData>(this, acquisitionMode, timeout, cancellationToken, factory);
