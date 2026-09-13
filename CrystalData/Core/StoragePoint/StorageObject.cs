@@ -142,7 +142,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
         if (!this.IsEnabled && this.data is not null)
         {// Storage disabled
-            TinyhandTypeIdentifier.TrySerializeWriter(ref writer, this.typeIdentifier, this.data, options);
+            TinyhandTypeIdentifier.TrySerialize(ref writer, this.typeIdentifier, this.data, options);
         }
         else
         {// In-class
@@ -201,7 +201,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
         if (this.storageControl.IsDisposed)
         {// Rip
-            return new(DataScopeResult.Rip);
+            return new(DataScopeResult.Shutdown);
         }
 
         if (!await this.EnterAsync(timeout, cancellationToken).ConfigureAwait(false))
@@ -212,7 +212,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         if (this.storageControl.IsDisposed)
         {
             this.Exit();
-            return new(DataScopeResult.Rip);
+            return new(DataScopeResult.Shutdown);
         }
 
         if (this.IsNotLockable &&
@@ -286,7 +286,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     public void Unlock()
     {// Lock:this
         // Protected -> Unprotected
-        ObjectProtectionStateHelper.TryUnprotect(ref this.protectionState);
+        ObjectProtectionStateHelper.Unprotect(ref this.protectionState);
 
         this.Exit();
     }
@@ -337,7 +337,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
             this.SetDataInternal(data, true, default);
 
-            ObjectProtectionStateHelper.TryUnprotect(ref this.protectionState);
+            ObjectProtectionStateHelper.Unprotect(ref this.protectionState);
         }
     }
 
@@ -431,9 +431,9 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         {
             journal.GetWriter(recordType, out writer);
 
-            writer.Write_Locator();
+            writer.WriteLocatorRecord();
             writer.Write(crystalObject.Plane);
-            writer.Write_Locator();
+            writer.WriteLocatorRecord();
             writer.Write(this.pointId);
             return true;
         }
@@ -574,7 +574,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             // Journal
             if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                writer.Write(JournalRecord.AddCustom);
+                writer.Write(JournalRecordType.AddCustom);
                 TinyhandSerializer.SerializeObject(ref writer, storageId);
                 root.AddJournalAndDispose(ref writer);
             }
@@ -610,10 +610,10 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     bool IStructuralObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
         reader.TryPeekJournalRecord(out var record);
-        if (record == JournalRecord.Key ||
-            record == JournalRecord.Locator ||
-            record == JournalRecord.AddItem ||
-            record == JournalRecord.DeleteItem)
+        if (record == JournalRecordType.Key ||
+            record == JournalRecordType.Locator ||
+            record == JournalRecordType.AddItem ||
+            record == JournalRecordType.DeleteItem)
         {// Key or Locator
             this.PrepareForJournal();
             if (this.data is IStructuralObject structuralObject)
@@ -626,19 +626,19 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             }
         }
 
-        if (record == JournalRecord.Value)
+        if (record == JournalRecordType.Value)
         {
             reader.Advance(1);
-            this.data = TinyhandTypeIdentifier.TryDeserializeReader(this.TypeIdentifier, ref reader);
+            this.data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, ref reader);
             return this.data is not null;
         }
-        else if (record == JournalRecord.Delete)
+        else if (record == JournalRecordType.Delete)
         {// Delete storage
             reader.Advance(1);
             this.DeleteObject(default, false).ConfigureAwait(false).GetAwaiter().GetResult();
             return true;
         }
-        else if (record == JournalRecord.AddCustom)
+        else if (record == JournalRecordType.AddCustom)
         {
             reader.Advance(1);
             var storageId = TinyhandSerializer.DeserializeObject<StorageId>(ref reader);
@@ -655,7 +655,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
     void IStructuralObject.WriteLocator(ref TinyhandWriter writer)
     {
-        writer.Write_Locator();
+        writer.WriteLocatorRecord();
         writer.Write(this.pointId);
     }
 
@@ -846,12 +846,12 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
                 original = rentMemory.ReadOnly;
             }
 
-            writer.Write(JournalRecord.Value);
-            writer.WriteSpan(original.Span);
+            writer.Write(JournalRecordType.Value);
+            writer.WriteRaw(original.Span);
             root.AddJournalAndDispose(ref writer);
         }
 
-        if (rentMemory.IsRent)
+        if (rentMemory.IsRented)
         {
             rentMemory.Return();
         }
@@ -898,7 +898,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
         if (writeJournal)
         {
-            ((IStructuralObject)this).AddJournalRecord(JournalRecord.Delete);
+            ((IStructuralObject)this).AddJournalRecord(JournalRecordType.Delete);
         }
     }
 

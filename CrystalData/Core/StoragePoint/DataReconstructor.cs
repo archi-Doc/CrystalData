@@ -67,7 +67,7 @@ public static class JournalExtensions
         var reader = new TinyhandReader(memory.Span);
         while (reader.Consumed < memory.Length)
         {
-            if (!reader.TryReadJournal(out var length, out var journalType))
+            if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {// Not journal
                 return false;
             }
@@ -77,7 +77,7 @@ public static class JournalExtensions
             {
                 if (journalType == JournalType.Record)
                 {// Record
-                    reader.Read_Locator();
+                    reader.ReadLocatorRecord();
                     var plane = reader.ReadUInt32();
                     if (plane != targetPlane)
                     {// Non-matching plane
@@ -93,7 +93,7 @@ public static class JournalExtensions
                     }
                     else
                     {// Point id specified, read only matching point id
-                        reader.Read_Locator();
+                        reader.ReadLocatorRecord();
                         var pointId = reader.ReadUInt64();
                         if (pointId == targetPointId)
                         {// Matching point id
@@ -123,8 +123,8 @@ public static class JournalExtensions
 
     /// <summary>
     /// This function targets CrystalObject or StorageObject.
-    /// - CrystalObject JournalRecord: contains only Key or Locator
-    /// - StorageObject JournalRecord: may also include AddItem, etc.
+    /// - CrystalObject JournalRecordType: contains only Key or Locator
+    /// - StorageObject JournalRecordType: may also include AddItem, etc.
     /// Processing AddItem updates the StorageId and causes issues during restore,
     /// so only Key, Locator, and Value JournalRecords are processed.
     /// </summary>
@@ -132,10 +132,10 @@ public static class JournalExtensions
     {
         reader.TryPeekJournalRecord(out var record);
 
-        if (record == JournalRecord.Value)
+        if (record == JournalRecordType.Value)
         {
             reader.Advance(1);
-            data = TinyhandTypeIdentifier.TryDeserializeReader(typeIdentifier, ref reader);
+            data = TinyhandTypeIdentifier.TryDeserialize(typeIdentifier, ref reader);
             return data is not null;
 
             /* if (TinyhandSerializer.Deserialize<TData>(ref reader) is { } newData)
@@ -148,7 +148,7 @@ public static class JournalExtensions
                  return false;
              }*/
         }
-        else if (record == JournalRecord.AddCustom)
+        else if (record == JournalRecordType.AddCustom)
         {
             return true;
         }

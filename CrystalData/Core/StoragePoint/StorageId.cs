@@ -99,7 +99,7 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
         Span<byte> span = stackalloc byte[Length];
         this.WriteSpan(span);
 
-        return Base32Sort.Default.FromByteArrayToString(span);
+        return Base32Sort.Default.FromBytesToString(span);
     }
 
     public override string ToString()

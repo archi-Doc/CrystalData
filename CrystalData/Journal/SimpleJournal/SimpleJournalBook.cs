@@ -114,7 +114,7 @@ public partial class SimpleJournal
 
             var owner = BytePool.Default.Rent(dataLength);
             data.AsSpan(0, dataLength).CopyTo(owner.AsSpan());
-            book.memoryOwner = owner.AsReadOnly(0, dataLength);
+            book.memoryOwner = owner.AsReadOnlyMemory(0, dataLength);
             book.hash = FarmHash.Hash64(book.memoryOwner.Span);
 
             using (simpleJournal.lockBooks.EnterScope())

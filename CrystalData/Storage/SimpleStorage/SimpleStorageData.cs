@@ -89,7 +89,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
             value.storageUsage = reader.ReadInt64();
 
             // 2nd item
-            var count = reader.ReadMapHeader2();
+            var count = reader.ReadMapHeaderOrEmptyArray();
             value.fileToSize = new(count);
             for (var i = 0; i < count; i++)
             {
@@ -105,7 +105,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
         {
             if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
             {
-                writer.Write(JournalRecord.DeleteItem);
+                writer.Write(JournalRecordType.DeleteItem);
                 writer.Write(file);
                 root.AddJournalAndDispose(ref writer);
             }
@@ -153,7 +153,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
 
                 if (sizeDiff != 0 && ((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {
-                    writer.Write(JournalRecord.AddItem);
+                    writer.Write(JournalRecordType.AddItem);
                     writer.Write(file);
                     writer.Write(dataSize);
                     writer.Write(sizeDiff);
@@ -178,7 +178,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
             {
                 if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
                 {
-                    writer.Write(JournalRecord.AddItem);
+                    writer.Write(JournalRecordType.AddItem);
                     writer.Write(file);
                     writer.Write(size);
                     writer.Write(size);
@@ -222,7 +222,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
             return false;
         }
 
-        if (record == JournalRecord.AddItem)
+        if (record == JournalRecordType.AddItem)
         {
             var file = reader.ReadUInt32();
             var size = reader.ReadInt32();
@@ -232,7 +232,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
 
             return true;
         }
-        else if (record == JournalRecord.DeleteItem)
+        else if (record == JournalRecordType.DeleteItem)
         {
             var file = reader.ReadUInt32();
             this.TryRemoveFile(file);

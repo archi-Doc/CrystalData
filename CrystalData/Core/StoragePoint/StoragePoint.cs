@@ -250,9 +250,9 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     bool IStructuralObject.ProcessJournalRecord(ref TinyhandReader reader)
     {
-        if (reader.TryReadJournalRecord(out JournalRecord record))
+        if (reader.TryReadJournalRecord(out JournalRecordType record))
         {
-            if (record == JournalRecord.Value)
+            if (record == JournalRecordType.Value)
             {
                 this.pointId = reader.ReadUInt64();
                 return true;
@@ -352,7 +352,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         if (this.pointId != previousPointId &&
             ((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, true) == true)
         {
-            writer.Write(JournalRecord.Value);
+            writer.Write(JournalRecordType.Value);
             writer.Write(this.pointId);
             root.AddJournalAndDispose(ref writer);
         }

@@ -22,14 +22,14 @@ internal partial record SerializableData : IEquatableObject
         this.age = age;
     }
 
-    [Key(0, AddProperty = "Id")]
+    [Key(0, PropertyName = "Id")]
     [Link(Primary = true, Unique = true, Type = ChainType.Ordered)]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     private string name = string.Empty;
 
-    [Key(2, AddProperty = "Age")]
+    [Key(2, PropertyName = "Age")]
     private double age;
 
     public override string ToString()
@@ -61,14 +61,14 @@ internal partial record RepeatableData : IEquatableObject
         this.age = age;
     }
 
-    [Key(0, AddProperty = "Id")]
+    [Key(0, PropertyName = "Id")]
     [Link(Primary = true, Unique = true, Type = ChainType.Ordered)]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     private string name = string.Empty;
 
-    [Key(2, AddProperty = "Age")]
+    [Key(2, PropertyName = "Age")]
     private double age;
 
     public override string ToString()

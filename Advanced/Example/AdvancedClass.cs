@@ -60,7 +60,7 @@ public partial record AdvancedClass
     public async Task TestCode()
     {
         Point.GoshujinClass g = default!;
-        var obj = g.Find(1, AcquisitionMode.GetOrCreate);
+        var obj = g.GetObject(1, AcquisitionMode.GetOrCreate);
         // obj.Name = "Name1";
         using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOrCreate))
         {
@@ -77,7 +77,7 @@ public partial record AdvancedClass
             }
         }
 
-        var sc = g.Find(3, AcquisitionMode.GetOnly);
+        var sc = g.GetObject(3, AcquisitionMode.GetOnly);
     }
 
     [Key(0)]

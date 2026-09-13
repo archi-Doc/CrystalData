@@ -230,7 +230,7 @@ public class StoragePointTest4
         {
             dataScope.IsValid.IsTrue();
             dataScope.Result.Is(DataScopeResult.Retrieved);
-            dataScope.SetControlState(DataControlState.Default);
+            dataScope.SetControlState(DataControlState.None);
         }
 
         using (var dataScope = await g.TryLock(1, AcquisitionMode.GetOnly, TestContext.Current.CancellationToken))

@@ -5,7 +5,7 @@ namespace QuickStart.Evolution;
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 #pragma warning disable SA1402 // File may only contain a single type
 
-[TinyhandObject(LockObject = "syncObject")]
+[TinyhandObject(LockMemberName = "syncObject")]
 [ValueLinkObject]
 public partial class Class1
 {

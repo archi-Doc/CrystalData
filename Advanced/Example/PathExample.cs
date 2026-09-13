@@ -16,7 +16,7 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
                 {
                     // RootPath = Path.Combine(context.RootDirectory, "Additional"), // Root directory
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "Global")), // Global directory

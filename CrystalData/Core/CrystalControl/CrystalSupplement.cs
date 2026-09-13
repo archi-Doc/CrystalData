@@ -372,7 +372,7 @@ public sealed partial class CrystalSupplement
             {
                 var nextRipCount = this.ripCount + 1;
                 Utf8Formatter.TryFormat(nextRipCount, rent.AsSpan(), out var written);
-                CheckWrite(await this.ripFiler.WriteAsync(0, rent.AsReadOnly(0, written)).ConfigureAwait(false));
+                CheckWrite(await this.ripFiler.WriteAsync(0, rent.AsReadOnlyMemory(0, written)).ConfigureAwait(false));
                 this.ripCount = nextRipCount;
             }
             finally

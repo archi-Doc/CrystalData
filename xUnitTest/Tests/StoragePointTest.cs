@@ -44,11 +44,11 @@ public partial record NoStoragePointClass : IEquatableObject, IEquatable<NoStora
         this.Description = descrption;
     }
 
-    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(0, PropertyName = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     [Link(Type = ChainType.Ordered)]
     private string name = string.Empty;
 
@@ -82,11 +82,11 @@ public sealed partial record StoragePointClass : IEquatableObject, IEquatable<St
         this.StringStorage.Set(descrption);
     }
 
-    [Key(0, AddProperty = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    [Key(0, PropertyName = "Id", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
     [Link(Unique = true, Primary = true, Type = ChainType.Unordered)]
     private int id;
 
-    [Key(1, AddProperty = "Name")]
+    [Key(1, PropertyName = "Name")]
     [Link(Type = ChainType.Ordered)]
     private string name = string.Empty;
 

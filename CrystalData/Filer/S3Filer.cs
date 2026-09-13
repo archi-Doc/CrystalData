@@ -313,7 +313,7 @@ NoAccess:
 
     async Task IFiler.FlushAsync(bool terminate)
     {
-        await this.WaitForCompletion().ConfigureAwait(false);
+        await this.WaitForCompletionAsync().ConfigureAwait(false);
         if (terminate)
         {
             this.Dispose();

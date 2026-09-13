@@ -67,7 +67,7 @@ public static class TestHelper
 
         builder.PostConfigure(context =>
         {
-            context.SetOptions(context.GetOptions<CrystalOptions>() with
+            context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
             {
                 GlobalDirectory = new LocalDirectoryConfiguration($"Crystal[{RandomVault.Default.NextUInt32():x4}]"),
             });

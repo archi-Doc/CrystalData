@@ -324,7 +324,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
                 }
                 else if (state == GoshujinState.Releasing)
                 {// Unload (Success)
-                    if (semaphore.SemaphoreCount > 0)
+                    if (semaphore.AcquisitionCount > 0)
                     {
                         return CrystalResult.DataIsLocked;
                     }
@@ -336,7 +336,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             }
             else if (storeMode == StoreMode.ForceRelease)
             {
-                semaphore.LockAndForceRelease();
+                semaphore.LockAndSetReleasing();
             }
         }
 
@@ -592,7 +592,7 @@ Exit:
         {
             journal.GetWriter(recordType, out writer);
 
-            writer.Write_Locator();
+            writer.WriteLocatorRecord();
             writer.Write(this.waypoint.Plane);
             return true;
         }
@@ -648,7 +648,7 @@ Exit:
 
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadJournal(out var length, out var journalType))
+            if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {
                 return false;
             }
@@ -658,7 +658,7 @@ Exit:
             {
                 if (journalType == JournalType.Record)
                 {
-                    reader.Read_Locator();
+                    reader.ReadLocatorRecord();
                     var plane = reader.ReadUInt32();
 
                     if (plane == currentPlane)

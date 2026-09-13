@@ -4,13 +4,13 @@ using System.ComponentModel;
 
 namespace QuickStart;
 
-[TinyhandObject(LockObject = "syncObject")]
+[TinyhandObject(LockMemberName = "syncObject")]
 public partial class SecondData
 {
-    [Key("Id", AddProperty = "Id")] // String key "Id"
+    [Key("Id", PropertyName = "Id")] // String key "Id"
     private int id;
 
-    [Key("Name", AddProperty = "Name")] // String key "Name"
+    [Key("Name", PropertyName = "Name")] // String key "Name"
     [DefaultValue("Hoge")] // The default value for the name property.
     private string name = string.Empty;
 
@@ -62,15 +62,15 @@ public partial class Program
             {
                 context.TryAddSingleton<SecondExample>(); // Register SecondExample class.
 
-                context.AddLoggerResolver(context =>
+                context.AddLogOutputResolver(context =>
                 {// Add logger resolver
                     if (context.LogLevel == LogLevel.Debug)
                     {
-                        context.SetOutput<ConsoleAndFileLogger>();
+                        context.SetOutput<ConsoleAndFileLogOutput>();
                         return;
                     }
 
-                    context.SetOutput<ConsoleLogger>();
+                    context.SetOutput<ConsoleLogOutput>();
                 });
             })
             .ConfigureCrystal(context =>
@@ -87,17 +87,17 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
                 {
                     EnableFilerLogger = true, // Enable filer logger.
                     DataDirectory = Directory.GetCurrentDirectory(),
                 });
 
                 var logfile = "Logs/Log.txt";
-                context.SetOptions(context.GetOptions<FileLoggerOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<FileLogOutputOptions>() with
                 {
-                    Path = Path.Combine(context.DataDirectory, logfile),
-                    MaxLogCapacity = 2,
+                    FilePath = Path.Combine(context.DataDirectory, logfile),
+                    MaxLogCapacityInMegabytes = 2,
                 });
             });
 

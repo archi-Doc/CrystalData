@@ -107,7 +107,7 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
         Span<byte> span = stackalloc byte[Length];
         this.WriteSpan(span);
 
-        return Base32Sort.Default.FromByteArrayToString(span);
+        return Base32Sort.Default.FromBytesToString(span);
     }
 
     public override string ToString()

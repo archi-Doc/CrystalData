@@ -343,7 +343,7 @@ public partial class StorageControl : IPersistable
 
             if (((IStructuralObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
-                writer.Write(JournalRecord.AddItem);
+                writer.Write(JournalRecordType.AddItem);
                 writer.Write(pointId);
                 writer.Write(typeIdentifier);
                 root.AddJournalAndDispose(ref writer);

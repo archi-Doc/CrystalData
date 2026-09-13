@@ -31,7 +31,7 @@ public partial class Program
             })
             .PostConfigure(context =>
             {
-                context.SetOptions(context.GetOptions<CrystalOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
                 {
                     DefaultSaveFormat = SaveFormat.Utf8,
                 });

@@ -40,7 +40,7 @@ public partial class JournalData
 
 public sealed partial class CrystalSupplement
 {
-    [TinyhandObject(LockObject = "lockObject")]
+    [TinyhandObject(LockMemberName = "lockObject")]
     private sealed partial class Data
     {
         [TinyhandObject]
@@ -468,6 +468,6 @@ internal class Program
         Console.WriteLine($"MemoryUsage: {crystalControl.StorageControl.MemoryUsage}");
 
         unit.Context.ExecutionRoot.RequestTermination();
-        await unit.Context.ExecutionRoot.WaitForTermination(TerminationOptions.IncludeIndependent);
+        await unit.Context.ExecutionRoot.WaitForTerminationAsync(TerminationOptions.IncludeIndependent);
     }
 }

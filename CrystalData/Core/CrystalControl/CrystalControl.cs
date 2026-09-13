@@ -1000,7 +1000,7 @@ public partial class CrystalControl
         var reader = new TinyhandReader(data.Span);
         while (reader.Consumed < data.Length)
         {
-            if (!reader.TryReadJournal(out var length, out var journalType))
+            if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {
                 this.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Journal.Corrupted);
                 return;
@@ -1011,7 +1011,7 @@ public partial class CrystalControl
             {
                 if (journalType == JournalType.Record)
                 {
-                    reader.Read_Locator();
+                    reader.ReadLocatorRecord();
                     var plane = reader.ReadUInt32();
                     if (dictionary.TryGetValue(plane, out var crystal))
                     {
