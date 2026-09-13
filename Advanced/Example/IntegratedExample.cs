@@ -48,7 +48,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                        NumberOfFileHistories = 1, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
+                        NumberOfHistoryFiles = 1, // The journaling feature is integrated with file history (snapshots), so please set it to 1 or more.
                         FileConfiguration = new LocalFileConfiguration("Local/IntegratedExample/IntegratedData.tinyhand"), // Specify the file name to save.
                     });
 

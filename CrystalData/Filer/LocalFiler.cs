@@ -15,7 +15,7 @@ public class LocalFiler : FilerBase, IFiler
     {
     }
 
-    public static AddStorageResult Check(CrystalControl crystalControl, string directory)
+    public static AddStorageResult CheckDirectory(CrystalControl crystalControl, string directory)
     {
         var result = CheckPath(crystalControl, directory);
         if (!result.Success)
@@ -247,7 +247,7 @@ TryWrite:
 
     #region FieldAndProperty
 
-    bool IFiler.SupportPartialWrite => true;
+    bool IFiler.SupportsPartialWrite => true;
 
     private ILogger? logger;
     private ConcurrentDictionary<string, bool> checkedPath = new();

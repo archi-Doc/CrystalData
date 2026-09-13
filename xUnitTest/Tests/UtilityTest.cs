@@ -22,7 +22,7 @@ public class UtilityTest
         Assert.Equal(expected.FileId, BitConverter.ToUInt64(bytes.AsSpan(sizeof(ulong))));
         Assert.Equal(expected.Hash, BitConverter.ToUInt64(bytes.AsSpan(sizeof(ulong) * 2)));
 
-        Assert.True(StorageId.TryParse(bytes, out var fromBytes));
+        Assert.True(StorageId.TryRead(bytes, out var fromBytes));
         Assert.Equal(expected, fromBytes);
         Assert.True(StorageId.TryParse(expected.ToBase32(), out var fromBase32));
         Assert.Equal(expected, fromBase32);
@@ -85,11 +85,11 @@ public class UtilityTest
     [Fact]
     public void StorageHelperFormatsAndCombinesPaths()
     {
-        Assert.Equal("999B", StorageHelper.ByteToString(999));
-        Assert.Equal("1.0K", StorageHelper.ByteToString(1_000));
-        Assert.Equal("10K", StorageHelper.ByteToString(10_000));
-        Assert.Equal("1.0M", StorageHelper.ByteToString(1_000_000));
-        Assert.Equal("9.2E", StorageHelper.ByteToString(long.MaxValue));
+        Assert.Equal("999B", StorageHelper.FormatByteSize(999));
+        Assert.Equal("1.0K", StorageHelper.FormatByteSize(1_000));
+        Assert.Equal("10K", StorageHelper.FormatByteSize(10_000));
+        Assert.Equal("1.0M", StorageHelper.FormatByteSize(1_000_000));
+        Assert.Equal("9.2E", StorageHelper.FormatByteSize(long.MaxValue));
 
         Assert.Equal("right", StorageHelper.CombineWithSlash(string.Empty, "right"));
         Assert.Equal("left", StorageHelper.CombineWithSlash("left", string.Empty));
@@ -99,9 +99,9 @@ public class UtilityTest
         Assert.Equal("left/right", StorageHelper.CombineWithSlash("left", "right"));
         Assert.Equal("left\\right", StorageHelper.CombineWithBackslash("left", "right"));
 
-        Assert.True(StorageHelper.EndsWith_SlashInsensitive("root\\folder/file", "folder\\file"));
-        Assert.False(StorageHelper.EndsWith_SlashInsensitive("file", "folder/file"));
-        Assert.False(StorageHelper.EndsWith_SlashInsensitive("root/file", "root/other"));
+        Assert.True(StorageHelper.EndsWithSlashInsensitive("root\\folder/file", "folder\\file"));
+        Assert.False(StorageHelper.EndsWithSlashInsensitive("file", "folder/file"));
+        Assert.False(StorageHelper.EndsWithSlashInsensitive("root/file", "root/other"));
         Assert.True(StorageHelper.EndsWithSlashOrBackslash("root/"));
         Assert.True(StorageHelper.IsSeparator(':'));
         Assert.False(StorageHelper.IsSeparator('|'));

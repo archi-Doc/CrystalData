@@ -123,11 +123,11 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
         this.Hash == other.Hash &&
         this.Plane == other.Plane;
 
-    public static bool operator >(Waypoint w1, Waypoint w2)
-        => w1.CompareTo(w2) > 0;
+    public static bool operator >(Waypoint left, Waypoint right)
+        => left.CompareTo(right) > 0;
 
-    public static bool operator <(Waypoint w1, Waypoint w2)
-        => w1.CompareTo(w2) < 0;
+    public static bool operator <(Waypoint left, Waypoint right)
+        => left.CompareTo(right) < 0;
 
     public int CompareTo(Waypoint other)
     {

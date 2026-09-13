@@ -1,7 +1,7 @@
 // identifier="string" /* null: Use the default value. */
 
 CrystalDataQueryDefault=
-  NoCheckFile="""Check file not found. Do you want to force a launch? (enter 'y' if this is the first launch)"""
+  NoSupplementFile="""Supplement file not found. Do you want to force a launch? (enter 'y' if this is the first launch)"""
   InconsistentJournal="Since the data position was ahead of the journal position, it has been corrected '{0}'"
   LoadError="""Failed to load file '{0}' ({1})
 Do you want to create a new data file?"""

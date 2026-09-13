@@ -30,7 +30,7 @@ public partial record AdvancedClass
                 StorageConfiguration = new SimpleStorageConfiguration(
                     new GlobalDirectoryConfiguration("MainStorage"),
                     new GlobalDirectoryConfiguration("BackupStorage")),
-                NumberOfFileHistories = 2,
+                NumberOfHistoryFiles = 2,
             });
 
         context.TrySetJournal(new SimpleJournalConfiguration(new S3DirectoryConfiguration("TestBucket", "Journal")));

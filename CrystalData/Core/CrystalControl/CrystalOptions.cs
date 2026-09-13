@@ -25,7 +25,7 @@ public partial record class CrystalOptions
 
     public long MemoryUsageLimit { get; init; } = DefaultMemoryUsageLimit;
 
-    public int ConcurrentUnload { get; init; } = 8;
+    public int MaxConcurrentUnloads { get; init; } = 8;
 
     public TimeSpan TimeoutUntilForcedRelease { get; init; }
 
@@ -35,7 +35,7 @@ public partial record class CrystalOptions
 
     public SaveFormat DefaultSaveFormat { get; init; } = SaveFormat.Binary;
 
-    public DirectoryConfiguration? DefaultBackup { get; init; }
+    public DirectoryConfiguration? DefaultBackupDirectory { get; init; }
 
     public FileConfiguration? SupplementFile { get; init; }
 

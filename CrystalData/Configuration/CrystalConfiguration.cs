@@ -49,7 +49,8 @@ public sealed partial record CrystalConfiguration
     /// Gets a value indicating whether the data is volatile.<br/>
     /// If <c>true</c>, the data is not persisted to storage and is only kept in memory.
     /// </summary>
-    public bool Volatile { get; init; }
+    [Key("Volatile")]
+    public bool IsVolatile { get; init; }
 
     /// <summary>
     /// Gets the interval for automatic data saving.
@@ -57,10 +58,11 @@ public sealed partial record CrystalConfiguration
     public TimeSpan SaveInterval { get; init; }
 
     /// <summary>
-    /// Gets the number of file histories (snapshots).<br/>
+    /// Gets the number of history files (snapshots).<br/>
     /// Default value is 1.
     /// </summary>
-    public int NumberOfFileHistories { get; init; } = 1;
+    [Key("NumberOfFileHistories")]
+    public int NumberOfHistoryFiles { get; init; } = 1;
 
     public FileConfiguration FileConfiguration { get; init; }
 
@@ -70,7 +72,7 @@ public sealed partial record CrystalConfiguration
 
     public bool RequiredForLoading { get; init; } = false;
 
-    public bool HasFileHistories => this.NumberOfFileHistories > 0;
+    public bool HasHistoryFiles => this.NumberOfHistoryFiles > 0;
 
     [IgnoreMember]
     internal bool IsSingleton { get; set; }

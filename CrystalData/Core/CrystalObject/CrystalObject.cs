@@ -281,7 +281,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
             this.TimeForDataSavingValue = this.CrystalControl.SystemTimeInSeconds + this.saveIntervalInSeconds;
         }
 
-        if (this.CrystalConfiguration.Volatile)
+        if (this.CrystalConfiguration.IsVolatile)
         {// Volatile
             if (storeMode != StoreMode.StoreOnly)
             {// Release
@@ -784,7 +784,7 @@ Exit:
             this.data = data;
             this.waypoint = loadResult.Waypoint;
             this.LeadingJournalPosition = this.CrystalControl.CrystalSupplement.GetLeadingJournalPosition(ref this.waypoint);
-            if (this.CrystalConfiguration.HasFileHistories)
+            if (this.CrystalConfiguration.HasHistoryFiles)
             {
                 if (this.waypoint.IsValid)
                 {// Valid waypoint
@@ -837,12 +837,12 @@ Exit:
             return (CrystalResult.Success, default, default); // New
         }
 
-        var deserializedData = data.Result.Object;
+        var deserializedData = data.Result.Data;
         if (this.CrystalControl.Journal is { } journal &&
             data.Waypoint.JournalPosition < storedJournalPosition)
         {// Data loaded but not up-to-date, attempt to rebuild using the Journal
             var journalPosition = journal.GetCurrentPosition();
-            if (await journal.RestoreData(data.Waypoint.JournalPosition, journalPosition, data.Result.Object, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
+            if (await journal.RestoreData(data.Waypoint.JournalPosition, journalPosition, data.Result.Data, data.Waypoint.Plane).ConfigureAwait(false) is TData restoredData)
             {
                 this.LeadingJournalPosition = journalPosition; // To prevent double loading when ReadJournal is called later, update LeadingJournalPosition.
                 deserializedData = restoredData;
@@ -855,7 +855,7 @@ Exit:
             }
         }
 
-        if (configuration.HasFileHistories)
+        if (configuration.HasHistoryFiles)
         {
             return (CrystalResult.Success, deserializedData, data.Waypoint);
         }
@@ -989,7 +989,7 @@ Exit:
             }
         }
 
-        if (this.CrystalControl.Options.DefaultBackup is { } globalBackup)
+        if (this.CrystalControl.Options.DefaultBackupDirectory is { } globalBackup)
         {
             if (backupFileConfiguration is null)
             {

@@ -31,7 +31,7 @@ public partial record LocalDirectoryConfiguration : DirectoryConfiguration
     /// <param name="file">The file name or relative path to combine.</param>
     /// <returns>A <see cref="LocalFileConfiguration"/> representing the combined path.</returns>
     public override LocalFileConfiguration CombineFile(string file)
-        => new LocalFileConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathNotRoot(file)));
+        => new LocalFileConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathWithoutRoot(file)));
 
     /// <summary>
     /// Combines the current directory path with another directory configuration and returns a <see cref="LocalDirectoryConfiguration"/>.
@@ -39,7 +39,7 @@ public partial record LocalDirectoryConfiguration : DirectoryConfiguration
     /// <param name="directory">The directory configuration to combine.</param>
     /// <returns>A <see cref="LocalDirectoryConfiguration"/> representing the combined path.</returns>
     public override LocalDirectoryConfiguration CombineDirectory(DirectoryConfiguration directory)
-        => new LocalDirectoryConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathNotRoot(directory.Path)));
+        => new LocalDirectoryConfiguration(System.IO.Path.Combine(this.Path, StorageHelper.GetPathWithoutRoot(directory.Path)));
 
     /// <summary>
     /// Returns a string that represents the current local directory configuration.

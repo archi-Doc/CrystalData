@@ -102,7 +102,7 @@ public partial class Program
                     new(new LocalFileConfiguration("Local/StoragePointExample/SptClass.tinyhand"))
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 3,
+                        NumberOfHistoryFiles = 3,
                         StorageConfiguration = new SimpleStorageConfiguration(new LocalDirectoryConfiguration("Local/StoragePointExample/Storage"))
                         {
                             NumberOfHistoryFiles = 3,

@@ -9,7 +9,7 @@ public partial class EmptyFiler : IFiler
 {
     public static readonly EmptyFiler Default = new();
 
-    bool IFiler.SupportPartialWrite => true;
+    bool IFiler.SupportsPartialWrite => true;
 
     Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
         => Task.FromResult(CrystalResult.Success);

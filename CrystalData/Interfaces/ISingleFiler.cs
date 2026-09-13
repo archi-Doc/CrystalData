@@ -7,7 +7,7 @@ namespace CrystalData;
 /// </summary>
 public interface ISingleFiler
 {
-    bool SupportPartialWrite { get; }
+    bool SupportsPartialWrite { get; }
 
     void SetTimeout(TimeSpan timeout);
 

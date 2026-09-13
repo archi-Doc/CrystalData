@@ -69,7 +69,7 @@ public class StorageDataTest
         // Save & Test journal
         await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
-        var result = await crystal.CrystalControl.TestJournalAll();
+        var result = await crystal.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         // g3: +1 -1
@@ -104,7 +104,7 @@ public class StorageDataTest
         // Save & Test journal
         await crystal.StoreData(StoreMode.ForceRelease);
         await crystal.CrystalControl.StoreJournal();
-        result = await crystal.CrystalControl.TestJournalAll();
+        result = await crystal.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);

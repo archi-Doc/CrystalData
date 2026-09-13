@@ -24,7 +24,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     #region FieldAndProperty
 
-    bool IFiler.SupportPartialWrite => true;
+    bool IFiler.SupportsPartialWrite => true;
 
     protected CrystalControl? CrystalControl { get; set; }
 
@@ -64,7 +64,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     CrystalResult IFiler.WriteAndForget(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
     {
-        if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
+        if (!((IFiler)this).SupportsPartialWrite && (offset != 0 || !truncate))
         {// Not supported
             return CrystalResult.NoPartialWriteSupport;
         }
@@ -94,7 +94,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
     {
-        if (!((IFiler)this).SupportPartialWrite && (offset != 0 || !truncate))
+        if (!((IFiler)this).SupportsPartialWrite && (offset != 0 || !truncate))
         {// Not supported
             return CrystalResult.NoPartialWriteSupport;
         }

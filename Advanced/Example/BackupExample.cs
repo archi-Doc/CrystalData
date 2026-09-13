@@ -32,7 +32,7 @@ public partial class Program
                     new()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 3,
+                        NumberOfHistoryFiles = 3,
                         FileConfiguration = new LocalFileConfiguration("Local/BackupExample/FirstData.tinyhand"),
                     });
 
@@ -40,7 +40,7 @@ public partial class Program
                     new()
                     {
                         SaveFormat = SaveFormat.Utf8,
-                        NumberOfFileHistories = 3,
+                        NumberOfHistoryFiles = 3,
                         FileConfiguration = new LocalFileConfiguration("Local/BackupExample/BackupData.tinyhand"),
 
                         // Specify the location to save the backup files individually.
@@ -51,8 +51,8 @@ public partial class Program
             {
                 context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
                 {
-                    // When you set DefaultBackup, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
-                    DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "DefaultBackup")),
+                    // When you set DefaultBackupDirectory, the backup for all data (for which BackupFileConfiguration has not been specified individually) will be saved in the directory.
+                    DefaultBackupDirectory = new LocalDirectoryConfiguration(Path.Combine(context.DataDirectory, "DefaultBackup")),
                 });
             });
 

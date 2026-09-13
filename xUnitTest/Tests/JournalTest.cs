@@ -131,7 +131,7 @@ public class JournalTest
 
         await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
-        var result = await c.CrystalControl.TestJournalAll();
+        var result = await c.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         // g4: 1, 2, 3, 4
@@ -154,7 +154,7 @@ public class JournalTest
 
         await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
-        result = await c.CrystalControl.TestJournalAll();
+        result = await c.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         // g5
@@ -173,7 +173,7 @@ public class JournalTest
 
         await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
-        result = await c.CrystalControl.TestJournalAll();
+        result = await c.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(c);
@@ -217,7 +217,7 @@ public class JournalTest
 
         await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
-        var result = await c.CrystalControl.TestJournalAll();
+        var result = await c.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         // g4: 1, 2, 3, 4
@@ -245,7 +245,7 @@ public class JournalTest
 
         await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
-        result = await c.CrystalControl.TestJournalAll();
+        result = await c.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         // g5
@@ -268,7 +268,7 @@ public class JournalTest
 
         await c.StoreData(StoreMode.ForceRelease);
         await c.CrystalControl.StoreJournal();
-        result = await c.CrystalControl.TestJournalAll();
+        result = await c.CrystalControl.TestAllJournals();
         result.IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(c);

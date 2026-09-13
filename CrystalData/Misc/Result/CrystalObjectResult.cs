@@ -8,16 +8,16 @@ namespace CrystalData;
 /// <typeparam name="T">The object type.</typeparam>
 public readonly struct CrystalObjectResult<T>
 {
-    public CrystalObjectResult(CrystalResult result, T? obj)
+    public CrystalObjectResult(CrystalResult result, T? data)
     {
         this.Result = result;
-        this.Object = obj;
+        this.Data = data;
     }
 
     public CrystalObjectResult(CrystalResult result)
     {
         this.Result = result;
-        this.Object = default;
+        this.Data = default;
     }
 
     public bool IsSuccess => this.Result == CrystalResult.Success;
@@ -26,5 +26,5 @@ public readonly struct CrystalObjectResult<T>
 
     public readonly CrystalResult Result;
 
-    public readonly T? Object;
+    public readonly T? Data;
 }

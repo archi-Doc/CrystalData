@@ -116,7 +116,7 @@ public static class SerializeHelper
         }
     }
 
-    /*public static bool TrySerialize<T>(T obj, out BytePool.RentedMemory rentMemory)
+    /*public static bool TrySerialize<T>(T obj, out BytePool.RentedMemory rentedMemory)
         where T : ITinyhandSerializable<T>
     {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
@@ -128,25 +128,25 @@ public static class SerializeHelper
             writer.FlushAndGetArray(out var array, out var arrayLength, out var isInitialBuffer);
             if (isInitialBuffer)
             {
-                rentMemory = arrayOwner.AsMemory(0, arrayLength);
+                rentedMemory = arrayOwner.AsMemory(0, arrayLength);
                 return true;
             }
             else
             {
                 arrayOwner.Return();
-                rentMemory = new BytePool.RentedMemory(array);
+                rentedMemory = new BytePool.RentedMemory(array);
                 return true;
             }
         }
         catch
         {
             arrayOwner.Return();
-            rentMemory = default;
+            rentedMemory = default;
             return false;
         }
     }
 
-    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentedMemory rentMemory)
+    public static bool Serialize<T>(T obj, TinyhandSerializerOptions options, out BytePool.RentedMemory rentedMemory)
     {
         var arrayOwner = BytePool.Default.Rent(StandardFragmentSize);
         try
@@ -157,20 +157,20 @@ public static class SerializeHelper
             writer.FlushAndGetArray(out var array, out var arrayLength, out var isInitialBuffer);
             if (isInitialBuffer)
             {
-                rentMemory = arrayOwner.AsMemory(0, arrayLength);
+                rentedMemory = arrayOwner.AsMemory(0, arrayLength);
                 return true;
             }
             else
             {
                 arrayOwner.Return();
-                rentMemory = new BytePool.RentedMemory(array);
+                rentedMemory = new BytePool.RentedMemory(array);
                 return true;
             }
         }
         catch
         {
             arrayOwner.Return();
-            rentMemory = default;
+            rentedMemory = default;
             return false;
         }
     }*/

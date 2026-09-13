@@ -26,12 +26,12 @@ public partial record GlobalFileConfiguration : FileConfiguration
     }
 
     /// <summary>
-    /// Appends the specified file path to the current path and returns a new <see cref="GlobalFileConfiguration"/> instance.
+    /// Appends the specified suffix to the current path and returns a new <see cref="GlobalFileConfiguration"/> instance.
     /// </summary>
-    /// <param name="file">The file path to append.</param>
+    /// <param name="suffix">The suffix to append to the current path.</param>
     /// <returns>A new <see cref="GlobalFileConfiguration"/> with the appended path.</returns>
-    public override GlobalFileConfiguration AppendPath(string file)
-        => new GlobalFileConfiguration(this.Path + file);
+    public override GlobalFileConfiguration AppendPath(string suffix)
+        => new GlobalFileConfiguration(this.Path + suffix);
 
     /// <summary>
     /// Returns a string that represents the current <see cref="GlobalFileConfiguration"/>.

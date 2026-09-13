@@ -155,7 +155,7 @@ public class EvolutionExample
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         FileConfiguration = new LocalFileConfiguration("Local/EvolutionExample/Class1.tinyhand"), // Specify the file name to save.
-                        NumberOfFileHistories = 0,
+                        NumberOfHistoryFiles = 0,
                     });
 
                 context.AddCrystal<Class2>(
@@ -163,7 +163,7 @@ public class EvolutionExample
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         FileConfiguration = new LocalFileConfiguration("Local/EvolutionExample/Class2.tinyhand"), // Specify the file name to save.
-                        NumberOfFileHistories = 0,
+                        NumberOfHistoryFiles = 0,
                         StorageConfiguration = storageConfiguration,
                     });
 
@@ -172,7 +172,7 @@ public class EvolutionExample
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         FileConfiguration = new LocalFileConfiguration("Local/EvolutionExample/Class3.tinyhand"), // Specify the file name to save.
-                        NumberOfFileHistories = 0,
+                        NumberOfHistoryFiles = 0,
                     });
 
                 context.AddCrystal<Class4>(
@@ -180,7 +180,7 @@ public class EvolutionExample
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
                         FileConfiguration = new LocalFileConfiguration("Local/EvolutionExample/Class4.tinyhand"), // Specify the file name to save.
-                        NumberOfFileHistories = 0,
+                        NumberOfHistoryFiles = 0,
                         StorageConfiguration = storageConfiguration,
                     });
             });

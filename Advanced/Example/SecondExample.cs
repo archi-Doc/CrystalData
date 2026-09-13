@@ -79,7 +79,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                        NumberOfFileHistories = 2, // 2 history files.
+                        NumberOfHistoryFiles = 2, // 2 history files.
                         FileConfiguration = new LocalFileConfiguration("Local/SecondExample/SecondData.tinyhand"), // Specify the file name to save.
                         BackupFileConfiguration = new LocalFileConfiguration("Backup/SecondExample/SecondData.tinyhand"), // The backup file name.
                         RequiredForLoading = true,

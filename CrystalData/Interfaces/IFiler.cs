@@ -7,7 +7,7 @@ namespace CrystalData.Filer;
 /// </summary>
 public interface IFiler
 {
-    bool SupportPartialWrite { get; }
+    bool SupportsPartialWrite { get; }
 
     /// <summary>
     /// Prepare the filer and check if the path is valid.<br/>

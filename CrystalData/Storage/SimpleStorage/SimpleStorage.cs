@@ -21,7 +21,7 @@ internal partial class SimpleStorage : IStorage
     }
 
     public override string ToString()
-        => $"SimpleStorage {StorageHelper.ByteToString(this.StorageUsage)}";
+        => $"SimpleStorage {StorageHelper.FormatByteSize(this.StorageUsage)}";
 
     #region FieldAndProperty
 
@@ -109,7 +109,7 @@ internal partial class SimpleStorage : IStorage
             this.storageCrystal.Configure(new CrystalConfiguration(mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
+                NumberOfHistoryFiles = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
                 RequiredForLoading = true,
             });
         }
@@ -123,12 +123,12 @@ internal partial class SimpleStorage : IStorage
         if (this.mapCrystal == null)
         {// StorageMap (StorageObject)
             this.mapCrystal = this.crystalControl.CreateCrystal<StorageMap>(null, true);
-            var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.Filename);
-            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.Filename);
+            var mainConfiguration = directoryConfiguration.CombineFile(StorageMap.FileName);
+            var backupConfiguration = backupDirectoryConfiguration?.CombineFile(StorageMap.FileName);
             this.mapCrystal.Configure(new CrystalConfiguration(mainConfiguration)
             {
                 BackupFileConfiguration = backupConfiguration,
-                NumberOfFileHistories = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
+                NumberOfHistoryFiles = storageConfiguration.NumberOfHistoryFiles + 1, // DefaultNumberOfHistoryFiles,
                 StorageConfiguration = storageConfiguration,
                 RequiredForLoading = true,
             });

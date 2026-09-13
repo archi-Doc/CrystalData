@@ -248,7 +248,7 @@ RepeatList:
         return;
     }
 
-    bool IFiler.SupportPartialWrite => false;
+    bool IFiler.SupportsPartialWrite => false;
 
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
     {

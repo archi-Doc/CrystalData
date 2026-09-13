@@ -4,7 +4,7 @@ namespace CrystalData;
 
 public enum CrystalSource
 {
-    NoSource,
+    None,
     File,
     Storage,
     Journal,

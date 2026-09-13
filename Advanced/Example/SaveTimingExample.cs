@@ -29,7 +29,7 @@ public partial class Program
                     {
                         SaveInterval = TimeSpan.FromMinutes(1), // The interval at which data is stored.
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                        NumberOfFileHistories = 0, // No history file.
+                        NumberOfHistoryFiles = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/SaveTimingExample/SaveTimingData.tinyhand"), // Specify the file name to save.
                     });
             });

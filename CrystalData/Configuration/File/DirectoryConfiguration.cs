@@ -23,7 +23,7 @@ public abstract partial record DirectoryConfiguration : PathConfiguration
     {
     }
 
-    public override Type PathType => Type.Directory;
+    public override PathKind Kind => PathKind.Directory;
 
     public abstract FileConfiguration CombineFile(string file);
 

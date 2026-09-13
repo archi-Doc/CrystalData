@@ -278,7 +278,7 @@ internal class Program
                     // DefaultSaveFormat = SaveFormat.Utf8,
                     SaveDelay = TimeSpan.FromSeconds(5),
                     GlobalDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global")),
-                    DefaultBackup = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global/Backup")),
+                    DefaultBackupDirectory = new LocalDirectoryConfiguration(Path.Combine(unitContext.DataDirectory, "Global/Backup")),
                 });
 
                 // Journal
@@ -302,7 +302,7 @@ internal class Program
                         RequiredForLoading = true,
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
                         SaveInterval = TimeSpan.FromSeconds(5), // Save every 5 seconds.
-                        NumberOfFileHistories = 2,
+                        NumberOfHistoryFiles = 2,
                         // FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         // BackupFileConfiguration = new GlobalFileConfiguration("Backup/"),
@@ -313,7 +313,7 @@ internal class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
-                        NumberOfFileHistories = 2, // No history file.
+                        NumberOfHistoryFiles = 2, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = storageConfiguration,
                     });
@@ -322,7 +322,7 @@ internal class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
-                        NumberOfFileHistories = 0, // No history file.
+                        NumberOfHistoryFiles = 0, // No history file.
                         FileConfiguration = new GlobalFileConfiguration(), // Specify the file name to save.
                         StorageConfiguration = storageConfiguration2,
                     });

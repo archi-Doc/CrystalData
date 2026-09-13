@@ -168,7 +168,7 @@ public class StoragePointTest
         st.Is("Test String2");
 
         await crystal.CrystalControl.StoreJournal();
-        var jr = await crystal.CrystalControl.TestJournalAll();
+        var jr = await crystal.CrystalControl.TestAllJournals();
         jr.IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);

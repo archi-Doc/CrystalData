@@ -31,7 +31,7 @@ public partial record GlobalDirectoryConfiguration : DirectoryConfiguration
     /// <param name="file">The file path to combine.</param>
     /// <returns>A new <see cref="GlobalFileConfiguration"/> with the combined path.</returns>
     public override GlobalFileConfiguration CombineFile(string file)
-        => new GlobalFileConfiguration(StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathNotRoot(file)));
+        => new GlobalFileConfiguration(StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathWithoutRoot(file)));
 
     /// <summary>
     /// Combines the current directory path with the specified <see cref="DirectoryConfiguration"/> and returns a new <see cref="GlobalDirectoryConfiguration"/> instance.
@@ -39,7 +39,7 @@ public partial record GlobalDirectoryConfiguration : DirectoryConfiguration
     /// <param name="directory">The directory configuration to combine.</param>
     /// <returns>A new <see cref="GlobalDirectoryConfiguration"/> with the combined path.</returns>
     public override GlobalDirectoryConfiguration CombineDirectory(DirectoryConfiguration directory)
-        => new GlobalDirectoryConfiguration(StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathNotRoot(directory.Path)));
+        => new GlobalDirectoryConfiguration(StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathWithoutRoot(directory.Path)));
 
     /// <summary>
     /// Returns a string that represents the current <see cref="GlobalDirectoryConfiguration"/>.

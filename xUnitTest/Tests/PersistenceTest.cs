@@ -413,7 +413,7 @@ public class PersistenceTest
             this.Configuration = new CrystalConfiguration(new LocalFileConfiguration(Path.Combine(this.DirectoryPath, "data", "value.tinyhand")))
             {
                 SaveFormat = SaveFormat.Utf8,
-                NumberOfFileHistories = histories,
+                NumberOfHistoryFiles = histories,
                 BackupFileConfiguration = backup ? new LocalFileConfiguration(Path.Combine(this.DirectoryPath, "backup.tinyhand")) : null,
             };
             var product = new CrystalUnit.Builder().ConfigureCrystal(context =>

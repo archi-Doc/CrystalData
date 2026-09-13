@@ -31,7 +31,7 @@ public partial class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // Format is utf8 text.
-                        NumberOfFileHistories = 0, // No history file.
+                        NumberOfHistoryFiles = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/FirstExample/FirstData.tinyhand"), // Specify the file name to save.
                     });
             });

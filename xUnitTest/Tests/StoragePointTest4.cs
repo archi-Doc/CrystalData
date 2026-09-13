@@ -204,7 +204,7 @@ public class StoragePointTest4
         await this.Validate();
 
         await crystal.CrystalControl.StoreAndRelease(TestContext.Current.CancellationToken); // await crystal.Store(StoreMode.ForceRelease); await crystal.CrystalControl.StoreJournal();
-        (await crystal.CrystalControl.TestJournalAll()).IsTrue();
+        (await crystal.CrystalControl.TestAllJournals()).IsTrue();
 
         await TestHelper.StoreAndReleaseAndDelete(crystal);
     }

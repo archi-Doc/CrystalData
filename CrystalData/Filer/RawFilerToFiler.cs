@@ -18,7 +18,7 @@ internal class RawFilerToFiler : ISingleFiler
 
     public string Path { get; }
 
-    bool ISingleFiler.SupportPartialWrite => this.RawFiler.SupportPartialWrite;
+    bool ISingleFiler.SupportsPartialWrite => this.RawFiler.SupportsPartialWrite;
 
     void ISingleFiler.SetTimeout(TimeSpan timeout)
     {

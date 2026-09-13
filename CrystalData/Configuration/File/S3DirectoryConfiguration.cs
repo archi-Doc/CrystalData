@@ -26,13 +26,13 @@ public partial record S3DirectoryConfiguration : DirectoryConfiguration
 
     public override S3FileConfiguration CombineFile(string file)
     {
-        var newPath = StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathNotRoot(file));
+        var newPath = StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathWithoutRoot(file));
         return new S3FileConfiguration(this.Bucket, newPath);
     }
 
     public override S3DirectoryConfiguration CombineDirectory(DirectoryConfiguration directory)
     {
-        var newPath = StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathNotRoot(directory.Path));
+        var newPath = StorageHelper.CombineWithSlash(this.Path, StorageHelper.GetPathWithoutRoot(directory.Path));
         return new S3DirectoryConfiguration(this.Bucket, newPath);
     }
 

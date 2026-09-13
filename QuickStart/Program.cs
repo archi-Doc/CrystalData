@@ -35,7 +35,7 @@ internal class Program
                     new CrystalConfiguration()
                     {
                         SaveFormat = SaveFormat.Utf8, // The format is utf8 text.
-                        NumberOfFileHistories = 0, // No history file.
+                        NumberOfHistoryFiles = 0, // No history file.
                         FileConfiguration = new LocalFileConfiguration("Local/SimpleExample/SimpleData.tinyhand"), // Specify the file name to save.
                     });
             });

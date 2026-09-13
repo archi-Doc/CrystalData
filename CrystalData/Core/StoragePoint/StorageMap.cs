@@ -16,7 +16,7 @@ namespace CrystalData;
 [TinyhandObject(ExplicitKeysOnly = true)]
 public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 {
-    public const string Filename = "Map";
+    public const string FileName = "Map";
 
     public static readonly StorageMap Disabled = new();
 

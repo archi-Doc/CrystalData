@@ -6,11 +6,11 @@ internal class CrystalDataQueryDefault : ICrystalDataQuery
 {
     private Dictionary<ulong, YesOrNo> yesOrNoCache = new();
 
-    async Task<AbortOrContinue> ICrystalDataQuery.NoCheckFile()
+    async Task<AbortOrContinue> ICrystalDataQuery.NoSupplementFile()
     {
         return AbortOrContinue.Continue;
 
-        // var response = await this.RequestYesOrNo(CrystalDataHashed.CrystalDataQueryDefault.NoCheckFile).ConfigureAwait(false);
+        // var response = await this.RequestYesOrNo(CrystalDataHashed.CrystalDataQueryDefault.NoSupplementFile).ConfigureAwait(false);
         // return response.ToAbortOrContinue();
     }
 

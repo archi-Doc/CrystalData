@@ -72,7 +72,7 @@ var product = new CrystalUnit.Builder()
                 new LocalFileConfiguration("Local/FirstData.tinyhand"))
             {
                 SaveFormat = SaveFormat.Utf8,
-                NumberOfFileHistories = 1,
+                NumberOfHistoryFiles = 1,
             });
     })
     .Build();
@@ -113,9 +113,9 @@ Each registered type has a `CrystalConfiguration`.
 | Property | Purpose |
 | --- | --- |
 | `SaveFormat` | Selects binary or UTF-8 Tinyhand output. The default comes from `CrystalOptions.DefaultSaveFormat`. |
-| `Volatile` | Keeps the crystal in memory without writing snapshot files. |
+| `IsVolatile` | Keeps the crystal in memory without writing snapshot files. |
 | `SaveInterval` | Sets the automatic snapshot interval for the crystal. |
-| `NumberOfFileHistories` | Sets the number of retained snapshot files. Use `0` to disable file histories. |
+| `NumberOfHistoryFiles` | Sets the number of retained snapshot files. Use `0` to disable history files. |
 | `FileConfiguration` | Selects the primary snapshot file. |
 | `BackupFileConfiguration` | Selects an optional backup snapshot file. |
 | `StorageConfiguration` | Configures independently loaded `StoragePoint<T>` data. |
@@ -127,7 +127,7 @@ Global defaults and limits are configured with `CrystalOptions`:
 context.SetCrystalOptions(new CrystalOptions
 {
     GlobalDirectory = new LocalDirectoryConfiguration("Data"),
-    DefaultBackup = new LocalDirectoryConfiguration("Backup"),
+    DefaultBackupDirectory = new LocalDirectoryConfiguration("Backup"),
     DefaultSaveFormat = SaveFormat.Binary,
     MemoryUsageLimit = 512L * 1024 * 1024,
 });
@@ -151,7 +151,7 @@ context.AddCrystal<SecondData>(
 - `EmptyFileConfiguration` and `EmptyDirectoryConfiguration` disable the corresponding file or directory.
 - `S3FileConfiguration` and `S3DirectoryConfiguration` identify objects in an S3 bucket.
 
-Set `BackupFileConfiguration` for one crystal, or set `CrystalOptions.DefaultBackup` to derive backup locations for crystals, journals, and auxiliary storage that do not define one explicitly.
+Set `BackupFileConfiguration` for one crystal, or set `CrystalOptions.DefaultBackupDirectory` to derive backup locations for crystals, journals, and auxiliary storage that do not define one explicitly.
 
 Snapshot histories provide recovery candidates when the current file is missing or invalid. Journaling requires at least one history file for every journaled crystal.
 
@@ -205,7 +205,7 @@ var product = new CrystalUnit.Builder()
             new CrystalConfiguration(
                 new LocalFileConfiguration("Data/JournalData.tinyhand"))
             {
-                NumberOfFileHistories = 3,
+                NumberOfHistoryFiles = 3,
             });
     })
     .Build();

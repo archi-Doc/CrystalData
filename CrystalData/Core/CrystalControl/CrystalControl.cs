@@ -670,7 +670,7 @@ public partial class CrystalControl
         }
     }
 
-    public async Task<bool> TestJournalAll()
+    public async Task<bool> TestAllJournals()
     {
         var crystals = this.crystals.GetCrystals(false);
         var result = true;
@@ -908,7 +908,7 @@ public partial class CrystalControl
             }
             else if (configuration is SimpleJournalConfiguration simpleJournalConfiguration)
             {
-                if (this.Options.DefaultBackup is { } globalBackup)
+                if (this.Options.DefaultBackupDirectory is { } globalBackup)
                 {
                     if (simpleJournalConfiguration.BackupDirectoryConfiguration == null)
                     {
@@ -1066,7 +1066,7 @@ public partial class CrystalControl
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
-        var concurrentUnload = Math.Max(1, this.Options.ConcurrentUnload);
+        var concurrentUnload = Math.Max(1, this.Options.MaxConcurrentUnloads);
         var releaseTasks = new Task[concurrentUnload];
         for (var i = 0; i < concurrentUnload; i++)
         {
