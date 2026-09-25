@@ -27,8 +27,8 @@ public static class SerializeHelper
         if (span.Length == 0)
         {// Empty
             if (reconstructIfEmpty)
-            {
-                data = TinyhandSerializer.ReconstructObject<TData>();
+            {// Reconstruct in place, so that the singleton instance is kept.
+                TinyhandSerializer.ReconstructObject(ref data);
             }
 
             return (data, format);
@@ -42,8 +42,8 @@ public static class SerializeHelper
                 format = SaveFormat.Utf8;
             }
             catch
-            {// Maybe binary...
-                data = default;
+            {// Maybe binary... (retry with the singleton instance, not a new one)
+                data = singletonData;
                 try
                 {
                     TinyhandSerializer.DeserializeObject(span, ref data);
@@ -61,8 +61,8 @@ public static class SerializeHelper
                 TinyhandSerializer.DeserializeObject(span, ref data);
             }
             catch
-            {// Maybe utf8...
-                data = default;
+            {// Maybe utf8... (retry with the singleton instance, not a new one)
+                data = singletonData;
                 try
                 {
                     TinyhandSerializer.DeserializeObjectFromUtf8(span, ref data);

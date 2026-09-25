@@ -14,6 +14,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
 {// Data + Journal/Waypoint + Filer/FileConfiguration + Storage/StorageConfiguration
     private const int MinimumSaveIntervalInSeconds = 5; // 5 seconds
+    private const int MaximumSaveIntervalInSeconds = int.MaxValue / 2; // Keeps SystemTimeInSeconds + interval from overflowing.
 
     #region FieldAndProperty
 
@@ -139,8 +140,9 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     {
         using var storeScope = this.storeSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
-        {
-            this.originalCrystalConfiguration = configuration;
+        {// A crystal registered as a singleton stays a singleton (e.g. configurations loaded from a file do not have the flag).
+            this.originalCrystalConfiguration = this.originalCrystalConfiguration.IsSingleton && !configuration.IsSingleton ?
+                configuration with { IsSingleton = true, } : configuration;
             this.PrepareCrystalConfiguration();
             this.crystalFiler = null;
             this.storage = null;
@@ -345,6 +347,8 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         // Serialize
         BytePool.RentedMemory rentMemory;
+        var lockObject = (obj as StorageMap)?.StorageObjectsLock; // The objects of a storage map are added and removed under the StorageControl lock.
+        lockObject?.Enter();
         try
         {
             if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
@@ -359,6 +363,10 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
         catch
         {
             return CrystalResult.SerializationFailed;
+        }
+        finally
+        {
+            lockObject?.Exit();
         }
 
         using var rentMemoryScope = rentMemory;
@@ -489,7 +497,8 @@ Exit:
 
                     if (currentObject is StorageMap storageMap)
                     {// For StorageMap, initialization is performed (to obtain storage.NumberOfHistoryFiles).
-                        storageMap.Enable(this.CrystalControl.StorageControl, default!, this.Storage);
+                        this.ResolveAndPrepareStorage(); // Not this.Storage: it would re-enter the non-reentrant semaphore.
+                        storageMap.Enable(new StorageControl(), default!, this.storage); // A private StorageControl: the objects replayed by the test must not be stored or released with the live objects.
                     }
 
                     if (currentObject is IStructuralObject structuralObject)
@@ -575,7 +584,10 @@ Exit:
                 previousObject is StorageMap map)
             {// Test storage objects
                 map.CrystalObject = this;
-                testResult = await map.TestJournal(journal);
+                if (!await map.TestJournal(journal).ConfigureAwait(false))
+                {
+                    testResult = false;
+                }
             }
         }
 
@@ -773,9 +785,12 @@ Exit:
             {// loadResult.Waypoint.JournalPosition > journal.GetCurrentPosition()
                 this.CrystalControl.LogUnit.RootLogService.GetLogger<TData>().GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.CrystalDataQueryDefault.InconsistentJournal, this.CrystalConfiguration.FileConfiguration.Path);
 
-                // Wayback
-                await this.crystalFiler.Delete(loadResult.Waypoint).ConfigureAwait(false);
-                loadResult.Waypoint = new(journal.GetCurrentPosition(), loadResult.Waypoint.Hash, loadResult.Waypoint.Plane);
+                // Wayback: save the data at the current journal position before deleting the inconsistent snapshot.
+                // Otherwise unchanged data is never saved again (identical hash), and only the in-memory copy remains.
+                // Every snapshot ahead of the journal is deleted, since it would be sorted after the new one (and loaded or kept instead of it).
+                var journalPosition = journal.GetCurrentPosition();
+                loadResult.Waypoint = await this.SaveWayback(loadResult.Data!, journalPosition, loadResult.Waypoint.Plane).ConfigureAwait(false);
+                await this.crystalFiler.DeleteAfter(journalPosition).ConfigureAwait(false);
             }
         }
 
@@ -855,15 +870,8 @@ Exit:
             }
         }
 
-        if (configuration.HasHistoryFiles)
-        {
-            return (CrystalResult.Success, deserializedData, data.Waypoint);
-        }
-        else
-        {// Calculate a hash to prevent saving the same data.
-            var waypoint = data.Waypoint.WithHash(data.Waypoint.Hash);
-            return (CrystalResult.Success, deserializedData, waypoint);
-        }
+        // Without history files, CrystalFiler still sets the hash of the loaded file to prevent saving the same data.
+        return (CrystalResult.Success, deserializedData, data.Waypoint);
     }
 
     [MemberNotNull(nameof(crystalFiler))]
@@ -940,6 +948,37 @@ Exit:
         }
     }
 
+    private async Task<Waypoint> SaveWayback(TData data, ulong journalPosition, uint plane)
+    {// this.semaphore.EnterScope()
+        BytePool.RentedMemory rentMemory;
+        try
+        {
+            if (this.CrystalConfiguration.SaveFormat == SaveFormat.Utf8)
+            {
+                rentMemory = TinyhandSerializer.SerializeObjectToUtf8RentMemory(data);
+            }
+            else
+            {
+                rentMemory = TinyhandSerializer.SerializeObjectToRentMemory(data);
+            }
+        }
+        catch
+        {
+            this.initialSaveTask = Task.FromResult(CrystalResult.SerializationFailed);
+            return new(journalPosition, 0, plane);
+        }
+
+        using var rentMemoryScope = rentMemory;
+        var waypoint = new Waypoint(journalPosition, FarmHash.Hash64(rentMemory.Span), plane);
+        var result = await this.crystalFiler!.Save(rentMemory.ReadOnly, waypoint).ConfigureAwait(false);
+        if (result.IsFailure())
+        {// The next store writes the data even if it is unchanged.
+            this.initialSaveTask = Task.FromResult(result);
+        }
+
+        return waypoint;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetupData()
     {
@@ -965,8 +1004,8 @@ Exit:
         var fileConfiguration = configuration.FileConfiguration;
         var fileName = fileConfiguration.FileName;
         if (string.IsNullOrEmpty(fileName))
-        {
-            var path = StorageHelper.CombineWithSlash(fileConfiguration.DirectoryName, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
+        {// The path is empty or ends with a separator. DirectoryName is not used since it converts '/' to '\' on Windows (S3 keys).
+            var path = StorageHelper.CombineWithSlash(fileConfiguration.Path, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
             fileConfiguration = fileConfiguration with { Path = path, };
         }
         else if (!fileName.Contains('.', StringComparison.Ordinal))
@@ -980,7 +1019,7 @@ Exit:
             var backupFileName = backupFileConfiguration.FileName;
             if (string.IsNullOrEmpty(backupFileName))
             {
-                var path = StorageHelper.CombineWithSlash(backupFileConfiguration.DirectoryName, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
+                var path = StorageHelper.CombineWithSlash(backupFileConfiguration.Path, $"{typeof(TData).Name}{saveFormat.ToExtension()}");
                 backupFileConfiguration = backupFileConfiguration with { Path = path, };
             }
             else if (!backupFileName.Contains('.', StringComparison.Ordinal))
@@ -1022,11 +1061,7 @@ Exit:
         }
 
         this.crystalConfiguration = configuration;
-        if (this.saveIntervalInSeconds < configuration.SaveInterval.TotalSeconds)
-        {
-            this.saveIntervalInSeconds = (int)configuration.SaveInterval.TotalSeconds;
-        }
-
+        this.saveIntervalInSeconds = (int)Math.Clamp(configuration.SaveInterval.TotalSeconds, MinimumSaveIntervalInSeconds, MaximumSaveIntervalInSeconds);
         this.SetTimeForDataSaving(this.saveIntervalInSeconds);
     }
 

@@ -2,7 +2,6 @@
 
 using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using CrystalData.Filer;
 using Tinyhand.IO;
@@ -102,6 +101,13 @@ public partial class SimpleJournal : IJournal
             var backupList = await this.ListBooks(this.backupFiler, this.BackupConfiguration).ConfigureAwait(false);
         }
 
+        // Listed books are linked to IncompleteChain without IncompleteLinkAdded(), while deleting them calls IncompleteLinkRemoved().
+        this.incompleteSize = 0;
+        foreach (var x in this.books.IncompleteChain)
+        {
+            this.incompleteSize += (ulong)x.Length;
+        }
+
         await this.Merge(false).ConfigureAwait(false);
 
         if (this.task is null)
@@ -198,6 +204,7 @@ public partial class SimpleJournal : IJournal
             await task.WaitForTerminationAsync().ConfigureAwait(false);
         }
 
+        using var storeScope = await this.storeLock.EnterScopeAsync().ConfigureAwait(false); // The memory of books is returned, so wait for StoreJournalAsync().
         using (this.lockBooks.EnterScope())
         {
             var array = this.books.ToArray();
@@ -467,44 +474,72 @@ Load:
         return CrystalResult.Success;
     }
 
-    internal async Task Merge(bool forceMerge)
+    internal async Task MergeForTest()
     {
-        var book = this.books.IncompleteChain.Last;
-        var incompleteCount = 0;
-        var incompleteLength = 0;
+        using var storeScope = await this.storeLock.EnterScopeAsync().ConfigureAwait(false);
+        await this.Merge(true).ConfigureAwait(false);
+    }
+
+    internal async Task Merge(bool forceMerge)
+    {// using var storeScope = this.storeLock.EnterScope(), or before the journal task starts.
+        var mergeCount = 0;
         var lastLength = 0;
         ulong start, end;
 
         using (this.lockBooks.EnterScope())
         {
-            while (book != null)
-            {
-                incompleteCount++;
-                incompleteLength += book.Length;
-                if (incompleteLength <= this.SimpleJournalConfiguration.CompleteBookLength)
-                {
-                    lastLength = incompleteLength;
-                }
-
-                book = book.IncompleteLink.Previous;
+            if (!forceMerge &&
+                this.books.IncompleteChain.Count < MergeThresholdNumber &&
+                this.incompleteSize < (ulong)this.SimpleJournalConfiguration.CompleteBookLength)
+            {// Same condition as StoreJournalAsync().
+                return;
             }
 
-            Debug.Assert(incompleteCount == this.books.IncompleteChain.Count);
-
-            if (!forceMerge)
+            // A merged incomplete book is appended to IncompleteChain, so the chain is not ordered by position.
+            Book? first = null;
+            foreach (var x in this.books.IncompleteChain)
             {
-                if (incompleteCount < MergeThresholdNumber ||
-                    incompleteLength < this.SimpleJournalConfiguration.CompleteBookLength)
+                if (first is null || x.Position < first.Position)
                 {
-                    return;
+                    first = x;
                 }
             }
 
-            start = this.books.IncompleteChain.First!.Position;
+            if (first is null)
+            {
+                return;
+            }
+
+            // Merge contiguous incomplete books from the oldest one, so that the range ends on a book boundary.
+            // If a book cannot be merged with the next one (too large), the run from the next book is tried.
+            start = 0;
+            for (var candidate = first; candidate is not null && mergeCount < 2; candidate = candidate.PositionLink.Next)
+            {
+                if (!candidate.IsIncomplete)
+                {
+                    continue;
+                }
+
+                start = candidate.Position;
+                mergeCount = 0;
+                lastLength = 0;
+                for (var book = candidate; book is not null && book.IsIncomplete; book = book.PositionLink.Next)
+                {
+                    if (book.Position != start + (ulong)lastLength ||
+                        (long)lastLength + book.Length > this.SimpleJournalConfiguration.CompleteBookLength)
+                    {
+                        break;
+                    }
+
+                    mergeCount++;
+                    lastLength += book.Length;
+                }
+            }
+
             end = start + (ulong)lastLength;
         }
 
-        if (incompleteCount < 2)
+        if (mergeCount < 2)
         {
             return;
         }
@@ -579,28 +614,14 @@ Load:
             previous = book;
         }
 
+        if (books.PositionChain.Last is { } last)
+        {// The books after the last discontinuity are contiguous and kept, so the journal continues from the last book.
+            position = last.NextPosition;
+        }
+
         if (toDelete == null)
         {// Ok
-            if (books.PositionChain.Last is not null)
-            {
-                return books.PositionChain.Last.NextPosition;
-            }
-            else
-            {// Initial position
-                return position;
-            }
-        }
-        else
-        {
-            var nextBook = toDelete.PositionLink.Next;
-            if (nextBook is not null)
-            {
-                position = nextBook.NextPosition;
-            }
-            else
-            {
-                position = toDelete.NextPosition;
-            }
+            return position;
         }
 
         while (true)

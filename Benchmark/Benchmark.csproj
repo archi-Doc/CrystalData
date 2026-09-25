@@ -14,9 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Arc.Collections" Version="2.0.0" />
-    <PackageReference Include="Arc.Crypto" Version="2.0.0" />
-    <PackageReference Include="Netsphere" Version="0.60.0" />
+    <PackageReference Include="Arc.Collections" Version="2.1.0" />
+    <PackageReference Include="Arc.Crypto" Version="2.1.0" />
+    <PackageReference Include="Netsphere" Version="0.61.0" />
     <PackageReference Include="Tinyhand" Version="0.147.0" />
     <PackageReference Include="ValueLink" Version="0.121.0" />
     

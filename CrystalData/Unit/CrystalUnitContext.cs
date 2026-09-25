@@ -45,6 +45,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
 
         // var serviceTypeToLifetime = context.Services.ToDictionary(x => x.ServiceType, x => x.Lifetime);
         Dictionary<Type, ServiceLifetime> serviceTypeToLifetime = new();
+        HashSet<Type>? singletonTypes = null;
         foreach (var x in context.Services)
         {// If duplicate keys exist, overwrite with the later key/value.
             serviceTypeToLifetime[x.ServiceType] = x.Lifetime;
@@ -84,7 +85,7 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
                 {
                     if (lifetime == ServiceLifetime.Singleton)
                     {// Although it is a Singleton, UseServiceProvider is not set to true (which is a code defect), so CrystalData will treat it as a Singleton.
-                        x.Value.IsSingleton = true;
+                        (singletonTypes ??= new()).Add(x.Key);
                     }
                 }
                 else
@@ -101,8 +102,8 @@ internal class CrystalUnitContext : ICrystalConfigurationContext, IUnitCustomCon
         };
 
         foreach (var x in this.typeToCrystalConfiguration)
-        {
-            crystalControlConfiguration.CrystalConfigurations[x.Key] = x.Value;
+        {// The configuration passed to AddCrystal() may be shared with other types, so it is copied instead of modified.
+            crystalControlConfiguration.CrystalConfigurations[x.Key] = singletonTypes?.Contains(x.Key) == true ? x.Value with { IsSingleton = true, } : x.Value;
         }
 
         context.SetOptions(crystalControlConfiguration);

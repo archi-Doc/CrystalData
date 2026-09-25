@@ -31,6 +31,8 @@ public partial class StorageControl : IPersistable
     /// </summary>
     private readonly Lock lowestLockObject;
 
+    internal Lock LowestLockObject => this.lowestLockObject;
+
     private StorageMap[] storageMaps;
     private UnitState unitState;
     private long memoryUsage;
@@ -125,6 +127,10 @@ public partial class StorageControl : IPersistable
                 !node.IsPinned)
             {
                 this.memoryUsage += newSize - node.size;
+                if (node.onMemoryNext is null)
+                {// Not linked yet (e.g. inline data moved to an enabled map), so link it to subtract the size when it is released.
+                    this.UpdateLinkInternal(node);
+                }
             }
 
             node.size = newSize;
@@ -198,17 +204,29 @@ public partial class StorageControl : IPersistable
         }
     }
 
-    internal async Task ReleaseStorage(CancellationToken cancellationToken)
+    /// <summary>
+    /// Releases the least recently used objects while the memory usage exceeds the limit.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns><see langword="true"/> if memory was released; <see langword="false"/> if no object could be released (e.g. all are locked), so the caller should wait.</returns>
+    internal async Task<bool> ReleaseStorage(CancellationToken cancellationToken)
     {
+        var released = false;
+        StorageObject? firstUnreleased = null;
         while (this.StorageReleaseRequired &&
             !cancellationToken.IsCancellationRequested)
         {
             StorageObject? node;
             using (this.lowestLockObject.EnterScope())
             {
+                if (firstUnreleased?.onMemoryNext is null)
+                {// Released by another thread.
+                    firstUnreleased = null;
+                }
+
                 node = this.onMemoryHead?.onMemoryPrevious; // Get the least recently used node.
-                if (node is null)
-                {// No storage objects to release.
+                if (node is null || node == firstUnreleased)
+                {// No storage objects to release, or every object has been tried without release.
                     break;
                 }
 
@@ -220,13 +238,30 @@ public partial class StorageControl : IPersistable
             {
                 await node.StoreData(StoreMode.TryRelease).ConfigureAwait(false);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 this.Logger?.GetWriter(LogLevel.Error)?.Write($"Background storage release failed: {ex.Message}");
-                await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
-                return;
+                return released;
+            }
+
+            bool unlinked;
+            using (this.lowestLockObject.EnterScope())
+            {
+                unlinked = node.onMemoryNext is null;
+            }
+
+            if (unlinked)
+            {// Released
+                released = true;
+                firstUnreleased = null;
+            }
+            else
+            {// Locked
+                firstUnreleased ??= node;
             }
         }
+
+        return released;
     }
 
     /// <summary>
@@ -419,6 +454,7 @@ public partial class StorageControl : IPersistable
         using (this.lowestLockObject.EnterScope())
         {
             this.ReleaseInternal(storageObject, true);
+            storageObject.dataControlState &= ~DataControlState.Pinned; // The data is deleted, so it is no longer pinned (a pinned object must have data).
 
             id0 = storageObject.storageId0.FileId;
             id1 = storageObject.storageId1.FileId;
@@ -509,8 +545,8 @@ public partial class StorageControl : IPersistable
                         this.AddToSaveQueue(tempArray[i]);
                     }
                 }
-                catch (IOException ex)
-                {
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {// Keep the background task running (it would stop saving and releasing everything).
                     this.AddToSaveQueue(tempArray[i]);
                     this.Logger?.GetWriter(LogLevel.Error)?.Write($"Queued storage save failed: {ex.Message}");
                 }
@@ -659,11 +695,7 @@ public partial class StorageControl : IPersistable
             return;
         }
 
-        if (node.storageMap.IsEnabled)
-        {
-            this.memoryUsage -= node.Size;
-        }
-
+        // The size of pinned data is not included in memoryUsage (see SetStorageSize()), so it is not subtracted.
         node.size = 0;
 
         if (node.onMemoryNext == node)

@@ -88,8 +88,9 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(path, offset, length);
         await this.Add(job).ConfigureAwait(false);
-        await job.WaitAsync(timeToWait).ConfigureAwait(false);
-        return new(job.Result, job.ReadData.ReadOnly);
+        var wait = job.WaitAsync(timeToWait);
+        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        return wait.IsCompletedSuccessfully ? new(job.Result, job.ReadData.ReadOnly) : new(CrystalResult.Aborted); // Timeout
     }
 
     async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
@@ -102,8 +103,9 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(path, offset, dataToBeShared, truncate);
         await this.Add(job).ConfigureAwait(false);
-        await job.WaitAsync(timeToWait).ConfigureAwait(false);
-        return job.Result;
+        var wait = job.WaitAsync(timeToWait);
+        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        return wait.IsCompletedSuccessfully ? job.Result : CrystalResult.Aborted; // Timeout
     }
 
     async Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeToWait)
@@ -111,8 +113,9 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.Delete, path);
         await this.Add(job).ConfigureAwait(false);
-        await job.WaitAsync(timeToWait).ConfigureAwait(false);
-        return job.Result;
+        var wait = job.WaitAsync(timeToWait);
+        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        return wait.IsCompletedSuccessfully ? job.Result : CrystalResult.Aborted; // Timeout
     }
 
     async Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
@@ -121,8 +124,9 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(workType, path);
         await this.Add(job).ConfigureAwait(false);
-        await job.WaitAsync(timeToWait).ConfigureAwait(false);
-        return job.Result;
+        var wait = job.WaitAsync(timeToWait);
+        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        return wait.IsCompletedSuccessfully ? job.Result : CrystalResult.Aborted; // Timeout
     }
 
     async Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeToWait)
@@ -130,8 +134,10 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.List, path);
         await this.Add(job).ConfigureAwait(false);
-        await job.WaitAsync(timeToWait).ConfigureAwait(false);
-        if (job.OutputObject is List<PathInformation> list)
+        var wait = job.WaitAsync(timeToWait);
+        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        if (wait.IsCompletedSuccessfully &&
+            job.OutputObject is List<PathInformation> list)
         {
             return list;
         }

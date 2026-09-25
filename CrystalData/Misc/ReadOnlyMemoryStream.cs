@@ -62,6 +62,19 @@ public sealed class ReadOnlyMemoryStream : Stream
         }
     }
 
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    {// Completes synchronously (the base implementation queues the read to the thread pool).
+        ValidateBufferArguments(buffer, offset, count);
+        return cancellationToken.IsCancellationRequested ?
+            Task.FromCanceled<int>(cancellationToken) :
+            Task.FromResult(this.Read(buffer.AsSpan(offset, count)));
+    }
+
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        => cancellationToken.IsCancellationRequested ?
+            ValueTask.FromCanceled<int>(cancellationToken) :
+            new(this.Read(buffer.Span));
+
     public override int ReadByte()
     {
         if (this.position < this.memory.Length)

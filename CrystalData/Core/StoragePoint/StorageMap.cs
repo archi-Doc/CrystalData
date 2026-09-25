@@ -41,6 +41,8 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
 
     internal StorageObject.GoshujinClass StorageObjects => this.storageObjects; // Lock:StorageControl
 
+    internal Lock StorageObjectsLock => this.StorageControl.LowestLockObject; // Taken while the map is saved (CrystalObject.StoreData()).
+
     public bool IsEnabled => this.enabledStorageMap;
 
     public long StorageUsage => this.storageUsage;

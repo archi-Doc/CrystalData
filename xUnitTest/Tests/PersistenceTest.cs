@@ -1,7 +1,8 @@
-// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc.Collections;
 using CrystalData;
+using CrystalData.Filer;
 using Microsoft.Extensions.DependencyInjection;
 using Tinyhand;
 using ValueLink;
@@ -14,6 +15,23 @@ public partial class PersistenceData
 {
     [Key(0)]
     public int Value { get; set; }
+}
+
+[TinyhandObject]
+public partial class SingletonData
+{
+    [Key(0)]
+    public int Value { get; set; }
+}
+
+[TinyhandObject(Structural = true)]
+public partial class InlinePointsData
+{
+    [Key(0, PropertyName = "First", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    private StoragePoint<PersistenceData> first = new();
+
+    [Key(1, PropertyName = "Second", PropertyAccessibility = PropertyAccessibility.GetterOnly)]
+    private StoragePoint<PersistenceData> second = new();
 }
 
 public class PersistenceTest
@@ -156,7 +174,8 @@ public class PersistenceTest
     {
         await using var scope = new PersistenceScope();
         Assert.Equal(CrystalResult.Success, await scope.Control.PrepareAndLoad(false));
-        var point = scope.CreateStorageCrystal().Data;
+        var crystal = scope.CreateStorageCrystal();
+        var point = crystal.Data;
         using (var dataScope = await point.TryLock())
         {
             Assert.True(dataScope.IsValid);
@@ -172,12 +191,15 @@ public class PersistenceTest
             dataScope.Data.Value = 89;
         }
 
+        var storageUsage = crystal.Storage.StorageUsage;
         Directory.Move(directory, movedDirectory);
         await File.WriteAllTextAsync(directory, "Blocks storage writes", TestContext.Current.CancellationToken);
         try
         {
             await Assert.ThrowsAsync<IOException>(() => point.StoreData(StoreMode.TryRelease));
+            await Assert.ThrowsAsync<IOException>(() => point.StoreData(StoreMode.TryRelease));
             Assert.Equal(89, (await point.TryGet())!.Value);
+            Assert.Equal(storageUsage, crystal.Storage.StorageUsage); // Failed writes do not leak file entries.
         }
         finally
         {
@@ -187,6 +209,7 @@ public class PersistenceTest
 
         Assert.True(await point.StoreData(StoreMode.TryRelease));
         Assert.Equal(89, (await point.TryGet())!.Value);
+        Assert.Equal(storageUsage, crystal.Storage.StorageUsage); // The old file is replaced.
     }
 
     [Fact]
@@ -390,6 +413,391 @@ public class PersistenceTest
         using var memory = result.Data;
         Assert.Equal(start + 1_200_000, result.NextPosition);
         Assert.Equal(1_200_000, memory.Length);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task SnapshotAheadOfLostJournalSurvivesUnchangedRestart(int histories)
+    {
+        var directory = Directory.CreateTempSubdirectory("CrystalData-Persistence-").FullName;
+        try
+        {
+            var configuration = new CrystalConfiguration(new LocalFileConfiguration(Path.Combine(directory, "data", "value.tinyhand")))
+            {
+                SaveFormat = SaveFormat.Utf8,
+                NumberOfHistoryFiles = histories,
+            };
+
+            var control = await StartControl<PersistenceData>(directory, configuration, true);
+            control.GetCrystal<PersistenceData>().Data.Value = 1;
+            await control.Store(TestContext.Current.CancellationToken); // An older snapshot, also ahead of the journal.
+            control.GetCrystal<PersistenceData>().Data.Value = 123;
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+
+            // The journal restarts behind the stored snapshot, so loading moves the snapshot back to the journal position.
+            Directory.Delete(Path.Combine(directory, "journal"), true);
+            control = await StartControl<PersistenceData>(directory, configuration, true);
+            Assert.Equal(123, control.GetCrystal<PersistenceData>().Data.Value);
+            await control.StoreAndRip(TestContext.Current.CancellationToken); // Unchanged data
+
+            control = await StartControl<PersistenceData>(directory, configuration, true);
+            Assert.Equal(123, control.GetCrystal<PersistenceData>().Data.Value);
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            TestHelper.TryDeleteDirectory(directory);
+        }
+    }
+
+    [Theory]
+    [InlineData("./data/value.tinyhand")]
+    [InlineData("data/../data/value.tinyhand")]
+    public async Task HistoryFilesAreFoundForUnnormalizedPath(string file)
+    {
+        var directory = Directory.CreateTempSubdirectory("CrystalData-Persistence-").FullName;
+        try
+        {
+            var configuration = new CrystalConfiguration(new LocalFileConfiguration(file))
+            {
+                SaveFormat = SaveFormat.Utf8,
+                NumberOfHistoryFiles = 2,
+            };
+
+            var control = await StartControl<PersistenceData>(directory, configuration, false);
+            control.GetCrystal<PersistenceData>().Data.Value = 123;
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+
+            control = await StartControl<PersistenceData>(directory, configuration, false);
+            Assert.Equal(123, control.GetCrystal<PersistenceData>().Data.Value);
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+            Assert.Equal(2, Directory.GetFiles(Path.Combine(directory, "data")).Length); // Old history files are also found and limited.
+        }
+        finally
+        {
+            TestHelper.TryDeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public async Task FilerTimeoutIsReturnedAsResult()
+    {
+        await using var scope = new PersistenceScope();
+        using var slowFiler = new SlowFiler(scope.Control.Root);
+        IFiler filer = slowFiler;
+        var timeout = TimeSpan.FromMilliseconds(10);
+
+        Assert.Equal(CrystalResult.Aborted, await filer.WriteAsync("write", 0, BytePool.RentedReadOnlyMemory.CreateFrom([1]), timeout));
+        Assert.Equal(CrystalResult.Aborted, await filer.DeleteAsync("delete", timeout));
+        Assert.Equal(CrystalResult.Aborted, await filer.DeleteDirectoryAsync("directory", true, timeout));
+        var read = await filer.ReadAsync("read", 0, 1, timeout);
+        Assert.Equal(CrystalResult.Aborted, read.Result);
+        Assert.Empty(await filer.ListAsync("list", timeout));
+    }
+
+    [Fact]
+    public async Task InlineStoragePointIsKeptWhenReleaseIsBlocked()
+    {
+        await using var scope = new PersistenceScope();
+        Assert.Equal(CrystalResult.Success, await scope.Control.PrepareAndLoad(false));
+        var crystal = scope.Control.CreateCrystal<InlinePointsData>(scope.Configuration); // Storage disabled: points are serialized inline.
+        Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+        using (var first = await crystal.Data.First.TryLock())
+        {
+            first.Data!.Value = 1;
+        }
+
+        using (var second = await crystal.Data.Second.TryLock())
+        {// The first point is stored, then the release fails at the locked second point, so the crystal is not saved.
+            Assert.True(second.IsValid);
+            Assert.Equal(CrystalResult.DataIsLocked, await crystal.StoreData(StoreMode.TryRelease, TestContext.Current.CancellationToken));
+        }
+
+        Assert.Equal(1, (await crystal.Data.First.TryGet())?.Value);
+        Assert.Equal(CrystalResult.Success, await crystal.StoreData(StoreMode.ForceRelease, TestContext.Current.CancellationToken));
+        Assert.Equal(1, (await crystal.Data.First.TryGet())?.Value); // Reloaded from the file.
+    }
+
+    [Fact]
+    public async Task InlineStoragePointMovedToStorageIsReleasedFromMemoryUsage()
+    {
+        await using var scope = new PersistenceScope();
+        Assert.Equal(CrystalResult.Success, await scope.Control.PrepareAndLoad(false));
+        var crystal = scope.Control.CreateCrystal<InlinePointsData>(scope.Configuration); // Storage disabled: points are serialized inline.
+        Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+        using (var first = await crystal.Data.First.TryLock())
+        {
+            first.Data!.Value = 1;
+        }
+
+        Assert.Equal(CrystalResult.Success, await crystal.StoreData(StoreMode.ForceRelease, TestContext.Current.CancellationToken));
+
+        // Storage is enabled, so the inline data moves to the storage on the next save.
+        crystal.ConfigureStorage(new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(scope.DirectoryPath, "storage"))));
+        Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+        Assert.Equal(CrystalResult.Success, await crystal.StoreData(StoreMode.StoreOnly, TestContext.Current.CancellationToken));
+        Assert.True(scope.Control.StorageControl.MemoryUsage > 0);
+        Assert.Equal(CrystalResult.Success, await crystal.StoreData(StoreMode.ForceRelease, TestContext.Current.CancellationToken));
+        Assert.Equal(0, scope.Control.StorageControl.MemoryUsage);
+        Assert.Equal(1, (await crystal.Data.First.TryGet())?.Value); // Loaded from the storage.
+    }
+
+    [Fact]
+    public async Task StoragePointIsRestoredFromJournalWhenOtherPointIsCreated()
+    {
+        await using var scope = new PersistenceScope(journal: true);
+        Assert.Equal(CrystalResult.Success, await scope.Control.PrepareAndLoad(false));
+        var crystal = scope.Control.CreateCrystal<InlinePointsData>(scope.Configuration with
+        {
+            StorageConfiguration = new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(scope.DirectoryPath, "storage")))
+            {
+                NumberOfHistoryFiles = 2,
+            },
+        });
+        Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+        var first = crystal.Data.First;
+        first.Set(new PersistenceData { Value = 1, });
+        Assert.True(await first.StoreData(StoreMode.StoreOnly));
+        first.Set(new PersistenceData { Value = 2, });
+        using (var second = await crystal.Data.Second.TryLock())
+        {// A record of the storage map (not of a point) in the journal to be restored.
+            Assert.True(second.IsValid);
+        }
+
+        Assert.True(await first.StoreData(StoreMode.StoreOnly));
+        await scope.Control.StoreJournal();
+
+        // The latest storage is lost, so the data is restored from the previous storage and the journal.
+        first.DeleteLatestStorageForTest();
+        Assert.True(await first.StoreData(StoreMode.ForceRelease));
+        Assert.Equal(2, (await first.TryGet())?.Value);
+    }
+
+    [Fact]
+    public async Task StorageMapIsSavedWhilePointsAreCreated()
+    {
+        await using var scope = new PersistenceScope();
+        Assert.Equal(CrystalResult.Success, await scope.Control.PrepareAndLoad(false));
+        var crystal = scope.Control.CreateCrystal<CreditData.GoshujinClass>(scope.Configuration with
+        {
+            StorageConfiguration = new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(scope.DirectoryPath, "storage"))),
+        });
+        Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+        var storage = (IPersistable)crystal.Storage;
+        var creating = Task.Run(
+            async () =>
+            {
+                for (var i = 0; i < 2_000; i++)
+                {
+                    CreditData creditData;
+                    using (var w = crystal.Data.TryLock(i, AcquisitionMode.GetOrCreate)!)
+                    {
+                        creditData = w.Commit()!;
+                    }
+
+                    using (var borrowers = await creditData.Borrowers.TryLock())
+                    {// Adds a storage object to the storage map.
+                        Assert.True(borrowers.IsValid);
+                    }
+                }
+            },
+            TestContext.Current.CancellationToken);
+
+        while (!creating.IsCompleted)
+        {// The map is serialized while storage objects are added.
+            Assert.Equal(CrystalResult.Success, await storage.StoreData(cancellationToken: TestContext.Current.CancellationToken));
+        }
+
+        await creating;
+        Assert.Equal(CrystalResult.Success, await storage.StoreData(cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteDirectoryResolvesRelativePathAgainstDataDirectory()
+    {
+        await using var scope = new PersistenceScope();
+        var subdirectory = Path.Combine(scope.DirectoryPath, "sub");
+        Directory.CreateDirectory(subdirectory);
+        await File.WriteAllTextAsync(Path.Combine(subdirectory, "file"), "data", TestContext.Current.CancellationToken);
+
+        Assert.Equal(string.Empty, new LocalDirectoryConfiguration(string.Empty).Path); // Not "/" (the root directory).
+        scope.Control.DeleteDirectory(new LocalDirectoryConfiguration(string.Empty));
+        scope.Control.DeleteDirectory(new LocalDirectoryConfiguration());
+        scope.Control.DeleteDirectory(new LocalDirectoryConfiguration("."));
+        scope.Control.DeleteDirectory(new LocalDirectoryConfiguration("sub/.."));
+        scope.Control.DeleteDirectory(new LocalDirectoryConfiguration(".."));
+        Assert.True(Directory.Exists(subdirectory)); // DataDirectory itself is not deleted.
+
+        scope.Control.DeleteDirectory(new LocalDirectoryConfiguration("sub"));
+        Assert.False(Directory.Exists(subdirectory));
+        Assert.True(Directory.Exists(scope.DirectoryPath));
+    }
+
+    [Fact]
+    public async Task SharedConfigurationDoesNotMakeOtherCrystalsSingletons()
+    {
+        var directory = Directory.CreateTempSubdirectory("CrystalData-Persistence-").FullName;
+        try
+        {// A directory path, so each type gets its own file.
+            var configuration = new CrystalConfiguration(new LocalFileConfiguration("data/")) { SaveFormat = SaveFormat.Utf8, };
+            var product = new CrystalUnit.Builder().ConfigureCrystal((unitContext, context) =>
+            {
+                unitContext.Services.AddSingleton<SingletonData>();
+                context.SetCrystalOptions(new CrystalOptions { DataDirectory = directory, });
+                context.AddCrystal<SingletonData>(configuration);
+                context.AddCrystal<PersistenceData>(configuration);
+            }).Build();
+            var control = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+
+            // PersistenceData treated as a singleton would resolve itself while loading, which deadlocks.
+            Assert.Equal(CrystalResult.Success, await control.PrepareAndLoad(false).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            var singleton = product.Context.ServiceProvider.GetRequiredService<SingletonData>();
+            Assert.Same(singleton, control.GetCrystal<SingletonData>().Data);
+            control.GetCrystal<PersistenceData>().Data.Value = 1;
+
+            var crystal = control.GetCrystal<SingletonData>();
+            Assert.Equal(CrystalResult.Success, await crystal.StoreData(StoreMode.ForceRelease, TestContext.Current.CancellationToken));
+            crystal.Configure(configuration); // As LoadConfigurations() does; the configuration does not have the singleton flag.
+            Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+            Assert.Same(singleton, crystal.Data);
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            TestHelper.TryDeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public async Task StoragePointRestoredFromJournalIsStored()
+    {
+        var directory = Directory.CreateTempSubdirectory("CrystalData-Persistence-").FullName;
+        try
+        {
+            var configuration = new CrystalConfiguration(new LocalFileConfiguration(Path.Combine(directory, "data", "point.tinyhand")))
+            {
+                SaveFormat = SaveFormat.Utf8,
+                StorageConfiguration = new SimpleStorageConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "storage"))),
+            };
+
+            // The latest value is only in the journal (crash without storing).
+            var control = await StartControl<StoragePoint<PersistenceData>>(directory, configuration, true);
+            var point = control.GetCrystal<StoragePoint<PersistenceData>>().Data;
+            point.Set(new PersistenceData { Value = 1, });
+            await control.Store(TestContext.Current.CancellationToken);
+            point.Set(new PersistenceData { Value = 2, });
+            await control.StoreJournal();
+            Assert.True(await control.Root.WaitForTerminationAsync(TimeSpan.FromSeconds(10), cancellationToken: TestContext.Current.CancellationToken));
+
+            // The journal is replayed. The point is not accessed, so only the replayed data can be stored.
+            control = await StartControl<StoragePoint<PersistenceData>>(directory, configuration, true);
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+
+            // The journal is not replayed after a clean shutdown.
+            control = await StartControl<StoragePoint<PersistenceData>>(directory, configuration, true);
+            Assert.Equal(2, (await control.GetCrystal<StoragePoint<PersistenceData>>().Data.TryGet())?.Value);
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            TestHelper.TryDeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteRemovesLoadedFileWithoutHistory()
+    {
+        var directory = Directory.CreateTempSubdirectory("CrystalData-Persistence-").FullName;
+        try
+        {
+            var path = Path.Combine(directory, "data", "value.tinyhand");
+            var configuration = new CrystalConfiguration(new LocalFileConfiguration(path))
+            {
+                SaveFormat = SaveFormat.Utf8,
+                NumberOfHistoryFiles = 0,
+            };
+
+            var control = await StartControl<PersistenceData>(directory, configuration, false);
+            control.GetCrystal<PersistenceData>().Data.Value = 123;
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+            Assert.True(File.Exists(path));
+
+            control = await StartControl<PersistenceData>(directory, configuration, false);
+            var crystal = control.GetCrystal<PersistenceData>();
+            Assert.Equal(123, crystal.Data.Value); // Loaded from the file, so no waypoint is listed.
+            Assert.Equal(CrystalResult.Success, await crystal.Delete());
+            Assert.False(File.Exists(path));
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+
+            control = await StartControl<PersistenceData>(directory, configuration, false);
+            Assert.Equal(0, control.GetCrystal<PersistenceData>().Data.Value);
+            await control.StoreAndRip(TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            TestHelper.TryDeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public async Task ReconfiguredShorterSaveIntervalTakesEffect()
+    {
+        await using var scope = new PersistenceScope();
+        Assert.Equal(CrystalResult.Success, await scope.Control.PrepareAndLoad(false));
+        var crystal = scope.Control.CreateCrystal<PersistenceData>(scope.Configuration with { SaveInterval = TimeSpan.FromHours(1), });
+        crystal.Configure(scope.Configuration with { SaveInterval = TimeSpan.FromSeconds(1), }); // Clamped to the 5-second minimum.
+        Assert.Equal(CrystalResult.Success, await crystal.PrepareAndLoad(false));
+        crystal.Data.Value = 123;
+
+        var path = scope.Configuration.FileConfiguration.Path;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        while (await TryReadValue(path) != 123)
+        {// Only the periodic save can write the new value.
+            await Task.Delay(100, timeout.Token);
+        }
+
+        static async Task<int?> TryReadValue(string path)
+        {
+            try
+            {
+                return TinyhandSerializer.DeserializeFromUtf8<PersistenceData>(await File.ReadAllBytesAsync(path))?.Value;
+            }
+            catch (Exception ex) when (ex is IOException or TinyhandException)
+            {// Not written yet, or being written.
+                return null;
+            }
+        }
+    }
+
+    private static async Task<CrystalControl> StartControl<TData>(string directory, CrystalConfiguration configuration, bool journal)
+        where TData : class, ITinyhandSerializable<TData>, ITinyhandReconstructable<TData>
+    {
+        var product = new CrystalUnit.Builder().ConfigureCrystal(context =>
+        {
+            context.SetCrystalOptions(new CrystalOptions { DataDirectory = directory, });
+            if (journal)
+            {
+                context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "journal"))));
+            }
+
+            context.AddCrystal<TData>(configuration);
+        }).Build();
+        var control = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
+        Assert.Equal(CrystalResult.Success, await control.PrepareAndLoad(false));
+        return control;
+    }
+
+    private sealed class SlowFiler : FilerBase
+    {
+        public SlowFiler(Arc.Threading.ExecutionRoot root)
+            : base(root)
+        {
+        }
+
+        protected override Task ProcessJobAsync(FilerWork work, CancellationToken cancellationToken)
+            => Task.Delay(Timeout.Infinite, cancellationToken); // Until the filer is disposed.
     }
 
     private sealed record TestJournalConfiguration : SimpleJournalConfiguration

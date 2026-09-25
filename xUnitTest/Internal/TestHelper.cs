@@ -114,6 +114,17 @@ public static class TestHelper
         }
     }
 
+    public static void TryDeleteDirectory(string path)
+    {// Best effort: after a failed assertion, files may still be in use, and the original failure should be reported.
+        try
+        {
+            Directory.Delete(path, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
     public static bool DataEquals(this CrystalMemoryResult dataResult, Span<byte> span)
     {
         return dataResult.Data.Span.SequenceEqual(span);

@@ -33,9 +33,9 @@ public partial class CrystalControl
                 var timeUpdated = crystalControl.UpdateTime();
                 var delayFlag = true;
 
-                if (storageControl.StorageReleaseRequired)
-                {// Releases storage when the memory usage limit is reached.
-                    await storageControl.ReleaseStorage(core.CancellationToken).ConfigureAwait(false);
+                if (storageControl.StorageReleaseRequired &&
+                    await storageControl.ReleaseStorage(core.CancellationToken).ConfigureAwait(false))
+                {// Releases storage when the memory usage limit is reached (waits if nothing can be released, e.g. all objects are locked).
                     delayFlag = false;
                 }
 

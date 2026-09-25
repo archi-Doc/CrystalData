@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.IO;
+using Arc;
 
 namespace CrystalData.Filer;
 
@@ -25,6 +26,7 @@ public class CrystalFiler
         private IFiler? rawFiler;
         private Lock lockObject = new();
         private string prefix = string.Empty; // "Directory/File."
+        private string prefixFileName = string.Empty; // "File."
         private string extension = string.Empty; // string.Empty or ".extension"
         private SortedSet<Waypoint>? waypoints;
 
@@ -70,7 +72,8 @@ public class CrystalFiler
                 (this.rawFiler, this.fileConfiguration) = this.crystalFiler.CrystalControl.ResolveFiler(this.fileConfiguration);
                 var result = await this.rawFiler.PrepareAndCheck(param, this.fileConfiguration).ConfigureAwait(false);
                 if (result.IsFailure())
-                {
+                {// Check again on the next call.
+                    this.rawFiler = null;
                     return result;
                 }
             }
@@ -80,6 +83,7 @@ public class CrystalFiler
                 // identifier/extension
                 this.extension = Path.GetExtension(this.fileConfiguration.Path) ?? string.Empty;
                 this.prefix = this.fileConfiguration.Path.Substring(0, this.fileConfiguration.Path.Length - this.extension.Length) + ".";
+                this.prefixFileName = StorageHelper.PathToDirectoryAndFile(this.prefix).File;
             }
 
             return CrystalResult.Success;
@@ -117,14 +121,18 @@ public class CrystalFiler
                         }
                     }
 
-                    if (path.Length < (Waypoint.LengthInBase32 + this.prefix.Length))
+                    if (path.Length < (Waypoint.LengthInBase32 + this.prefixFileName.Length))
                     {
                         continue;
                     }
 
                     var waypointString = path.Substring(path.Length - Waypoint.LengthInBase32, Waypoint.LengthInBase32);
                     path = path.Substring(0, path.Length - Waypoint.LengthInBase32);
-                    if (!StorageHelper.EndsWithSlashInsensitive(path, this.prefix))
+
+                    // The listed paths are in the prefix directory but may be normalized (e.g. full paths without "./"), so only the file name is compared.
+                    var directoryLength = path.Length - this.prefixFileName.Length;
+                    if (!path.EndsWith(this.prefixFileName, StringComparison.Ordinal) ||
+                        (directoryLength > 0 && !StorageHelper.IsSeparator(path[directoryLength - 1])))
                     {
                         continue;
                     }
@@ -304,22 +312,37 @@ public class CrystalFiler
             return result;
         }
 
+        public async Task DeleteAfter(ulong journalPosition)
+        {
+            Waypoint[] array;
+            using (this.lockObject.EnterScope())
+            {
+                if (this.waypoints is null)
+                {
+                    return;
+                }
+
+                array = this.waypoints.Where(x => x.JournalPosition.CircularCompareTo(journalPosition) > 0).ToArray();
+            }
+
+            foreach (var x in array)
+            {
+                await this.Delete(x).ConfigureAwait(false);
+            }
+        }
+
         public async Task<CrystalResult> DeleteAll()
         {
             if (this.rawFiler == null)
             {
                 return CrystalResult.NotPrepared;
             }
-            else if (this.waypoints == null)
-            {
-                return CrystalResult.Success;
-            }
 
             Waypoint[] waypoints;
             using (this.lockObject.EnterScope())
-            {
-                waypoints = this.waypoints.ToArray();
-                this.waypoints.Clear();
+            {// Waypoints are not listed when a file without history was loaded, but that file must still be deleted.
+                waypoints = this.waypoints is null ? [] : this.waypoints.ToArray();
+                this.waypoints?.Clear();
             }
 
             var tasks = waypoints.Select(x => this.rawFiler.DeleteAsync(this.GetFilePath(x))).Append(this.rawFiler.DeleteAsync(this.GetFilePath())).ToArray();
@@ -599,6 +622,24 @@ public class CrystalFiler
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Deletes the snapshots positioned after the specified journal position (e.g. the journal was lost or reset).
+    /// </summary>
+    /// <param name="journalPosition">The journal position.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public async Task DeleteAfter(ulong journalPosition)
+    {
+        if (this.main is not null)
+        {
+            await this.main.DeleteAfter(journalPosition).ConfigureAwait(false);
+        }
+
+        if (this.backup is not null)
+        {
+            await this.backup.DeleteAfter(journalPosition).ConfigureAwait(false);
+        }
     }
 
     public async Task<CrystalResult> DeleteAll()

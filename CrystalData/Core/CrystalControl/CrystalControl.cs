@@ -578,10 +578,17 @@ public partial class CrystalControl
         }
 
         if (directoryConfiguration is LocalDirectoryConfiguration localDirectoryConfiguration)
-        {
+        {// Relative paths are resolved against DataDirectory (as LocalFiler does). Root directories, DataDirectory itself (e.g. an empty path) and its ancestors are not deleted.
             try
             {
-                Directory.Delete(localDirectoryConfiguration.Path, true);
+                var path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(GetRootedFile(this, localDirectoryConfiguration.Path)));
+                var dataDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.Options.DataDirectory));
+                if (Path.GetDirectoryName(path) is not null &&
+                    !dataDirectory.Equals(path, StringComparison.OrdinalIgnoreCase) &&
+                    !dataDirectory.StartsWith(path + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    Directory.Delete(path, true);
+                }
             }
             catch
             {
@@ -666,7 +673,7 @@ public partial class CrystalControl
     {
         if (this.Journal is SimpleJournal simpleJournal)
         {
-            await simpleJournal.Merge(true).ConfigureAwait(false);
+            await simpleJournal.MergeForTest().ConfigureAwait(false);
         }
     }
 
@@ -877,8 +884,8 @@ public partial class CrystalControl
                         this.Logger.GetWriter(LogLevel.Error)?.Write($"Queued crystal save failed: {saveResult}");
                     }
                 }
-                catch (IOException ex)
-                {
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {// Keep the background task running (it would stop saving and releasing everything). The crystal is queued again by StoreData().
                     this.Logger.GetWriter(LogLevel.Error)?.Write($"Queued crystal save failed: {ex.Message}");
                 }
             }

@@ -75,5 +75,5 @@ public sealed partial record CrystalConfiguration
     public bool HasHistoryFiles => this.NumberOfHistoryFiles > 0;
 
     [IgnoreMember]
-    internal bool IsSingleton { get; set; }
+    internal bool IsSingleton { get; init; }
 }

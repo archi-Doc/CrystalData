@@ -41,8 +41,7 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
     public void Initialize(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate)
     {// Write
-        this.Type = WorkType.Write;
-        this.Path = path;
+        this.Reset(WorkType.Write, path);
         this.Offset = offset;
         this.Truncate = truncate;
         this.WriteData = dataToBeShared.IncrementAndShare();
@@ -50,16 +49,14 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
     public void Initialize(string path, long offset, int length)
     {// Read
-        this.Type = WorkType.Read;
-        this.Path = path;
+        this.Reset(WorkType.Read, path);
         this.Offset = offset;
         this.Length = length;
     }
 
     public void Initialize(WorkType workType, string path)
     {// Delete/List
-        this.Type = workType;
-        this.Path = path;
+        this.Reset(workType, path);
     }
 
     public override int GetHashCode()
@@ -80,4 +77,17 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
     public override string ToString()
         => $"{this.Type.ToString()}:{this.Path}";
+
+    private void Reset(WorkType workType, string path)
+    {// Pooled jobs are reused, so every field is reset (e.g. a stale Success must not be reported for an aborted job).
+        this.Type = workType;
+        this.Result = CrystalResult.NotStarted;
+        this.Path = path;
+        this.Offset = 0;
+        this.Length = 0;
+        this.Truncate = false;
+        this.WriteData = default;
+        this.ReadData = default;
+        this.OutputObject = null;
+    }
 }
