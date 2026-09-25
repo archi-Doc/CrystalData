@@ -12,7 +12,7 @@ namespace CrystalData;
 [TinyhandObject]
 public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Waypoint>
 {// JournalPosition, Plane, Hash
-    public const int Length = 24; // 8 + 4 + 8 + 4
+    public const int Length = 24; // 8 + 8 + 4 + 4
     public const ulong InvalidJournalPosition = 0;
     public const ulong ValidJournalPosition = 1;
     public static readonly Waypoint Invalid = default;
@@ -70,25 +70,17 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
 
     public static bool TryRead(ReadOnlySpan<byte> span, out Waypoint waypoint)
     {
-        if (span.Length >= Length)
+        if (span.Length < Length)
         {
-            try
-            {
-                var journalPosition = BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt64(span));
-                span = span.Slice(sizeof(ulong));
-                var hash = BitConverter.ToUInt64(span);
-                span = span.Slice(sizeof(ulong));
-                var plane = BitConverter.ToUInt32(span);
-                waypoint = new(journalPosition, hash, plane);
-                return true;
-            }
-            catch
-            {
-            }
+            waypoint = default;
+            return false;
         }
 
-        waypoint = default;
-        return false;
+        var journalPosition = BinaryPrimitives.ReadUInt64BigEndian(span);
+        var hash = BinaryPrimitives.ReadUInt64LittleEndian(span.Slice(sizeof(ulong)));
+        var plane = BinaryPrimitives.ReadUInt32LittleEndian(span.Slice(sizeof(ulong) * 2));
+        waypoint = new(journalPosition, hash, plane);
+        return true;
     }
 
     public Waypoint WithHash(ulong hash)
@@ -112,6 +104,9 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
 
     public override string ToString()
         => $"Position: {this.JournalPosition}, Plane: {this.Plane}";
+
+    public override bool Equals(object? obj)
+        => obj is Waypoint other && this.Equals(other);
 
     public bool Equals(Waypoint other)
         => this.JournalPosition == other.JournalPosition &&
@@ -161,32 +156,12 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
     public override int GetHashCode()
         => HashCode.Combine(this.JournalPosition, this.Plane, this.Hash);
 
-    private static void WriteBigEndian(ulong value, Span<byte> span)
-    {
-        unchecked
-        {
-            // Write to highest index first so the JIT skips bounds checks on subsequent writes.
-            span[7] = (byte)value;
-            span[6] = (byte)(value >> 8);
-            span[5] = (byte)(value >> 16);
-            span[4] = (byte)(value >> 24);
-            span[3] = (byte)(value >> 32);
-            span[2] = (byte)(value >> 40);
-            span[1] = (byte)(value >> 48);
-            span[0] = (byte)(value >> 56);
-        }
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteSpan(Span<byte> span)
-    {
-        // BitConverter.TryWriteBytes(span, this.JournalPosition);
-        WriteBigEndian(this.JournalPosition, span);
-        span = span.Slice(sizeof(ulong));
-        BitConverter.TryWriteBytes(span, this.Hash);
-        span = span.Slice(sizeof(ulong));
-        BitConverter.TryWriteBytes(span, this.Plane);
-        span = span.Slice(sizeof(uint));
-        BitConverter.TryWriteBytes(span, this.Reserved);
+    {// The journal position is big-endian so that encoded names sort by position.
+        BinaryPrimitives.WriteUInt64BigEndian(span, this.JournalPosition);
+        BinaryPrimitives.WriteUInt64LittleEndian(span.Slice(sizeof(ulong)), this.Hash);
+        BinaryPrimitives.WriteUInt32LittleEndian(span.Slice(sizeof(ulong) * 2), this.Plane);
+        BinaryPrimitives.WriteUInt32LittleEndian(span.Slice((sizeof(ulong) * 2) + sizeof(uint)), this.Reserved);
     }
 }

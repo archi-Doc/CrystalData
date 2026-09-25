@@ -35,8 +35,9 @@ internal static class UserInterfaceHelper
     /// <returns>The result.</returns>
     public static string CleanupInput(this string input)
     {
+        const int MaxStackLength = 256; // The input can be arbitrarily long (e.g. redirected), so it is not always allocated on the stack.
         var span = input.AsSpan();
-        Span<char> dest = stackalloc char[input.Length];
+        Span<char> dest = input.Length <= MaxStackLength ? stackalloc char[input.Length] : new char[input.Length];
 
         // Remove control characters.
         var destLength = 0;

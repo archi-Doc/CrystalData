@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using CrystalData.Filer;
 
 namespace CrystalData.Journal;
@@ -65,12 +66,12 @@ public partial class SimpleJournal
 
             // BookTitle.complete or BookTitle.incomplete
             var fileName = System.IO.Path.GetFileName(pathInformation.Path);
-            if (fileName.EndsWith(CompleteSuffix))
+            if (fileName.EndsWith(CompleteSuffix, StringComparison.Ordinal))
             {
                 bookType = BookType.Complete;
                 fileName = fileName.Substring(0, fileName.Length - CompleteSuffix.Length);
             }
-            else if (fileName.EndsWith(IncompleteSuffix))
+            else if (fileName.EndsWith(IncompleteSuffix, StringComparison.Ordinal))
             {
                 bookType = BookType.Incomplete;
                 fileName = fileName.Substring(0, fileName.Length - IncompleteSuffix.Length);
@@ -144,6 +145,14 @@ public partial class SimpleJournal
             var succeeded = false;
             try
             {
+                using (simpleJournal.lockBooks.EnterScope())
+                {// Check the range first so that an unused merged book is not left behind (it would overlap the books on the next start).
+                    if (!TryGetRange(simpleJournal, start, end, out _, out _))
+                    {
+                        return false;
+                    }
+                }
+
                 // Save the merged book first
                 if (await book.SaveAsync().ConfigureAwait(false) == false)
                 {
@@ -152,23 +161,19 @@ public partial class SimpleJournal
 
                 using (simpleJournal.lockBooks.EnterScope())
                 {
-                    var range = simpleJournal.books.PositionChain.GetRange(start, end - 1);
-                    if (range.Lower == null || range.Upper == null)
+                    if (!TryGetRange(simpleJournal, start, end, out var lower, out var upper))
                     {
-                        return false;
-                    }
-                    else if (range.Lower.position != start || range.Upper.NextPosition != end)
-                    {
+                        book.DeleteInternal();
                         return false;
                     }
 
                     // Delete books
-                    var b = range.Lower;
+                    var b = lower;
                     while (b != null)
                     {
                         var b2 = b.PositionLink.Next;
                         b.DeleteInternal();
-                        if (b == range.Upper)
+                        if (b == upper)
                         {
                             break;
                         }
@@ -288,8 +293,9 @@ public partial class SimpleJournal
             {
                 return false;
             }
-            else if (this.length != data.Memory.Length)
-            {
+            else if (this.length != data.Memory.Length ||
+                FarmHash.Hash64(data.Memory.Span) != this.hash)
+            {// The file name contains the hash, so a corrupted file is not used.
                 return false;
             }
 
@@ -328,6 +334,12 @@ public partial class SimpleJournal
         {
             this.simpleJournal.memoryUsage -= this.memoryOwner.Memory.Length;
             this.memoryOwner = this.memoryOwner.Return();
+        }
+
+        private static bool TryGetRange(SimpleJournal simpleJournal, ulong start, ulong end, [NotNullWhen(true)] out Book? lower, [NotNullWhen(true)] out Book? upper)
+        {// using (simpleJournal.lockBooks.EnterScope())
+            (lower, upper) = simpleJournal.books.PositionChain.GetRange(start, end - 1);
+            return lower is not null && upper is not null && lower.position == start && upper.NextPosition == end;
         }
 
         private string GetFileName()

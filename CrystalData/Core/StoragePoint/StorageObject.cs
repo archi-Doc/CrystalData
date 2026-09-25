@@ -124,11 +124,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             {
                 this.SetDataInternal(TinyhandSerializer.Reconstruct<TData>(), false, default);
             }
+
+            // Pin while holding the lock: otherwise the data can be released in between, which leaves a pinned object without data.
+            this.storageControl.PinObject(this);
+            return (TData)this.data;
         }
-
-        this.storageControl.PinObject(this);
-
-        return (TData)this.data;
     }
 
     internal void SerializeStoragePoint(ref TinyhandWriter writer, TinyhandSerializerOptions options)
@@ -506,14 +506,16 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     {
         var dataCopy = this.data;
         if (dataCopy is null)
-        {
+        {// A node without data can still be linked (e.g. TryGet() moved it to recent during a release), so it is unlinked to finish ReleaseObjects().
+            this.ReleaseAfterStore(storeMode);
             return true;
         }
 
         bool result = true;
 
         if (!this.IsEnabled)
-        {
+        {// Storage disabled: the data is serialized inline in the parent, so it is the only copy and is not released here.
+         // (It is released with the parent. Releasing it here loses it if the parent is not saved, e.g. another point is locked.)
             // Store children
             if (dataCopy is IStructuralObject structuralObject)
             {
@@ -523,13 +525,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
                 }
             }
 
-            if (result)
-            {
-                this.ReleaseAfterStore(storeMode);
-            }
-
             return result;
         }
+
+        // The journal position is obtained before serialization (as CrystalObject does), so that records added during the store are replayed.
+        var currentPosition = this.storageMap.Journal is null ? Waypoint.ValidJournalPosition : this.storageMap.Journal.GetCurrentPosition();
 
         // Serialize and get hash.
         (_, var rentMemory) = TinyhandTypeIdentifier.TrySerializeRentMemory(this.typeIdentifier, dataCopy);
@@ -561,11 +561,11 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             ulong fileId = 0;
             var putResult = await this.storageMap.Storage.PutAsync(ref fileId, rentMemory.ReadOnly).ConfigureAwait(false);
             if (putResult.IsFailure())
-            {
+            {// The new file is not referenced, so remove it (otherwise each retry leaks a file entry and its storage usage).
+                this.storageMap.Storage.DeleteAndForget(ref fileId);
                 throw new IOException($"Failed to store storage point {this.pointId}: {putResult}.");
             }
 
-            var currentPosition = this.storageMap.Journal is null ? Waypoint.ValidJournalPosition : this.storageMap.Journal.GetCurrentPosition();
             var storageId = new StorageId(currentPosition, fileId, hash);
 
             // Update storage id
@@ -630,7 +630,18 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         {
             reader.Advance(1);
             this.data = TinyhandTypeIdentifier.TryDeserialize(this.TypeIdentifier, ref reader);
-            return this.data is not null;
+            if (this.data is null)
+            {
+                return false;
+            }
+
+            if (this.data is IStructuralObject structuralObject)
+            {
+                structuralObject.SetupStructure(this);
+            }
+
+            this.storageControl.UpdateLink(this); // Link the restored data, since only linked objects are stored.
+            return true;
         }
         else if (record == JournalRecordType.Delete)
         {// Delete storage
@@ -786,6 +797,8 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         {
             structuralObject.SetupStructure(this);
         }
+
+        this.storageControl.UpdateLink(this); // Link the data changed by the journal, since only linked objects are stored.
     }
 
     internal void SetTypeIdentifier<TData>()

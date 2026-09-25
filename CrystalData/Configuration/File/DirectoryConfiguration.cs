@@ -19,8 +19,8 @@ public abstract partial record DirectoryConfiguration : PathConfiguration
     }
 
     public DirectoryConfiguration(string directory)
-        : base(StorageHelper.EndsWithSlashOrBackslash(directory) ? directory : directory + StorageHelper.Slash)
-    {
+        : base(directory.Length == 0 || StorageHelper.EndsWithSlashOrBackslash(directory) ? directory : directory + StorageHelper.Slash)
+    {// An empty directory stays relative ("/" would be the root directory).
     }
 
     public override PathKind Kind => PathKind.Directory;

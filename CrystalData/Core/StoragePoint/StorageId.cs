@@ -65,25 +65,17 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
 
     public static bool TryRead(ReadOnlySpan<byte> span, out StorageId storageId)
     {
-        if (span.Length >= Length)
+        if (span.Length < Length)
         {
-            try
-            {
-                var journalPosition = BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt64(span));
-                span = span.Slice(sizeof(ulong));
-                var fileId = BitConverter.ToUInt64(span);
-                span = span.Slice(sizeof(ulong));
-                var hash = BitConverter.ToUInt64(span);
-                storageId = new(journalPosition, fileId, hash);
-                return true;
-            }
-            catch
-            {
-            }
+            storageId = default;
+            return false;
         }
 
-        storageId = default;
-        return false;
+        var journalPosition = BinaryPrimitives.ReadUInt64BigEndian(span);
+        var fileId = BinaryPrimitives.ReadUInt64LittleEndian(span.Slice(sizeof(ulong)));
+        var hash = BinaryPrimitives.ReadUInt64LittleEndian(span.Slice(sizeof(ulong) * 2));
+        storageId = new(journalPosition, fileId, hash);
+        return true;
     }
 
     public byte[] ToByteArray()
@@ -104,6 +96,9 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
 
     public override string ToString()
         => $"Position: {this.JournalPosition}, File id: {this.FileId}";
+
+    public override bool Equals(object? obj)
+        => obj is StorageId other && this.Equals(other);
 
     public bool Equals(StorageId other)
         => this.JournalPosition == other.JournalPosition &&
@@ -153,29 +148,11 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
     public override int GetHashCode()
         => HashCode.Combine(this.JournalPosition, this.FileId, this.Hash);
 
-    private static void WriteBigEndian(ulong value, Span<byte> span)
-    {
-        unchecked
-        {
-            // Write to highest index first so the JIT skips bounds checks on subsequent writes.
-            span[7] = (byte)value;
-            span[6] = (byte)(value >> 8);
-            span[5] = (byte)(value >> 16);
-            span[4] = (byte)(value >> 24);
-            span[3] = (byte)(value >> 32);
-            span[2] = (byte)(value >> 40);
-            span[1] = (byte)(value >> 48);
-            span[0] = (byte)(value >> 56);
-        }
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteSpan(Span<byte> span)
-    {
-        WriteBigEndian(this.JournalPosition, span);
-        span = span.Slice(sizeof(ulong));
-        BitConverter.TryWriteBytes(span, this.FileId);
-        span = span.Slice(sizeof(ulong));
-        BitConverter.TryWriteBytes(span, this.Hash);
+    {// The journal position is big-endian so that encoded names sort by position.
+        BinaryPrimitives.WriteUInt64BigEndian(span, this.JournalPosition);
+        BinaryPrimitives.WriteUInt64LittleEndian(span.Slice(sizeof(ulong)), this.FileId);
+        BinaryPrimitives.WriteUInt64LittleEndian(span.Slice(sizeof(ulong) * 2), this.Hash);
     }
 }

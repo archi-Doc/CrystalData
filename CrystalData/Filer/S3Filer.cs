@@ -15,6 +15,7 @@ namespace CrystalData.Filer;
 public class S3Filer : FilerBase, IFiler
 {// Vault: S3Bucket/BucketName "AccessKeyId=SecretAccessKey"
     private const string WriteTestFile = "Write.test";
+    private const int MaxWriteAttempts = 2;
 
     public S3Filer(ExecutionRoot root)
         : base(root)
@@ -67,7 +68,7 @@ public class S3Filer : FilerBase, IFiler
             {
 TryWrite:
                 tryCount++;
-                if (tryCount > 1)
+                if (tryCount > MaxWriteAttempts)
                 {
                     work.Result = CrystalResult.FileOperationError;
                     return;
@@ -154,8 +155,8 @@ TryWrite:
             {
                 var request = new Amazon.S3.Model.DeleteObjectRequest() { BucketName = worker.bucket, Key = filePath, };
                 var response = await worker.client.DeleteObjectAsync(request, worker.CancellationToken).ConfigureAwait(false);
-                if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
-                {
+                if (IsSuccessStatusCode(response.HttpStatusCode))
+                {// DeleteObject returns 204 No Content.
                     work.Result = CrystalResult.Success;
                     return;
                 }
@@ -187,14 +188,14 @@ TryWrite:
                     return;
                 }
 
-                if (listResponse.KeyCount == 0)
-                {// No file left
+                if (listResponse.S3Objects is not { Count: > 0 } objects)
+                {// No file left (collections are null by default in AWS SDK v4)
                     work.Result = CrystalResult.Success;
                     return;
                 }
 
                 var deleteRequest = new DeleteObjectsRequest() { BucketName = worker.bucket, };
-                foreach (var x in listResponse.S3Objects)
+                foreach (var x in objects)
                 {
                     deleteRequest.AddKey(x.Key);
                 }
@@ -222,14 +223,20 @@ RepeatList:
                 var request = new Amazon.S3.Model.ListObjectsV2Request() { BucketName = worker.bucket, Prefix = filePath, Delimiter = StorageHelper.SlashString, ContinuationToken = continuationToken, };
 
                 var response = await worker.client.ListObjectsV2Async(request, worker.CancellationToken).ConfigureAwait(false);
-                foreach (var x in response.S3Objects)
-                {
-                    list.Add(new(x.Key, x.Size ?? 0));
+                if (response.S3Objects is { } objects)
+                {// Collections are null by default in AWS SDK v4.
+                    foreach (var x in objects)
+                    {
+                        list.Add(new(x.Key, x.Size ?? 0));
+                    }
                 }
 
-                foreach (var x in response.CommonPrefixes)
+                if (response.CommonPrefixes is { } prefixes)
                 {
-                    list.Add(new(x));
+                    foreach (var x in prefixes)
+                    {
+                        list.Add(new(x));
+                    }
                 }
 
                 if (response.IsTruncated == true)
@@ -278,9 +285,9 @@ RepeatList:
         }
 
         // Write test.
-        directoryPath = configuration is FileConfiguration ? Path.GetDirectoryName(configuration.Path) ?? string.Empty : configuration.Path;
-        if (!this.checkedPath.TryGetValue(directoryPath, out var accessible))
-        {
+        directoryPath = configuration is FileConfiguration ? StorageHelper.PathToDirectoryAndFile(configuration.Path).Directory : configuration.Path;
+        if (!this.checkedPath.ContainsKey(directoryPath))
+        {// Only successful checks are cached, so a failed check is retried.
             try
             {
                 var path = StorageHelper.CombineWithSlash(directoryPath, WriteTestFile);
@@ -290,14 +297,12 @@ RepeatList:
                     var response = await this.client.PutObjectAsync(request).ConfigureAwait(false);
                     if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
                     {
-                        this.checkedPath.TryAdd(directoryPath, false);
                         goto NoAccess;
                     }
                 }
             }
             catch
             {
-                this.checkedPath.TryAdd(directoryPath, false);
                 goto NoAccess;
             }
 
@@ -330,4 +335,7 @@ NoAccess:
 
         base.Dispose(disposing);
     }
+
+    private static bool IsSuccessStatusCode(System.Net.HttpStatusCode statusCode)
+        => (int)statusCode is >= 200 and < 300;
 }

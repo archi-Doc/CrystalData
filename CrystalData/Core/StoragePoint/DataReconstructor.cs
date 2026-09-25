@@ -32,7 +32,7 @@ public static class JournalExtensions
 
             try
             {
-                if (!RestoreFromMemory(startPosition, journalResult.Data.Memory, ref data, typeIdentifier, plane, pointId))
+                if (!RestoreFromMemory(startPosition, upperLimit, journalResult.Data.Memory, ref data, typeIdentifier, plane, pointId))
                 {
                     result = false;
                     break;
@@ -61,12 +61,17 @@ public static class JournalExtensions
         }
     }
 
-    private static bool RestoreFromMemory(ulong position, ReadOnlyMemory<byte> memory, ref object? data, uint typeIdentifier, uint targetPlane, ulong targetPointId)
+    private static bool RestoreFromMemory(ulong position, ulong upperLimit, ReadOnlyMemory<byte> memory, ref object? data, uint typeIdentifier, uint targetPlane, ulong targetPointId)
     {
         var result = true;
         var reader = new TinyhandReader(memory.Span);
         while (reader.Consumed < memory.Length)
         {
+            if (position + (ulong)reader.Consumed >= upperLimit)
+            {// The records after the upper limit are not restored (the memory is read by book).
+                break;
+            }
+
             if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {// Not journal
                 return false;
@@ -106,7 +111,7 @@ public static class JournalExtensions
                 }
             }
             catch
-            {
+            {// Records other than those of the target (e.g. AddItem of the storage map without a point locator) are skipped.
             }
             finally
             {

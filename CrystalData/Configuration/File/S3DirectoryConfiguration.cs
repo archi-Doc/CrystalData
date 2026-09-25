@@ -16,7 +16,7 @@ public partial record S3DirectoryConfiguration : DirectoryConfiguration
     }
 
     public S3DirectoryConfiguration(string bucket, string directory)
-        : base(directory)
+        : base(directory.Length == 0 ? StorageHelper.SlashString : directory) // An empty directory has been "/" (object keys "/..."), which is kept for compatibility.
     {
         this.Bucket = bucket;
     }

@@ -89,41 +89,56 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
         }
 
         value ??= new();
+        var start = reader.Fork();
         Item.GoshujinClass? g = default;
         var capacity = 0;
         try
         {
-            if (reader.ReadArrayHeader() != 2)
+            var length = reader.ReadArrayHeader();
+            if (length >= 2)
             {
-                return;
-            }
-
-            capacity = reader.ReadInt32();
-            ArgumentOutOfRangeException.ThrowIfNegative(capacity);
-            var count = reader.ReadArrayHeader();
-            g = new();
-            for (var i = 0; i < count; i++)
-            {
-                if (reader.ReadArrayHeader() != 2)
+                capacity = reader.ReadInt32();
+                ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+                var count = reader.ReadArrayHeader();
+                g = new();
+                for (var i = 0; i < count; i++)
                 {
-                    g = null;
-                    break;
+                    var itemLength = reader.ReadArrayHeader();
+                    if (itemLength < 2)
+                    {
+                        g = null;
+                        break;
+                    }
+
+                    var key = TinyhandSerializer.Deserialize<TIdentifier>(ref reader, options)!;
+                    var datum = TinyhandSerializer.Deserialize<TDatum>(ref reader, options)!;
+                    g.Add(new(key, datum));
+                    while (itemLength-- > 2)
+                    {// Unknown elements
+                        reader.Skip();
+                    }
                 }
 
-                var key = TinyhandSerializer.Deserialize<TIdentifier>(ref reader, options)!;
-                var datum = TinyhandSerializer.Deserialize<TDatum>(ref reader, options)!;
-                g.Add(new(key, datum));
+                while (g is not null && length-- > 2)
+                {// Unknown elements
+                    reader.Skip();
+                }
             }
         }
         catch
         {
+            g = null;
         }
 
-        if (g is not null)
-        {
-            value.goshujin = g;
-            Volatile.Write(ref value.capacity, capacity);
+        if (g is null)
+        {// Invalid data: the whole value is skipped, so that the data after this value is read correctly.
+            reader = start;
+            reader.Skip();
+            return;
         }
+
+        value.goshujin = g;
+        Volatile.Write(ref value.capacity, capacity);
     }
 
     /// <summary>

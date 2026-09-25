@@ -86,7 +86,7 @@ internal class CrystalDataQueryDefault : ICrystalDataQuery
                 return YesOrNo.Invalid; // throw new PanicException();
             }
 
-            input = input.CleanupInput().ToLower();
+            input = input.CleanupInput().ToLowerInvariant();
             if (input == "y" || input == "yes")
             {
                 return YesOrNo.Yes;
