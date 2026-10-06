@@ -57,8 +57,8 @@ public partial class SimpleJournal
 
         public static Book? TryAdd(SimpleJournal simpleJournal, Book.GoshujinClass books, PathInformation pathInformation)
         {
-            if (pathInformation.Length == 0)
-            {// Empty
+            if (pathInformation.Length <= 0 || pathInformation.Length > int.MaxValue)
+            {// Directories, empty files, and oversized books are not journal data.
                 return null;
             }
 
@@ -81,7 +81,8 @@ public partial class SimpleJournal
                 return null;
             }
 
-            if (!BookTitle.TryParse(fileName, out var bookTitle))
+            if (!BookTitle.TryParse(fileName, out var bookTitle) ||
+                !bookTitle.IsValid || bookTitle.JournalPosition > ulong.MaxValue - (ulong)pathInformation.Length)
             {
                 return null;
             }
@@ -103,7 +104,7 @@ public partial class SimpleJournal
 
         public static Book? AppendNewBook(SimpleJournal simpleJournal, ulong position, byte[] data, int dataLength)
         {
-            if (data.Length == 0)
+            if (dataLength == 0)
             {
                 return default;
             }
@@ -293,8 +294,7 @@ public partial class SimpleJournal
             {
                 return false;
             }
-            else if (this.length != data.Memory.Length ||
-                FarmHash.Hash64(data.Memory.Span) != this.hash)
+            else if (!this.IsValidData(data.Span))
             {// The file name contains the hash, so a corrupted file is not used.
                 return false;
             }
@@ -308,6 +308,9 @@ public partial class SimpleJournal
 
         public override string ToString()
             => $"Book [{this.Position}, {this.NextPosition})";
+
+        internal bool IsValidData(ReadOnlySpan<byte> data)
+            => this.length == data.Length && FarmHash.Hash64(data) == this.hash;
 
         protected bool IncompleteLinkPredicate()
             => this.IsIncomplete;

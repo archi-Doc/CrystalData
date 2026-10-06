@@ -24,13 +24,13 @@ public abstract partial record StorageConfiguration
 
         public bool Equals(StorageConfiguration? x, StorageConfiguration? y)
         {
-            if (x is null || y is null)
-            {
-                return false;
-            }
-            else if (ReferenceEquals(x, y))
+            if (ReferenceEquals(x, y))
             {
                 return true;
+            }
+            else if (x is null || y is null)
+            {
+                return false;
             }
 
             return x.DirectoryConfiguration.Equals(y.DirectoryConfiguration);

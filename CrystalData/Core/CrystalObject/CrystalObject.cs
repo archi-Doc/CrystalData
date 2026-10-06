@@ -19,8 +19,10 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     #region FieldAndProperty
 
     private readonly SemaphoreLock storeSemaphore = new();
+    private readonly SemaphoreLock loadSemaphore = new();
     private SemaphoreLock semaphore = new();
     private Task<CrystalResult>? initialSaveTask;
+    private bool requiresSave;
     private TData? data;
     private CrystalFiler? crystalFiler;
     private IStorage? storage;
@@ -49,11 +51,16 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
                 return v;
             }
 
+            using var loadScope = this.loadSemaphore.EnterScope();
             using (this.semaphore.EnterScope())
             {
                 if (this.State == CrystalState.Initial)
                 {// Initial
-                    this.PrepareAndLoadInternal(false).ConfigureAwait(false).GetAwaiter().GetResult();
+                    var result = this.PrepareAndLoadInternal(false).ConfigureAwait(false).GetAwaiter().GetResult();
+                    if (result.IsFailure())
+                    {
+                        throw new IOException($"Failed to load {typeof(TData).FullName}: {result}.");
+                    }
                 }
                 else if (this.State == CrystalState.Deleted)
                 {// Deleted
@@ -139,11 +146,13 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     void ICrystal.Configure(CrystalConfiguration configuration)
     {
         using var storeScope = this.storeSemaphore.EnterScope();
+        using var loadScope = this.loadSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
         {// A crystal registered as a singleton stays a singleton (e.g. configurations loaded from a file do not have the flag).
             this.originalCrystalConfiguration = this.originalCrystalConfiguration.IsSingleton && !configuration.IsSingleton ?
                 configuration with { IsSingleton = true, } : configuration;
             this.PrepareCrystalConfiguration();
+            this.requiresSave = this.data is not null;
             this.crystalFiler = null;
             this.storage = null;
             this.State = CrystalState.Initial;
@@ -153,10 +162,12 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     void ICrystal.ConfigureFile(FileConfiguration configuration)
     {
         using var storeScope = this.storeSemaphore.EnterScope();
+        using var loadScope = this.loadSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { FileConfiguration = configuration, };
             this.PrepareCrystalConfiguration();
+            this.requiresSave = this.data is not null;
             this.crystalFiler = null;
             this.State = CrystalState.Initial;
         }
@@ -165,6 +176,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     void ICrystal.ConfigureStorage(StorageConfiguration configuration)
     {
         using var storeScope = this.storeSemaphore.EnterScope();
+        using var loadScope = this.loadSemaphore.EnterScope();
         using (this.semaphore.EnterScope())
         {
             this.originalCrystalConfiguration = this.originalCrystalConfiguration with { StorageConfiguration = configuration, };
@@ -176,7 +188,8 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
     async Task<CrystalResult> ICrystal.PrepareAndLoad(bool useQuery)
     {
-        using (this.semaphore.EnterScope())
+        using var loadScope = await this.loadSemaphore.EnterScopeAsync().ConfigureAwait(false);
+        using (await this.semaphore.EnterScopeAsync().ConfigureAwait(false))
         {
             if (this.State == CrystalState.Prepared)
             {// Prepared
@@ -194,11 +207,16 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     async Task<CrystalResult> ICrystal.Delete()
     {
         using var storeScope = await this.storeSemaphore.EnterScopeAsync().ConfigureAwait(false);
+        using var loadScope = await this.loadSemaphore.EnterScopeAsync().ConfigureAwait(false);
         using (this.semaphore.EnterScope())
         {
             if (this.State == CrystalState.Initial)
             {// Initial
-                await this.PrepareAndLoadInternal(false).ConfigureAwait(false);
+                var prepareResult = await this.PrepareAndLoadInternal(false).ConfigureAwait(false);
+                if (prepareResult.IsFailure())
+                {
+                    return prepareResult;
+                }
             }
             else if (this.State == CrystalState.Deleted)
             {// Deleted
@@ -274,6 +292,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
     async Task<CrystalResult> IPersistable.StoreData(StoreMode storeMode, CancellationToken cancellationToken)
     {
         using var storeScope = await this.storeSemaphore.EnterScopeAsync().ConfigureAwait(false);
+        using var loadScope = await this.loadSemaphore.EnterScopeAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         var initialSaveSucceeded = this.initialSaveTask is null ||
             await this.initialSaveTask.ConfigureAwait(false) == CrystalResult.Success;
@@ -386,7 +405,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         // Get hash
         var hash = FarmHash.Hash64(rentMemory.Span);
-        if (initialSaveSucceeded && hash == currentWaypoint.Hash)
+        if (!this.requiresSave && initialSaveSucceeded && hash == currentWaypoint.Hash)
         {// Identical data
             goto Exit;
         }
@@ -409,6 +428,7 @@ internal sealed class CrystalObject<TData> : CrystalObjectBase, ICrystal<TData>,
 
         this.CrystalControl.CrystalSupplement.ReportStored<TData>(this.CrystalConfiguration.FileConfiguration, currentWaypoint.JournalPosition);
         this.initialSaveTask = null;
+        this.requiresSave = false;
         using (this.semaphore.EnterScope())
         {// Update waypoint and plane position.
             this.waypoint = currentWaypoint;
@@ -570,7 +590,11 @@ Exit:
                         break;
                     }
 
-                    this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane);
+                    if (!this.ReadJournal(journalObject, memoryOwner.Memory, waypoints[i].Plane))
+                    {
+                        testResult = false;
+                        break;
+                    }
                 }
                 finally
                 {
@@ -665,17 +689,23 @@ Exit:
                 return false;
             }
 
+            if (length > reader.Remaining)
+            {
+                return false;
+            }
+
             var fork = reader.Fork();
+            var recordReader = reader.CreateSubReader(reader.ReadRaw(length));
             try
             {
                 if (journalType == JournalType.Record)
                 {
-                    reader.ReadLocatorRecord();
-                    var plane = reader.ReadUInt32();
+                    recordReader.ReadLocatorRecord();
+                    var plane = recordReader.ReadUInt32();
 
                     if (plane == currentPlane)
                     {
-                        if (journalObject.ProcessJournalRecord(ref reader))
+                        if (journalObject.ProcessJournalRecord(ref recordReader))
                         {// Success
                         }
                         else
@@ -698,7 +728,11 @@ Exit:
             finally
             {
                 reader = fork;
-                reader.Advance(length);
+                if (!reader.TryAdvance(length))
+                {
+                    success = false;
+                    reader.TryAdvance(reader.Remaining);
+                }
             }
         }
 
@@ -789,8 +823,19 @@ Exit:
                 // Otherwise unchanged data is never saved again (identical hash), and only the in-memory copy remains.
                 // Every snapshot ahead of the journal is deleted, since it would be sorted after the new one (and loaded or kept instead of it).
                 var journalPosition = journal.GetCurrentPosition();
-                loadResult.Waypoint = await this.SaveWayback(loadResult.Data!, journalPosition, loadResult.Waypoint.Plane).ConfigureAwait(false);
-                await this.crystalFiler.DeleteAfter(journalPosition).ConfigureAwait(false);
+                var waybackResult = await this.SaveWayback(loadResult.Data!, journalPosition, loadResult.Waypoint.Plane).ConfigureAwait(false);
+                if (waybackResult.Result.IsFailure())
+                {
+                    return waybackResult.Result;
+                }
+
+                result = await this.crystalFiler.DeleteAfterWithResult(journalPosition).ConfigureAwait(false);
+                if (result.IsFailure())
+                {
+                    return result;
+                }
+
+                loadResult.Waypoint = waybackResult.Waypoint;
             }
         }
 
@@ -905,6 +950,11 @@ Exit:
             TinyhandSerializer.ReconstructObject<TData>(ref this.data);
         }
 
+        if (this.CrystalConfiguration.IsVolatile)
+        {
+            return;
+        }
+
         BytePool.RentedMemory rentMemory = default;
         try
         {
@@ -948,7 +998,7 @@ Exit:
         }
     }
 
-    private async Task<Waypoint> SaveWayback(TData data, ulong journalPosition, uint plane)
+    private async Task<(CrystalResult Result, Waypoint Waypoint)> SaveWayback(TData data, ulong journalPosition, uint plane)
     {// this.semaphore.EnterScope()
         BytePool.RentedMemory rentMemory;
         try
@@ -964,19 +1014,13 @@ Exit:
         }
         catch
         {
-            this.initialSaveTask = Task.FromResult(CrystalResult.SerializationFailed);
-            return new(journalPosition, 0, plane);
+            return (CrystalResult.SerializationFailed, default);
         }
 
         using var rentMemoryScope = rentMemory;
         var waypoint = new Waypoint(journalPosition, FarmHash.Hash64(rentMemory.Span), plane);
         var result = await this.crystalFiler!.Save(rentMemory.ReadOnly, waypoint).ConfigureAwait(false);
-        if (result.IsFailure())
-        {// The next store writes the data even if it is unchanged.
-            this.initialSaveTask = Task.FromResult(result);
-        }
-
-        return waypoint;
+        return (result, waypoint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

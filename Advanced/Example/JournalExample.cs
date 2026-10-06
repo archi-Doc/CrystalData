@@ -77,7 +77,7 @@ public partial class Program
         var product = builder.Build(); // Build.
         var serviceProvider = product.Context.ServiceProvider;
         var crystalControl = serviceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
-        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        Program.EnsureSuccess(await crystalControl.PrepareAndLoad(false)); // Prepare resources for storage operations and read data from files.
 
         var goshujin = serviceProvider.GetRequiredService<JournalData.GoshujinClass>(); // Retrieve a data instance from the service provider.
 

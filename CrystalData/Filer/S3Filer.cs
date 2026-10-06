@@ -103,7 +103,7 @@ TryWrite:
             }
             finally
             {
-                work.WriteData.Return();
+                work.ReturnWriteData();
             }
         }
         else if (work.Type == FilerWork.WorkType.Read)
@@ -127,15 +127,35 @@ TryWrite:
                 if (response.HttpStatusCode == System.Net.HttpStatusCode.OK ||
                     response.HttpStatusCode == System.Net.HttpStatusCode.PartialContent)
                 {
-                    using (var ms = new MemoryStream())
+                    long? contentLength = response.ContentLength;
+                    if (contentLength is null or < 0 or > int.MaxValue ||
+                        (work.Length > 0 && contentLength != work.Length))
                     {
-                        await response.ResponseStream.CopyToAsync(ms, worker.CancellationToken).ConfigureAwait(false);
+                        work.Result = CrystalResult.FileOperationError;
+                        return;
+                    }
+
+                    var memoryOwner = BytePool.Default.Rent((int)contentLength.Value).AsMemory(0, (int)contentLength.Value);
+                    try
+                    {
+                        await response.ResponseStream.ReadExactlyAsync(memoryOwner.Memory, cancellationToken).ConfigureAwait(false);
                         work.Result = CrystalResult.Success;
-                        work.ReadData = BytePool.RentedMemory.CreateFrom(ms.ToArray());
+                        work.ReadData = memoryOwner;
+                        memoryOwner = default;
                         worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read {filePath}, {work.ReadData.Memory.Length}");
                         return;
                     }
+                    finally
+                    {
+                        memoryOwner.Return();
+                    }
                 }
+            }
+            catch (AmazonS3Exception ex) when (ex.ErrorCode == "NoSuchKey" ||
+                (ex.StatusCode == System.Net.HttpStatusCode.NotFound && ex.ErrorCode != "NoSuchBucket"))
+            {
+                work.Result = CrystalResult.NotFound;
+                return;
             }
             catch (OperationCanceledException)
             {
@@ -201,7 +221,8 @@ TryWrite:
                 }
 
                 var deleteResponse = await worker.client.DeleteObjectsAsync(deleteRequest, worker.CancellationToken).ConfigureAwait(false);
-                if (deleteResponse.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                if (deleteResponse.HttpStatusCode != System.Net.HttpStatusCode.OK ||
+                    deleteResponse.DeleteErrors is { Count: > 0 })
                 {
                     work.Result = CrystalResult.FileOperationError;
                     return;

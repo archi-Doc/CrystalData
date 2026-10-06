@@ -58,18 +58,29 @@ public sealed partial record CrystalConfiguration
     public TimeSpan SaveInterval { get; init; }
 
     /// <summary>
-    /// Gets the number of history files (snapshots).<br/>
-    /// Default value is 1.
+    /// Gets the number of retained snapshot files. The default is one; zero disables history.
     /// </summary>
     [Key("NumberOfFileHistories")]
     public int NumberOfHistoryFiles { get; init; } = 1;
 
+    /// <summary>
+    /// Gets the primary snapshot file.
+    /// </summary>
     public FileConfiguration FileConfiguration { get; init; }
 
+    /// <summary>
+    /// Gets the backup snapshot file, or uses the control's default backup directory when unspecified.
+    /// </summary>
     public FileConfiguration? BackupFileConfiguration { get; init; }
 
+    /// <summary>
+    /// Gets the storage used for independently loaded child objects.
+    /// </summary>
     public StorageConfiguration StorageConfiguration { get; init; } = EmptyStorageConfiguration.Default;
 
+    /// <summary>
+    /// Gets a value indicating whether failure to load previously stored data requires a recovery-query decision.
+    /// </summary>
     public bool RequiredForLoading { get; init; } = false;
 
     public bool HasHistoryFiles => this.NumberOfHistoryFiles > 0;

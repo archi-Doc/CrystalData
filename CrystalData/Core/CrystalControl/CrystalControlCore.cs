@@ -46,7 +46,7 @@ public partial class CrystalControl
                         delayFlag = false;
                     }
 
-                    if (await crystalControl.ProcessSaveQueue(core.tempArray2, crystalControl, core.CancellationToken).ConfigureAwait(false))
+                    if (await crystalControl.ProcessSaveQueue(core.tempArray2, core.CancellationToken).ConfigureAwait(false))
                     {// Processes the save queue.
                         delayFlag = false;
                     }

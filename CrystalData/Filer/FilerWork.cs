@@ -35,6 +35,12 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
     public object? OutputObject { get; internal set; }
 
+    internal string QueuePath { get; set; } = string.Empty;
+
+    internal FilerWork? NextWork { get; set; }
+
+    internal bool IsQueued { get; set; }
+
     public FilerWork()
     {
     }
@@ -60,7 +66,7 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
     }
 
     public override int GetHashCode()
-        => HashCode.Combine(this.Type, this.Path, this.WriteData.Memory.Length, this.Length);
+        => HashCode.Combine(this.Type, this.Path, this.Offset, this.Truncate, this.WriteData.Memory.Length, this.Length);
 
     public bool Equals(FilerWork? other)
     {
@@ -71,12 +77,17 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
 
         return this.Type == other.Type &&
             this.Path == other.Path &&
+            this.Offset == other.Offset &&
+            this.Truncate == other.Truncate &&
             this.WriteData.Memory.Span.SequenceEqual(other.WriteData.Memory.Span) &&
             this.Length == other.Length;
     }
 
     public override string ToString()
         => $"{this.Type.ToString()}:{this.Path}";
+
+    internal void ReturnWriteData()
+        => this.WriteData = this.WriteData.Return();
 
     private void Reset(WorkType workType, string path)
     {// Pooled jobs are reused, so every field is reset (e.g. a stale Success must not be reported for an aborted job).
@@ -89,5 +100,8 @@ public sealed record class FilerWork : ReusableTaskJob, IEquatable<FilerWork>
         this.WriteData = default;
         this.ReadData = default;
         this.OutputObject = null;
+        this.QueuePath = string.Empty;
+        this.NextWork = null;
+        this.IsQueued = false;
     }
 }

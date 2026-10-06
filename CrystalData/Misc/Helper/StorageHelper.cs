@@ -199,7 +199,7 @@ public static partial class StorageHelper
         {
             if (omitFirst2)
             {// path1/ + /path2
-                return path1 + path2.Substring(1);
+                return string.Concat(path1, path2.AsSpan(1));
             }
             else
             {// path1/ + path2

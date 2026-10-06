@@ -5,6 +5,7 @@ namespace CrystalData.Filer;
 /// <summary>
 /// Exposes a <see cref="ReadOnlyMemory{T}"/> of bytes as a readable, seekable stream.
 /// </summary>
+/// <remarks>The caller owns the backing memory and must keep it valid until the stream is disposed.</remarks>
 public sealed class ReadOnlyMemoryStream : Stream
 {
     public ReadOnlyMemoryStream(ReadOnlyMemory<byte> memory)
@@ -13,19 +14,32 @@ public sealed class ReadOnlyMemoryStream : Stream
         this.position = 0;
     }
 
-    public override bool CanRead => true;
+    public override bool CanRead => !this.disposed;
 
-    public override bool CanSeek => true;
+    public override bool CanSeek => !this.disposed;
 
     public override bool CanWrite => false;
 
-    public override long Length => this.memory.Length;
+    public override long Length
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(this.disposed, this);
+            return this.memory.Length;
+        }
+    }
 
     public override long Position
     {
-        get => this.position;
+        get
+        {
+            ObjectDisposedException.ThrowIf(this.disposed, this);
+            return this.position;
+        }
+
         set
         {
+            ObjectDisposedException.ThrowIf(this.disposed, this);
             if ((ulong)value > int.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(value));
@@ -37,6 +51,7 @@ public sealed class ReadOnlyMemoryStream : Stream
 
     public override void Flush()
     {
+        ObjectDisposedException.ThrowIf(this.disposed, this);
     }
 
     public override int Read(byte[] buffer, int offset, int count)
@@ -47,6 +62,7 @@ public sealed class ReadOnlyMemoryStream : Stream
 
     public override int Read(Span<byte> buffer)
     {
+        ObjectDisposedException.ThrowIf(this.disposed, this);
         if (this.position < this.memory.Length)
         {
             var lengthToRead = this.memory.Length - (int)this.position;
@@ -77,6 +93,7 @@ public sealed class ReadOnlyMemoryStream : Stream
 
     public override int ReadByte()
     {
+        ObjectDisposedException.ThrowIf(this.disposed, this);
         if (this.position < this.memory.Length)
         {
             return this.memory.Span[(int)this.position++];
@@ -89,6 +106,7 @@ public sealed class ReadOnlyMemoryStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
+        ObjectDisposedException.ThrowIf(this.disposed, this);
         long newPosition;
         try
         {
@@ -113,6 +131,14 @@ public sealed class ReadOnlyMemoryStream : Stream
 
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
+    protected override void Dispose(bool disposing)
+    {
+        this.disposed = true;
+        this.memory = default;
+        base.Dispose(disposing);
+    }
+
     private ReadOnlyMemory<byte> memory;
     private long position;
+    private bool disposed;
 }

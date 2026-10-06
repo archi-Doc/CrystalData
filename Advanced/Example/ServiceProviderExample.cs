@@ -46,7 +46,7 @@ public partial class Program
         var product = builder.Build(); // Build.
         TinyhandSerializer.ServiceProvider = product.Context.ServiceProvider;
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
-        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        Program.EnsureSuccess(await crystalControl.PrepareAndLoad(false)); // Prepare resources for storage operations and read data from files.
 
         // var data = product.Context.ServiceProvider.GetRequiredService<ICrystal<ServiceProviderData>>().Data; // Retrieve a data instance from the service provider.
         var data = product.Context.ServiceProvider.GetRequiredService<ServiceProviderData>(); // Retrieve a data instance from the service provider.

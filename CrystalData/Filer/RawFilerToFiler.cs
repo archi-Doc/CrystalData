@@ -55,7 +55,7 @@ internal class RawFilerToFiler : ISingleFiler
             path = $"{this.Path}.{extension}";
         }
 
-        return new RawFilerToFiler(this.CrystalControl, this.RawFiler, path);
+        return new RawFilerToFiler(this.CrystalControl, this.RawFiler, path) { timeout = this.timeout, };
     }
 
     public override string ToString()

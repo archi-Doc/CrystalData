@@ -56,16 +56,15 @@ public readonly partial struct Waypoint : IEquatable<Waypoint>, IComparable<Wayp
 
     public static bool TryParse(string base32, out Waypoint waypoint)
     {
-        try
+        Span<byte> bytes = stackalloc byte[Length];
+        if (base32 is not null && base32.Length == LengthInBase32 &&
+            Base32Sort.Default.FromStringToSpan(base32, bytes, out var written) && written == Length)
         {
-            var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
-            return TryRead(byteArray, out waypoint);
+            return TryRead(bytes, out waypoint);
         }
-        catch
-        {
-            waypoint = default;
-            return false;
-        }
+
+        waypoint = default;
+        return false;
     }
 
     public static bool TryRead(ReadOnlySpan<byte> span, out Waypoint waypoint)

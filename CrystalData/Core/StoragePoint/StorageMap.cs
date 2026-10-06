@@ -37,15 +37,16 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
     [Key(0)]
     private StorageObject.GoshujinClass storageObjects = new(); // Lock:StorageControl
 
-    private long storageUsage;
-
     internal StorageObject.GoshujinClass StorageObjects => this.storageObjects; // Lock:StorageControl
 
     internal Lock StorageObjectsLock => this.StorageControl.LowestLockObject; // Taken while the map is saved (CrystalObject.StoreData()).
 
     public bool IsEnabled => this.enabledStorageMap;
 
-    public long StorageUsage => this.storageUsage;
+    /// <summary>
+    /// Gets the total bytes tracked by the backing storage, including retained histories.
+    /// </summary>
+    public long StorageUsage => this.Storage.StorageUsage;
 
     #endregion
 
@@ -60,9 +61,12 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
     public string Dump()
     {
         var sb = new StringBuilder();
-        foreach (var x in this.StorageObjects.PointIdChain)
+        using (this.StorageObjectsLock.EnterScope())
         {
-            sb.AppendLine(x.ToString());
+            foreach (var x in this.StorageObjects.PointIdChain)
+            {
+                sb.AppendLine(x.ToString());
+            }
         }
 
         return sb.ToString();
@@ -185,9 +189,6 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
         return true;
     }
 
-    private void UpdateStorageUsageInternal(long size)
-        => this.storageUsage += size;
-
     [TinyhandOnDeserialized]
     private void OnDeserialized()
     {
@@ -200,6 +201,11 @@ public sealed partial class StorageMap : IStructuralObject, IEquatableObject
     bool IEquatableObject.ObjectEquals(object? other)
     {
         if (other is not StorageMap map)
+        {
+            return false;
+        }
+
+        if (this.StorageObjects.Count != map.StorageObjects.Count)
         {
             return false;
         }

@@ -2,8 +2,6 @@
 
 #pragma warning disable SA1124 // Do not use regions
 
-using System.Collections.Concurrent;
-
 namespace CrystalData.Filer;
 
 /// <summary>
@@ -14,9 +12,15 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
     public const int DefaultConcurrentTasks = 4;
 
     public FilerBase(ExecutionRoot root, int poolCapacity = 32)
+        : this(root, poolCapacity, StringComparer.Ordinal)
+    {
+    }
+
+    protected FilerBase(ExecutionRoot root, int poolCapacity, StringComparer pathComparer)
         : base(root.GetCrystalDataGroup(), null, poolCapacity)
     {
         this.MaxConcurrentTasks = DefaultConcurrentTasks;
+        this.pathToLastWork = new(pathComparer);
     }
 
     public override string ToString()
@@ -28,24 +32,40 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
 
     protected CrystalControl? CrystalControl { get; set; }
 
-    private ConcurrentDictionary<string, Task> pathToTask = new();
+    private readonly Lock queueLock = new();
+    private readonly Dictionary<string, FilerWork> pathToLastWork;
 
     #endregion
 
-    public new async Task Add(FilerWork work)
+    /// <summary>
+    /// Enqueues work in submission order for its path, including work waiting behind an active operation.
+    /// </summary>
+    /// <param name="work">The initialized job.</param>
+    /// <returns>A completed task once the job has been queued.</returns>
+    public new Task Add(FilerWork work)
     {
-        while (true)
+        using (this.queueLock.EnterScope())
         {
-            var task = this.pathToTask.GetOrAdd(work.Path, work.Task);
-            if (task == work.Task)
+            if (work.IsQueued || work.State != ReusableJobState.Initial)
             {
-                break;
+                throw new InvalidOperationException("A filer job can only be queued once before it is returned and initialized again.");
             }
 
-            await task.ConfigureAwait(false);
+            work.QueuePath = this.GetQueuePath(work.Path);
+            work.IsQueued = true;
+            if (this.pathToLastWork.TryGetValue(work.QueuePath, out var previous))
+            {
+                previous.NextWork = work;
+                this.pathToLastWork[work.QueuePath] = work;
+            }
+            else
+            {
+                this.pathToLastWork.Add(work.QueuePath, work);
+                base.Add(work);
+            }
         }
 
-        ((ReusableJobWorker<FilerWork>)this).Add(work);
+        return Task.CompletedTask;
     }
 
     async Task<CrystalResult> IFiler.PrepareAndCheck(PrepareParam param, PathConfiguration configuration)
@@ -88,9 +108,15 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(path, offset, length);
         await this.Add(job).ConfigureAwait(false);
-        var wait = job.WaitAsync(timeToWait);
-        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        return wait.IsCompletedSuccessfully ? new(job.Result, job.ReadData.ReadOnly) : new(CrystalResult.Aborted); // Timeout
+        if (!await this.WaitForJobAsync(job, timeToWait).ConfigureAwait(false))
+        {
+            return new(CrystalResult.Aborted); // Timeout
+        }
+
+        var result = new CrystalMemoryOwnerResult(job.Result, job.ReadData.ReadOnly);
+        job.ReadData = default; // Transfer ownership to the caller before reusing the job.
+        this.Return(job);
+        return result;
     }
 
     async Task<CrystalResult> IFiler.WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeToWait, bool truncate)
@@ -103,9 +129,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(path, offset, dataToBeShared, truncate);
         await this.Add(job).ConfigureAwait(false);
-        var wait = job.WaitAsync(timeToWait);
-        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        return wait.IsCompletedSuccessfully ? job.Result : CrystalResult.Aborted; // Timeout
+        return await this.WaitForResultAsync(job, timeToWait).ConfigureAwait(false);
     }
 
     async Task<CrystalResult> IFiler.DeleteAsync(string path, TimeSpan timeToWait)
@@ -113,9 +137,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.Delete, path);
         await this.Add(job).ConfigureAwait(false);
-        var wait = job.WaitAsync(timeToWait);
-        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        return wait.IsCompletedSuccessfully ? job.Result : CrystalResult.Aborted; // Timeout
+        return await this.WaitForResultAsync(job, timeToWait).ConfigureAwait(false);
     }
 
     async Task<CrystalResult> IFiler.DeleteDirectoryAsync(string path, bool recursive, TimeSpan timeToWait)
@@ -124,9 +146,7 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(workType, path);
         await this.Add(job).ConfigureAwait(false);
-        var wait = job.WaitAsync(timeToWait);
-        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        return wait.IsCompletedSuccessfully ? job.Result : CrystalResult.Aborted; // Timeout
+        return await this.WaitForResultAsync(job, timeToWait).ConfigureAwait(false);
     }
 
     async Task<List<PathInformation>> IFiler.ListAsync(string path, TimeSpan timeToWait)
@@ -134,21 +154,97 @@ public abstract class FilerBase : ReusableJobWorker<FilerWork>, IFiler
         var job = this.Rent();
         job.Initialize(FilerWork.WorkType.List, path);
         await this.Add(job).ConfigureAwait(false);
-        var wait = job.WaitAsync(timeToWait);
-        await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        if (wait.IsCompletedSuccessfully &&
-            job.OutputObject is List<PathInformation> list)
+        if (!await this.WaitForJobAsync(job, timeToWait).ConfigureAwait(false))
         {
-            return list;
+            return new();
         }
-        else
-        {
-            return new List<PathInformation>();
-        }
+
+        var result = job.OutputObject as List<PathInformation> ?? new();
+        job.OutputObject = null;
+        this.Return(job);
+        return result;
     }
+
+    /// <summary>
+    /// Gets the identity used to serialize operations on one path.
+    /// </summary>
+    /// <param name="path">The requested path.</param>
+    /// <returns>The path identity.</returns>
+    protected virtual string GetQueuePath(string path)
+        => path;
 
     protected override void OnJobFinished(FilerWork job)
     {
-        this.pathToTask.TryRemove(new(job.Path, job.Task));
+        job.ReturnWriteData(); // Also release writes aborted before their processor starts.
+        if (job.State == ReusableJobState.Aborted)
+        {
+            job.Result = CrystalResult.Aborted;
+        }
+
+        using (this.queueLock.EnterScope())
+        {
+            var next = job.NextWork;
+            job.NextWork = null;
+            if (next is null)
+            {
+                this.pathToLastWork.Remove(job.QueuePath);
+            }
+            else if (!this.CanContinue)
+            {
+                this.pathToLastWork.Remove(job.QueuePath);
+                while (next is not null)
+                {// Aborting a long queue must not recursively finish its entire chain.
+                    var following = next.NextWork;
+                    next.NextWork = null;
+                    base.Add(next);
+                    next = following;
+                }
+            }
+            else
+            {
+                base.Add(next); // Keep an outstanding worker job until the entire path queue is drained.
+            }
+        }
+    }
+
+    private async Task<CrystalResult> WaitForResultAsync(FilerWork job, TimeSpan timeout)
+    {
+        if (!await this.WaitForJobAsync(job, timeout).ConfigureAwait(false))
+        {
+            return CrystalResult.Aborted;
+        }
+
+        var result = job.Result;
+        this.Return(job);
+        return result;
+    }
+
+    private async Task<bool> WaitForJobAsync(FilerWork job, TimeSpan timeout)
+    {
+        try
+        {
+            var wait = job.WaitAsync(timeout);
+            await wait.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            if (wait.IsCompletedSuccessfully)
+            {
+                return true;
+            }
+        }
+        catch
+        {
+            _ = this.ReturnAbandonedJobAsync(job);
+            throw;
+        }
+
+        _ = this.ReturnAbandonedJobAsync(job);
+        return false;
+    }
+
+    private async Task ReturnAbandonedJobAsync(FilerWork job)
+    {
+        await job.Task.ConfigureAwait(false);
+        job.ReadData = job.ReadData.Return();
+        job.OutputObject = null;
+        this.Return(job);
     }
 }

@@ -34,7 +34,7 @@ public partial class StorageControl : IPersistable
     internal Lock LowestLockObject => this.lowestLockObject;
 
     private StorageMap[] storageMaps;
-    private UnitState unitState;
+    private volatile UnitState unitState;
     private long memoryUsage;
     private StorageObject? onMemoryHead; // head is the most recently used object. head.previous is the least recently used object.
     private StorageObject? saveQueueHead;
@@ -55,7 +55,7 @@ public partial class StorageControl : IPersistable
     /// Since obtaining the exact size of an object in memory is difficult,<br/>
     /// the returned value should be considered an approximation.
     /// </summary>
-    public long MemoryUsage => this.memoryUsage;
+    public long MemoryUsage => Interlocked.Read(ref this.memoryUsage);
 
     public long AvailableMemory
     {
@@ -72,7 +72,7 @@ public partial class StorageControl : IPersistable
     {
         get
         {
-            var maps = this.storageMaps;
+            var maps = Volatile.Read(ref this.storageMaps);
             long usage = 0;
             foreach (var x in maps)
             {
@@ -99,9 +99,16 @@ public partial class StorageControl : IPersistable
     {
         using (this.lowestLockObject.EnterScope())
         {
+            if (Array.IndexOf(this.storageMaps, storageMap) >= 0)
+            {
+                return;
+            }
+
             var length = this.storageMaps.Length;
-            Array.Resize(ref this.storageMaps, length + 1);
-            this.storageMaps[length] = storageMap;
+            var maps = new StorageMap[length + 1];
+            this.storageMaps.CopyTo(maps, 0);
+            maps[length] = storageMap;
+            Volatile.Write(ref this.storageMaps, maps);
         }
     }
 
@@ -180,8 +187,9 @@ public partial class StorageControl : IPersistable
             await x.StoreData(StoreMode.StoreOnly).ConfigureAwait(false);
         }
 
-        while (!cancellationToken.IsCancellationRequested)
+        while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             list = this.CreateOnMemoryList();
             foreach (var x in list)
             {
@@ -194,13 +202,8 @@ public partial class StorageControl : IPersistable
                 return;
             }
 
-            try
-            {// Since a locked object cannot be released, wait briefly and then attempt to store and release it again.
-                await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
+            // Since a locked object cannot be released, wait briefly and then attempt to store and release it again.
+            await Task.Delay(IntervalInMilliseconds, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -275,14 +278,13 @@ public partial class StorageControl : IPersistable
     {
         Debug.Assert(node.IsPinned == false);
 
-        newSize = Math.Max(newSize, MinimumDataSize);
-
         if (node.storageMap.IsEnabled)
         {// If the storage map is enabled, update the size and move to recent.
             using (this.lowestLockObject.EnterScope())
             {
                 if (newSize >= 0)
                 {
+                    newSize = Math.Max(newSize, MinimumDataSize);
                     this.memoryUsage += newSize - node.size;
                     node.size = newSize;
                 }
@@ -296,7 +298,7 @@ public partial class StorageControl : IPersistable
             {
                 using (this.lowestLockObject.EnterScope())
                 {
-                    node.size = newSize;
+                    node.size = Math.Max(newSize, MinimumDataSize);
                 }
             }
         }
@@ -330,8 +332,9 @@ public partial class StorageControl : IPersistable
             {// StorageMap is disabled.
                 if (storageObject is null)
                 {
-                    storageObject = new();
-                    storageObject.Initialize(pointId, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), storageMap);
+                    var created = new StorageObject();
+                    created.Initialize(pointId, TinyhandTypeIdentifier.GetTypeIdentifier<TData>(), storageMap);
+                    Volatile.Write(ref storageObject, created);
                     // storageObject.Goshujin = storageMap.StorageObjects;
                 }
 
@@ -339,6 +342,7 @@ public partial class StorageControl : IPersistable
             }
 
             uint typeIdentifier;
+            StorageObject initializedObject;
             if (storageObject is null)
             {// Create a new object.
                 if (pointId != 0 &&
@@ -349,7 +353,7 @@ public partial class StorageControl : IPersistable
 
                 typeIdentifier = TinyhandTypeIdentifier.GetTypeIdentifier<TData>();
                 pointId = RandomVault.Default.NextUInt64();
-                storageObject = new();
+                initializedObject = new();
             }
             else
             {// Use an existing object.
@@ -361,11 +365,12 @@ public partial class StorageControl : IPersistable
                 typeIdentifier = storageObject.TypeIdentifier;
                 pointId = RandomVault.Default.NextUInt64(); // storageObject.PointId;
                 storageObject.Goshujin = default;
+                initializedObject = storageObject;
             }
 
             while (true)
             {
-                if (!storageMap.StorageObjects.PointIdChain.ContainsKey(pointId))
+                if (pointId != 0 && !storageMap.StorageObjects.PointIdChain.ContainsKey(pointId))
                 {
                     break;
                 }
@@ -373,8 +378,14 @@ public partial class StorageControl : IPersistable
                 pointId = RandomVault.Default.NextUInt64();
             }
 
-            storageObject.Initialize(pointId, typeIdentifier, storageMap);
-            storageObject.Goshujin = storageMap.StorageObjects;
+            initializedObject.Initialize(pointId, typeIdentifier, storageMap);
+            initializedObject.Goshujin = storageMap.StorageObjects;
+            if (initializedObject.IsPinned && initializedObject.onMemoryNext is null)
+            {
+                this.AddToPinnedList(initializedObject);
+            }
+
+            Volatile.Write(ref storageObject, initializedObject);
 
             if (((IStructuralObject)storageMap).TryGetJournalWriter(out var root, out var writer, true) == true)
             {
@@ -871,12 +882,20 @@ public partial class StorageControl : IPersistable
     internal void ChangeDataControlStateInternal(StorageObject node, DataControlState newState)
     {
         var oldState = node.dataControlState;
+        if (!node.storageMap.IsEnabled)
+        {
+            node.dataControlState = newState;
+            return;
+        }
+
+        var size = node.size;
 
         if (!oldState.HasFlag(DataControlState.Pinned))
         {
             if (newState.HasFlag(DataControlState.Pinned))
             {// Unpinned -> Pinned
                 this.RemoveFromMemoryList(node);
+                node.size = size;
                 this.AddToPinnedList(node);
             }
         }
@@ -885,6 +904,8 @@ public partial class StorageControl : IPersistable
             if (!newState.HasFlag(DataControlState.Pinned))
             {// Pinned -> Unpinned
                 this.RemoveFromPinnedList(node);
+                node.size = Math.Max(size, MinimumDataSize);
+                this.memoryUsage += node.size;
                 this.AddToMemoryList(node);
             }
         }

@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using Tinyhand.IO;
 
 namespace CrystalData;
@@ -22,17 +21,14 @@ public static class JournalExtensions
             upperLimit = journal.GetCurrentPosition();
         }
 
-        while (startPosition != 0)
+        while (startPosition != 0 && startPosition < upperLimit)
         {
             var journalResult = await journal.ReadJournalAsync(startPosition).ConfigureAwait(false);
-            if (journalResult.NextPosition == 0)
-            {
-                break;
-            }
-
             try
             {
-                if (!RestoreFromMemory(startPosition, upperLimit, journalResult.Data.Memory, ref data, typeIdentifier, plane, pointId))
+                if (journalResult.NextPosition <= startPosition ||
+                    journalResult.NextPosition - startPosition != (ulong)journalResult.Data.Length ||
+                    !RestoreFromMemory(startPosition, upperLimit, journalResult.Data.Memory, ref data, typeIdentifier, plane, pointId))
                 {
                     result = false;
                     break;
@@ -77,13 +73,19 @@ public static class JournalExtensions
                 return false;
             }
 
-            var fork = reader.Fork();
+            if (length > reader.Remaining || (ulong)reader.Consumed > upperLimit - position ||
+                (ulong)length > upperLimit - position - (ulong)reader.Consumed)
+            {
+                return false;
+            }
+
+            var recordReader = reader.CreateSubReader(reader.ReadRaw(length));
             try
             {
                 if (journalType == JournalType.Record)
                 {// Record
-                    reader.ReadLocatorRecord();
-                    var plane = reader.ReadUInt32();
+                    recordReader.ReadLocatorRecord();
+                    var plane = recordReader.ReadUInt32();
                     if (plane != targetPlane)
                     {// Non-matching plane
                         continue;
@@ -91,18 +93,28 @@ public static class JournalExtensions
 
                     if (targetPointId == 0)
                     {// No point id specified, read all
-                        if (!ReadValueRecord(ref reader, ref data, typeIdentifier))
+                        if (!ReadValueRecord(ref recordReader, ref data, typeIdentifier))
                         {// Failure
                             result = false;
                         }
                     }
                     else
                     {// Point id specified, read only matching point id
-                        reader.ReadLocatorRecord();
-                        var pointId = reader.ReadUInt64();
+                        if (!recordReader.TryPeekJournalRecord(out var record))
+                        {
+                            return false;
+                        }
+
+                        if (record != JournalRecordType.Locator)
+                        {// Map-level records do not address a storage point.
+                            continue;
+                        }
+
+                        recordReader.ReadLocatorRecord();
+                        var pointId = recordReader.ReadUInt64();
                         if (pointId == targetPointId)
                         {// Matching point id
-                            if (!ReadValueRecord(ref reader, ref data, typeIdentifier))
+                            if (!ReadValueRecord(ref recordReader, ref data, typeIdentifier))
                             {// Failure
                                 result = false;
                             }
@@ -111,15 +123,8 @@ public static class JournalExtensions
                 }
             }
             catch
-            {// Records other than those of the target (e.g. AddItem of the storage map without a point locator) are skipped.
-            }
-            finally
-            {
-                reader = fork;
-                if (!reader.TryAdvance(length))
-                {
-                    reader.TryAdvance(reader.Remaining);
-                }
+            {// A malformed matching record must not be reported as successful recovery.
+                result = false;
             }
         }
 
@@ -127,11 +132,7 @@ public static class JournalExtensions
     }
 
     /// <summary>
-    /// This function targets CrystalObject or StorageObject.
-    /// - CrystalObject JournalRecordType: contains only Key or Locator
-    /// - StorageObject JournalRecordType: may also include AddItem, etc.
-    /// Processing AddItem updates the StorageId and causes issues during restore,
-    /// so only Key, Locator, and Value JournalRecords are processed.
+    /// Restores value and structural changes while ignoring storage-history metadata.
     /// </summary>
     private static bool ReadValueRecord(ref TinyhandReader reader, ref object? data, uint typeIdentifier)
     {

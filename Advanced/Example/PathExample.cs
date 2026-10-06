@@ -51,7 +51,7 @@ public partial class Program
         }
 
         // await crystalControl.PrepareAndLoadAll(false); // Prepare resources for storage operations and read data from files.
-        await crystal.PrepareAndLoad(false); // You can also prepare and load data individually through the ICrystal interface.
+        Program.EnsureSuccess(await crystal.PrepareAndLoad(false)); // You can also prepare and load data individually through the ICrystal interface.
         var data = crystal.Data;
 
         // Unit root directory

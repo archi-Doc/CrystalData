@@ -18,6 +18,13 @@ public static partial class StoragePointHelper2
         };
 
         var builder = new CrystalUnit.Builder();
+        builder.PostConfigure(context =>
+        {
+            context.SetOptions(context.GetOrCreateOptions<CrystalOptions>() with
+            {
+                SupplementFile = new LocalFileConfiguration(Path.Combine(directory, Supplement.CrystalSupplement.DefaultSupplementFileName)),
+            });
+        });
         builder.ConfigureCrystal(context =>
         {
             context.SetJournal(new SimpleJournalConfiguration(new LocalDirectoryConfiguration(Path.Combine(directory, "Journal"))));
@@ -35,7 +42,7 @@ public static partial class StoragePointHelper2
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>();
 
         var crystal = crystalControl.GetCrystal<TData>();
-        var result = await crystalControl.PrepareAndLoad(false);
+        QuickStart.Program.EnsureSuccess(await crystalControl.PrepareAndLoad(false));
         return crystal;
     }
 
