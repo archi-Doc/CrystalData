@@ -95,12 +95,6 @@ public partial class SimpleJournal : IJournal
         this.books = mainList.Books;
         this.recordBufferPosition = mainList.Position;
 
-        // List backup books
-        if (this.backupFiler is not null && this.BackupConfiguration is not null)
-        {
-            var backupList = await this.ListBooks(this.backupFiler, this.BackupConfiguration).ConfigureAwait(false);
-        }
-
         // Listed books are linked to IncompleteChain without IncompleteLinkAdded(), while deleting them calls IncompleteLinkRemoved().
         this.incompleteSize = 0;
         foreach (var x in this.books.IncompleteChain)
@@ -122,7 +116,7 @@ public partial class SimpleJournal : IJournal
         return CrystalResult.Success;
     }
 
-    int IJournal.MaxRecordLength => this.SimpleJournalConfiguration.MaxRecordLength;
+    int IJournal.MaxRecordLength => Math.Min(this.SimpleJournalConfiguration.MaxRecordLength, RecordBufferLength);
 
     void IJournal.GetWriter(JournalType recordType, out TinyhandWriter writer)
     {
@@ -138,10 +132,10 @@ public partial class SimpleJournal : IJournal
         try
         {
             var memory = rentMemory.Memory;
-            if (memory.Length > this.SimpleJournalConfiguration.MaxRecordLength)
+            if (memory.Length < 4 || memory.Length > Math.Min(this.SimpleJournalConfiguration.MaxRecordLength, RecordBufferLength))
             {
                 // throw new InvalidOperationException($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
-                this.logger.GetWriter(LogLevel.Error)?.Write($"The maximum length per record is {this.SimpleJournalConfiguration.MaxRecordLength} bytes.");
+                this.logger.GetWriter(LogLevel.Error)?.Write($"A record must contain its 4-byte header and fit within {Math.Min(this.SimpleJournalConfiguration.MaxRecordLength, RecordBufferLength)} bytes.");
                 return ((IJournal)this).GetCurrentPosition();
             }
 
@@ -259,8 +253,18 @@ public partial class SimpleJournal : IJournal
         }
     }
 
+    /// <summary>
+    /// Reads journal data starting at the specified position, including buffered records.
+    /// </summary>
+    /// <param name="position">The first byte position to read.</param>
+    /// <returns>The next position and caller-owned buffer, or zero and an empty buffer on failure.</returns>
     public async Task<(ulong NextPosition, BytePool.RentedMemory Data)> ReadJournalAsync(ulong position)
     {
+        using (this.lockRecordBuffer.EnterScope())
+        {
+            this.FlushRecordBufferInternal();
+        }
+
         ulong length, nextPosition;
         using (this.lockBooks.EnterScope())
         {
@@ -270,7 +274,9 @@ public partial class SimpleJournal : IJournal
                 return (0, default);
             }
 
-            var endBook = this.books.PositionChain.GetUpperBound(position + (ulong)this.SimpleJournalConfiguration.CompleteBookLength);
+            var requestedLength = (ulong)Math.Max(this.SimpleJournalConfiguration.CompleteBookLength, 0);
+            var lastPosition = position > ulong.MaxValue - requestedLength ? ulong.MaxValue : position + requestedLength;
+            var endBook = this.books.PositionChain.GetUpperBound(lastPosition);
             if (endBook == null)
             {
                 return (0, default);
@@ -278,6 +284,10 @@ public partial class SimpleJournal : IJournal
 
             length = endBook.NextPosition - position; // > 0
             nextPosition = endBook.NextPosition;
+            if (length > int.MaxValue)
+            {
+                return (0, default);
+            }
         }
 
         var memoryOwner = BytePool.Default.Rent((int)length).AsMemory(0, (int)length);
@@ -291,16 +301,34 @@ public partial class SimpleJournal : IJournal
         return (nextPosition, memoryOwner);
     }
 
+    /// <summary>
+    /// Copies exactly the journal range [start, end) into the destination.
+    /// </summary>
+    /// <param name="start">The inclusive start position.</param>
+    /// <param name="end">The exclusive end position.</param>
+    /// <param name="data">The destination; bytes beyond the requested range are unchanged.</param>
+    /// <returns>Whether the entire range was read and validated.</returns>
     public async Task<bool> ReadJournalAsync(ulong start, ulong end, Memory<byte> data)
     {// [start, end) = [start, end -1]
-        var length = (int)(end - start);
-        if (data.Length < length)
+        if (end < start || end - start > (ulong)data.Length)
         {
             return false;
         }
 
+        var length = (int)(end - start);
+        if (length == 0)
+        {
+            return true;
+        }
+
+        using (this.lockRecordBuffer.EnterScope())
+        {
+            this.FlushRecordBufferInternal();
+        }
+
+        data = data[..length];
         var retry = 0;
-        List<(ulong Position, string Path)> loadList = new();
+        List<(ulong Position, string Path)>? loadList = null;
 
 Load:
         if (retry++ >= 2 || this.rawFiler == null)
@@ -308,28 +336,31 @@ Load:
             return false;
         }
 
-        foreach (var x in loadList)
+        if (loadList is not null)
         {
-            var result = await this.rawFiler.ReadAsync(x.Path, 0, -1).ConfigureAwait(false);
-            if (result.IsFailure)
+            foreach (var x in loadList)
             {
-                return false;
-            }
-
-            try
-            {
-                using (this.lockBooks.EnterScope())
+                var result = await this.rawFiler.ReadAsync(x.Path, 0, -1).ConfigureAwait(false);
+                if (result.IsFailure)
                 {
-                    var book = this.books.PositionChain.FindFirst(x.Position);
-                    if (book is not null)
+                    return false;
+                }
+
+                try
+                {
+                    using (this.lockBooks.EnterScope())
                     {
-                        book.TrySetBuffer(result.Data);
+                        var book = this.books.PositionChain.FindFirst(x.Position);
+                        if (book is not null)
+                        {
+                            book.TrySetBuffer(result.Data);
+                        }
                     }
                 }
-            }
-            finally
-            {
-                result.Return();
+                finally
+                {
+                    result.Return();
+                }
             }
         }
 
@@ -349,14 +380,14 @@ Load:
             // range.Lower.Position <= start, range.Upper.Position < end
 
             // Check
-            loadList.Clear();
+            loadList?.Clear();
             for (var book = startBook; book != null; book = book.PositionLink.Next)
             {
                 if (!book.IsInMemory)
                 {// Load (start, path)
                     if (book.Path is not null)
                     {
-                        loadList.Add((book.Position, book.Path));
+                        (loadList ??= new()).Add((book.Position, book.Path));
                     }
                 }
 
@@ -367,7 +398,7 @@ Load:
             }
 
             // Load
-            if (loadList.Count > 0)
+            if (loadList is { Count: > 0 })
             {
                 goto Load;
             }
@@ -386,7 +417,7 @@ Load:
 
                 if (book == endBook)
                 {// Complete
-                    return true;
+                    return dataPosition == length;
                 }
             }
 
@@ -584,6 +615,8 @@ Load:
             _ = Book.TryAdd(this, books, x);
         }
 
+        await this.RemoveOverlappingBooks(rawFiler, books).ConfigureAwait(false);
+
         foreach (var x in books)
         {
             if (x.IsIncomplete)
@@ -594,6 +627,63 @@ Load:
 
         var position = this.CheckBooksInternal(books);
         return (books, position);
+    }
+
+    private async Task RemoveOverlappingBooks(IFiler filer, Book.GoshujinClass books)
+    {
+        // A crash during merge cleanup can leave a merged book alongside the originals it covers.
+        var ordered = books.OrderBy(x => x.Position).ThenByDescending(x => x.Length).ToArray();
+        for (var i = 0; i < ordered.Length; i++)
+        {
+            var candidate = ordered[i];
+            if (candidate.Goshujin is null || candidate.Path is null)
+            {
+                continue;
+            }
+
+            var hasCoveredBook = false;
+            for (var j = i + 1; j < ordered.Length && ordered[j].Position < candidate.NextPosition; j++)
+            {
+                if (ordered[j].Goshujin is not null && ordered[j].NextPosition <= candidate.NextPosition)
+                {
+                    hasCoveredBook = true;
+                    break;
+                }
+            }
+
+            if (!hasCoveredBook)
+            {
+                continue;
+            }
+
+            var result = await filer.ReadAsync(candidate.Path, 0, -1).ConfigureAwait(false);
+            try
+            {
+                if (result.IsFailure || !candidate.IsValidData(result.Data.Span))
+                {// Keep the originals if their replacement is unreadable or incomplete.
+                    candidate.Goshujin = null;
+                    if (result.IsSuccess)
+                    {
+                        filer.DeleteAndForget(candidate.Path);
+                    }
+
+                    continue;
+                }
+            }
+            finally
+            {
+                result.Return();
+            }
+
+            for (var j = i + 1; j < ordered.Length && ordered[j].Position < candidate.NextPosition; j++)
+            {
+                var covered = ordered[j];
+                if (covered.Goshujin is not null && covered.NextPosition <= candidate.NextPosition)
+                {
+                    covered.DeleteInternal();
+                }
+            }
+        }
     }
 
     private ulong CheckBooksInternal(Book.GoshujinClass books)

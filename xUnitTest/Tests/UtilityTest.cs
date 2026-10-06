@@ -48,6 +48,9 @@ public class UtilityTest
         Assert.True(Waypoint.TryParse(expected.ToBase32(), out var actual));
         Assert.Equal(expected, actual);
         Assert.False(Waypoint.TryParse("!", out _));
+        Assert.False(Waypoint.TryParse(null!, out _));
+        Assert.False(Waypoint.TryParse(expected.ToBase32() + "0", out _));
+        Assert.False(Waypoint.TryParse(new string('!', Waypoint.LengthInBase32), out _));
     }
 
     [Fact]

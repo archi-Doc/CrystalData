@@ -9,6 +9,7 @@ namespace CrystalData;
 /// <summary>
 /// Provides a thread-safe, Tinyhand-serializable key-value store with oldest-entry eviction.
 /// </summary>
+/// <remarks>Writes refresh an entry's eviction order; reads do not. A capacity of zero retains no entries.</remarks>
 /// <typeparam name="TIdentifier">The key type.</typeparam>
 /// <typeparam name="TDatum">The value type.</typeparam>
 [TinyhandObject]
@@ -67,7 +68,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
             return;
         }
 
-        using (value.goshujin.LockObject.EnterScope())
+        using (value.lockObject.EnterScope())
         {
             writer.WriteArrayHeader(2);
             writer.Write(value.capacity);
@@ -100,6 +101,11 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
                 capacity = reader.ReadInt32();
                 ArgumentOutOfRangeException.ThrowIfNegative(capacity);
                 var count = reader.ReadArrayHeader();
+                if (count > capacity)
+                {
+                    throw new InvalidDataException("The entry count exceeds the collection capacity.");
+                }
+
                 g = new();
                 for (var i = 0; i < count; i++)
                 {
@@ -112,6 +118,11 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
 
                     var key = TinyhandSerializer.Deserialize<TIdentifier>(ref reader, options)!;
                     var datum = TinyhandSerializer.Deserialize<TDatum>(ref reader, options)!;
+                    if (g.KeyChain.TryGetValue(key, out _))
+                    {
+                        throw new InvalidDataException("The collection contains a duplicate key.");
+                    }
+
                     g.Add(new(key, datum));
                     while (itemLength-- > 2)
                     {// Unknown elements
@@ -137,8 +148,11 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
             return;
         }
 
-        value.goshujin = g;
-        Volatile.Write(ref value.capacity, capacity);
+        using (value.lockObject.EnterScope())
+        {
+            value.goshujin = g;
+            Volatile.Write(ref value.capacity, capacity);
+        }
     }
 
     /// <summary>
@@ -148,7 +162,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     {
         get
         {
-            using (this.goshujin.LockObject.EnterScope())
+            using (this.lockObject.EnterScope())
             {
                 return this.goshujin.QueueChain.Count;
             }
@@ -160,6 +174,9 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// </summary>
     [IgnoreMember]
     public int Capacity => Volatile.Read(ref this.capacity);
+
+    [IgnoreMember]
+    private readonly Lock lockObject = new();
 
     [IgnoreMember]
     private Item.GoshujinClass goshujin = new();
@@ -174,7 +191,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     public void SetCapacity(int capacity)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(capacity);
-        using (this.goshujin.LockObject.EnterScope())
+        using (this.lockObject.EnterScope())
         {
             Volatile.Write(ref this.capacity, capacity);
             while (this.goshujin.QueueChain.Count > capacity)
@@ -191,8 +208,13 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <param name="value">The data associated with the identifier.</param>
     public void Set(in TIdentifier id, in TDatum value)
     {
-        using (this.goshujin.LockObject.EnterScope())
+        using (this.lockObject.EnterScope())
         {
+            if (this.capacity == 0)
+            {
+                return;
+            }
+
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {// Update
                 item.Datum = value;
@@ -220,7 +242,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <returns><c>true</c> if the identifier is found in the MonoData collection; otherwise, <c>false</c>.</returns>
     public bool TryGet(in TIdentifier id, out TDatum value)
     {
-        using (this.goshujin.LockObject.EnterScope())
+        using (this.lockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {// Get
@@ -240,7 +262,7 @@ public partial class MonoData<TIdentifier, TDatum> : IMonoData<TIdentifier, TDat
     /// <returns><c>true</c> if the identifier is successfully removed; otherwise, <c>false</c>. This method also returns <c>false</c> if the identifier was not found in the MonoData collection.</returns>
     public bool Remove(in TIdentifier id)
     {
-        using (this.goshujin.LockObject.EnterScope())
+        using (this.lockObject.EnterScope())
         {
             if (this.goshujin.KeyChain.TryGetValue(id, out var item))
             {

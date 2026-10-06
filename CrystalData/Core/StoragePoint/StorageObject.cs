@@ -113,8 +113,13 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
     internal async ValueTask<TData> PinData<TData>()
         where TData : class
     {
-        using (this.EnterScope())
+        using (await this.EnterScopeAsync().ConfigureAwait(false))
         {
+            if (this.IsDeleted)
+            {
+                throw new InvalidOperationException("Deleted storage points cannot be pinned.");
+            }
+
             if (this.data is null)
             {// PrepareAndLoad
                 await this.PrepareAndLoadInternal<TData>().ConfigureAwait(false);
@@ -252,7 +257,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             }
             else
             {// Data not loaded
-                if (acquisitionMode == AcquisitionMode.GetOnly)
+                if (acquisitionMode == AcquisitionMode.GetOnly || acquisitionMode == AcquisitionMode.GetOnlyIgnoreState)
                 {// Get only
                     this.Unlock();
                     return new(DataScopeResult.NotFound);
@@ -335,9 +340,14 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
                 return;
             }
 
-            this.SetDataInternal(data, true, default);
-
-            ObjectProtectionStateHelper.Unprotect(ref this.protectionState);
+            try
+            {
+                this.SetDataInternal(data, true, default);
+            }
+            finally
+            {
+                ObjectProtectionStateHelper.Unprotect(ref this.protectionState);
+            }
         }
     }
 
@@ -467,10 +477,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
             }
         }*/
 
-        if (this.saveQueueTime == 0)
-        {
-            this.storageControl.AddToSaveQueue(this);
-        }
+        this.storageControl.AddToSaveQueue(this);
     }
 
     #endregion
@@ -875,6 +882,7 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
         await this.EnterAsync().ConfigureAwait(false);
         try
         {
+            ObjectProtectionStateHelper.ForceDelete(ref this.protectionState);
             var dataToDelete = this.data;
             this.data = default;
 
@@ -899,19 +907,20 @@ public sealed partial class StorageObject : SemaphoreLock, IStructuralObject, IS
 
             if (dataToDelete is IStructuralObject structuralObject)
             {
+                structuralObject.SetupStructure(this);
                 await structuralObject.DeleteData(forceDeleteAfter, false).ConfigureAwait(false);
+            }
+
+            this.storageControl.EraseStorage(this);
+
+            if (writeJournal)
+            {
+                ((IStructuralObject)this).AddJournalRecord(JournalRecordType.Delete);
             }
         }
         finally
         {
             this.Exit();
-        }
-
-        this.storageControl.EraseStorage(this);
-
-        if (writeJournal)
-        {
-            ((IStructuralObject)this).AddJournalRecord(JournalRecordType.Delete);
         }
     }
 

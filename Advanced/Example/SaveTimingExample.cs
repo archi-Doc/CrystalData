@@ -36,14 +36,14 @@ public partial class Program
 
         var product = builder.Build(); // Build.
         var crystalControl = product.Context.ServiceProvider.GetRequiredService<CrystalControl>(); // Obtains a CrystalControl instance for data storage operations.
-        await crystalControl.PrepareAndLoad(false); // Prepare resources for storage operations and read data from files.
+        Program.EnsureSuccess(await crystalControl.PrepareAndLoad(false)); // Prepare resources for storage operations and read data from files.
 
         var crystal = product.Context.ServiceProvider.GetRequiredService<ICrystal<SaveTimingData>>();
         var data = crystal.Data;
 
         // Save instantly
         data.id += 1;
-        await crystal.StoreData();
+        Program.EnsureSuccess(await crystal.StoreData());
 
         // On changed
         data.Id += 2; // Add to the save queue when the value is changed
@@ -53,7 +53,7 @@ public partial class Program
         crystal.AddToSaveQueue();
 
         // Manual...
-        await crystal.StoreData();
+        Program.EnsureSuccess(await crystal.StoreData());
 
         return product;
     }

@@ -51,16 +51,15 @@ public readonly partial struct StorageId : IEquatable<StorageId>, IComparable<St
 
     public static bool TryParse(string base32, out StorageId storageId)
     {
-        try
+        Span<byte> bytes = stackalloc byte[Length];
+        if (base32 is not null && base32.Length == LengthInBase32 &&
+            Base32Sort.Default.FromStringToSpan(base32, bytes, out var written) && written == Length)
         {
-            var byteArray = Base32Sort.Default.FromStringToByteArray(base32);
-            return TryRead(byteArray, out storageId);
+            return TryRead(bytes, out storageId);
         }
-        catch
-        {
-            storageId = default;
-            return false;
-        }
+
+        storageId = default;
+        return false;
     }
 
     public static bool TryRead(ReadOnlySpan<byte> span, out StorageId storageId)

@@ -1,4 +1,4 @@
-﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.IO;
 using Arc;
@@ -312,14 +312,14 @@ public class CrystalFiler
             return result;
         }
 
-        public async Task DeleteAfter(ulong journalPosition)
+        public async Task<CrystalResult> DeleteAfter(ulong journalPosition)
         {
             Waypoint[] array;
             using (this.lockObject.EnterScope())
             {
                 if (this.waypoints is null)
                 {
-                    return;
+                    return CrystalResult.Success;
                 }
 
                 array = this.waypoints.Where(x => x.JournalPosition.CircularCompareTo(journalPosition) > 0).ToArray();
@@ -327,8 +327,14 @@ public class CrystalFiler
 
             foreach (var x in array)
             {
-                await this.Delete(x).ConfigureAwait(false);
+                var result = await this.Delete(x).ConfigureAwait(false);
+                if (result.IsFailure())
+                {
+                    return result;
+                }
             }
+
+            return CrystalResult.Success;
         }
 
         public async Task<CrystalResult> DeleteAll()
@@ -629,16 +635,13 @@ public class CrystalFiler
     /// </summary>
     /// <param name="journalPosition">The journal position.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <exception cref="IOException">A snapshot could not be deleted.</exception>
     public async Task DeleteAfter(ulong journalPosition)
     {
-        if (this.main is not null)
+        var result = await this.DeleteAfterWithResult(journalPosition).ConfigureAwait(false);
+        if (result.IsFailure())
         {
-            await this.main.DeleteAfter(journalPosition).ConfigureAwait(false);
-        }
-
-        if (this.backup is not null)
-        {
-            await this.backup.DeleteAfter(journalPosition).ConfigureAwait(false);
+            throw new IOException($"Failed to delete snapshot histories: {result}.");
         }
     }
 
@@ -660,5 +663,24 @@ public class CrystalFiler
         }
 
         return result;
+    }
+
+    internal async Task<CrystalResult> DeleteAfterWithResult(ulong journalPosition)
+    {
+        if (this.main is not null)
+        {
+            var result = await this.main.DeleteAfter(journalPosition).ConfigureAwait(false);
+            if (result.IsFailure())
+            {
+                return result;
+            }
+        }
+
+        if (this.backup is not null)
+        {
+            return await this.backup.DeleteAfter(journalPosition).ConfigureAwait(false);
+        }
+
+        return CrystalResult.Success;
     }
 }

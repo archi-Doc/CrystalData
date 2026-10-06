@@ -11,7 +11,7 @@ namespace CrystalData.Filer;
 public class LocalFiler : FilerBase, IFiler
 {
     public LocalFiler(ExecutionRoot root)
-        : base(root)
+        : base(root, 32, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
     {
     }
 
@@ -102,7 +102,7 @@ TryWrite:
             }
             finally
             {
-                work.WriteData.Return();
+                work.ReturnWriteData();
             }
         }
         else if (work.Type == FilerWork.WorkType.Read)
@@ -154,6 +154,10 @@ TryWrite:
                     worker.logger?.GetWriter(LogLevel.Debug)?.Write($"Read[{work.ReadData.Memory.Length}] {work.Path}");
                     return;
                 }
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                work.Result = CrystalResult.NotFound;
             }
             catch (OperationCanceledException)
             {
@@ -301,6 +305,9 @@ TryWrite:
 
     public override string ToString()
         => $"LocalFiler";
+
+    protected override string GetQueuePath(string path)
+        => Path.GetFullPath(CrystalControl.GetRootedFile(this.CrystalControl, path));
 
     private static (bool Success, string RootedPath) CheckPath(CrystalControl crystalControl, string file)
     {

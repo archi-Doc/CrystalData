@@ -55,4 +55,12 @@ public partial class Program
             await logUnit.FlushAndTerminateAsync();
         }
     }
+
+    internal static void EnsureSuccess(CrystalResult result)
+    {
+        if (result.IsFailure())
+        {
+            throw new IOException($"CrystalData operation failed: {result}.");
+        }
+    }
 }

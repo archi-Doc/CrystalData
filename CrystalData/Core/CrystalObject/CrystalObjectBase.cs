@@ -18,14 +18,34 @@ internal abstract partial class CrystalObjectBase
         {
             using (this.LockObject.EnterScope())
             {
-                if (includeUnmanaged)
+                var count = this.ListChain.Count;
+                if (!includeUnmanaged)
                 {
-                    return this.ListChain.Select(x => (ICrystalInternal)x).ToArray();
+                    foreach (var crystal in this.ListChain)
+                    {
+                        if (crystal.IsUnmanaged)
+                        {
+                            count--;
+                        }
+                    }
                 }
-                else
+
+                if (count == 0)
                 {
-                    return this.ListChain.Where(x => !x.IsUnmanaged).Select(x => (ICrystalInternal)x).ToArray();
+                    return [];
                 }
+
+                var result = new ICrystalInternal[count];
+                var index = 0;
+                foreach (var crystal in this.ListChain)
+                {
+                    if (includeUnmanaged || !crystal.IsUnmanaged)
+                    {
+                        result[index++] = (ICrystalInternal)crystal;
+                    }
+                }
+
+                return result;
             }
         }
 
@@ -34,14 +54,6 @@ internal abstract partial class CrystalObjectBase
             using (this.LockObject.EnterScope())
             {
                 return this.PlaneChain.ToFrozenDictionary(x => x.Plane, x => (ICrystalInternal)x);
-            }
-        }
-
-        public KeyValuePair<uint, ICrystalInternal>[] GetPlaneKeyValue()
-        {
-            using (this.LockObject.EnterScope())
-            {
-                return this.PlaneChain.Select(x => new KeyValuePair<uint, ICrystalInternal>(x.Plane, (ICrystalInternal)x)).ToArray();
             }
         }
     }

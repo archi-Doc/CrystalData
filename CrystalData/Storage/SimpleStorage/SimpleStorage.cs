@@ -252,7 +252,7 @@ internal partial class SimpleStorage : IStorage
         var task = this.mainFiler.DeleteAsync(this.MainFile(path), this.timeout);
         if (this.backupFiler is not null)
         {
-            _ = this.backupFiler.DeleteAsync(this.BackupFile(path), this.timeout);
+            return CompleteOperations(task, this.backupFiler.DeleteAsync(this.BackupFile(path), this.timeout));
         }
 
         return task;
@@ -302,16 +302,10 @@ internal partial class SimpleStorage : IStorage
         var task = this.mainFiler.WriteAsync(this.MainFile(path), 0, dataToBeShared, this.timeout);
         if (this.backupFiler is not null)
         {
-            return CompleteWrites(task, this.backupFiler.WriteAsync(this.BackupFile(path), 0, dataToBeShared, this.timeout));
+            return CompleteOperations(task, this.backupFiler.WriteAsync(this.BackupFile(path), 0, dataToBeShared, this.timeout));
         }
 
         return task;
-
-        static async Task<CrystalResult> CompleteWrites(Task<CrystalResult> main, Task<CrystalResult> backup)
-        {
-            var results = await Task.WhenAll(main, backup).ConfigureAwait(false);
-            return results[0].IsFailure() ? results[0] : results[1];
-        }
     }
 
     async Task<CrystalResult> IStorage.DeleteStorageAsync()
@@ -347,8 +341,10 @@ internal partial class SimpleStorage : IStorage
         return await this.mainFiler.DeleteDirectoryAsync(this.directory, false).ConfigureAwait(false);*/
 
         // Method 2: Delete the Storage folder entirely.
-        _ = this.backupFiler?.DeleteDirectoryAsync(this.backupDirectory, true).ConfigureAwait(false);
-        return await this.mainFiler.DeleteDirectoryAsync(this.directory, true).ConfigureAwait(false);
+        var task = this.mainFiler.DeleteDirectoryAsync(this.directory, true);
+        return this.backupFiler is null
+            ? await task.ConfigureAwait(false)
+            : await CompleteOperations(task, this.backupFiler.DeleteDirectoryAsync(this.backupDirectory, true)).ConfigureAwait(false);
     }
 
     async Task<bool> IPersistable.TestJournal()
@@ -379,6 +375,22 @@ internal partial class SimpleStorage : IStorage
     #endregion
 
     #region Helper
+
+    private static async Task<CrystalResult> CompleteOperations(Task<CrystalResult> main, Task<CrystalResult> backup)
+    {
+        CrystalResult mainResult;
+        CrystalResult backupResult;
+        try
+        {
+            mainResult = await main.ConfigureAwait(false);
+        }
+        finally
+        {
+            backupResult = await backup.ConfigureAwait(false);
+        }
+
+        return mainResult.IsFailure() ? mainResult : backupResult;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint FileIdToFile(ulong fileId) => (uint)(fileId >> 32);

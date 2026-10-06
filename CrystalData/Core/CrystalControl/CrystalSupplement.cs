@@ -264,7 +264,7 @@ public sealed partial class CrystalSupplement
     public ulong SetLeadingJournalPosition(ref Waypoint waypoint, ulong leadingJournalPosition)
         => this.data.SetLeadingPosition(ref waypoint, leadingJournalPosition);
 
-    internal async Task PrepareAndLoad()
+    internal async Task<CrystalResult> PrepareAndLoad()
     {
         if (this.mainFiler is null)
         {
@@ -278,38 +278,59 @@ public sealed partial class CrystalSupplement
             (this.backupFiler, this.backupConfiguration) = await this.crystalControl.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(this.crystalControl.Options.BackupSupplementFile).ConfigureAwait(false);
         }
 
+        if (this.mainFiler is null || (this.crystalControl.Options.BackupSupplementFile is not null && this.backupFiler is null))
+        {
+            return CrystalResult.FileOperationError;
+        }
+
         if (this.ripFiler is null && this.mainConfiguration is not null)
         {
             var configuration = this.mainConfiguration.AppendPath(RipSuffix);
             (this.ripFiler, _) = await this.crystalControl.ResolveAndPrepareAndCheckSingleFiler<CrystalSupplement>(configuration).ConfigureAwait(false);
+        }
 
-            if (this.ripFiler is not null)
-            {// Load rip file
-                var ripResult = await this.ripFiler.ReadAsync(0, -1).ConfigureAwait(false);
-                if (ripResult.IsSuccess)
-                {
-                    if (Utf8Parser.TryParse(ripResult.Data.Span, out int ripCount, out _))
-                    {
-                        this.ripCount = ripCount;
-                    }
+        if (this.ripFiler is null)
+        {
+            return CrystalResult.FileOperationError;
+        }
 
-                    ripResult.Return();
-                    this.ripFiler.DeleteAndForget();
-                }
+        var ripResult = await this.ripFiler.ReadAsync(0, -1).ConfigureAwait(false);
+        if (ripResult.IsSuccess)
+        {
+            if (Utf8Parser.TryParse(ripResult.Data.Span, out int ripCount, out var consumed) && consumed == ripResult.Data.Memory.Length && ripCount > 0)
+            {
+                this.ripCount = ripCount;
+            }
+
+            ripResult.Return();
+            var deleteResult = await this.ripFiler.DeleteAsync().ConfigureAwait(false);
+            if (deleteResult.IsFailure())
+            {
+                return deleteResult;
+            }
+        }
+        else
+        {
+            ripResult.Return();
+            if (ripResult.Result != CrystalResult.NotFound)
+            {
+                return ripResult.Result;
             }
         }
 
         if (this.mainFiler is not null &&
             await LoadSupplementFile(this.mainFiler, this.mainConfiguration?.Path ?? string.Empty).ConfigureAwait(false))
         {
-            return;
+            return CrystalResult.Success;
         }
 
         if (this.backupFiler is not null &&
             await LoadSupplementFile(this.backupFiler, this.backupConfiguration?.Path ?? string.Empty).ConfigureAwait(false))
         {
-            return;
+            return CrystalResult.Success;
         }
+
+        return CrystalResult.Success;
 
         async Task<bool> LoadSupplementFile(ISingleFiler filer, string? path)
         {
@@ -370,7 +391,7 @@ public sealed partial class CrystalSupplement
             var rent = BytePool.Default.Rent(32);
             try
             {
-                var nextRipCount = this.ripCount + 1;
+                var nextRipCount = this.ripCount == int.MaxValue ? 1 : this.ripCount + 1;
                 Utf8Formatter.TryFormat(nextRipCount, rent.AsSpan(), out var written);
                 CheckWrite(await this.ripFiler.WriteAsync(0, rent.AsReadOnlyMemory(0, written)).ConfigureAwait(false));
                 this.ripCount = nextRipCount;

@@ -470,7 +470,11 @@ public partial class CrystalControl
 
         if (!this.IsPrepared)
         {
-            await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
+            var supplementResult = await this.CrystalSupplement.PrepareAndLoad().ConfigureAwait(false);
+            if (supplementResult.IsFailure())
+            {
+                return supplementResult;
+            }
         }
 
         // Journal
@@ -795,7 +799,7 @@ public partial class CrystalControl
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowNotPrepared()
-        => throw new InvalidOperationException("CrystalControl is not prepared. Call Prepare() first.");
+        => throw new InvalidOperationException("CrystalControl is not prepared. Call PrepareAndLoad() first.");
 
     internal static string GetRootedFile(CrystalControl? crystalControl, string file)
         => crystalControl == null ? file : PathHelper.GetRootedFile(crystalControl.Options.DataDirectory, file);
@@ -843,7 +847,7 @@ public partial class CrystalControl
         return previous != this.SystemTimeInSeconds;
     }
 
-    internal async Task<bool> ProcessSaveQueue(ICrystalInternal[] tempArray, CrystalControl crystalControl, CancellationToken cancellationToken)
+    internal async Task<bool> ProcessSaveQueue(ICrystalInternal[] tempArray, CancellationToken cancellationToken)
     {
         var result = false;
         while (true)
@@ -1010,24 +1014,33 @@ public partial class CrystalControl
             if (!reader.TryReadJournalHeader(out var length, out var journalType))
             {
                 this.Logger.GetWriter(LogLevel.Error)?.Write(CrystalDataHashed.Journal.Corrupted);
+                failure = true;
                 return;
             }
 
             var fork = reader.Fork();
+            if (length > reader.Remaining)
+            {
+                failure = true;
+                return;
+            }
+
+            var recordPosition = position + (ulong)reader.Consumed;
+            var recordReader = reader.CreateSubReader(reader.ReadRaw(length));
             try
             {
                 if (journalType == JournalType.Record)
                 {
-                    reader.ReadLocatorRecord();
-                    var plane = reader.ReadUInt32();
+                    recordReader.ReadLocatorRecord();
+                    var plane = recordReader.ReadUInt32();
                     if (dictionary.TryGetValue(plane, out var crystal))
                     {
                         if (crystal.Data is IStructuralObject journalObject)
                         {
-                            var currentPosition = position + (ulong)reader.Consumed;
+                            var currentPosition = recordPosition + (ulong)recordReader.Consumed;
                             if (currentPosition.CircularCompareTo(crystal.LeadingJournalPosition) >= 0)
                             {// currentPosition >= crystal.LeadingJournalPosition
-                                if (journalObject.ProcessJournalRecord(ref reader))
+                                if (journalObject.ProcessJournalRecord(ref recordReader))
                                 {// Success
                                     // this.logger.GetWriter(LogLevel.Debug)?.Write($"Journal read, Plane: {plane}, Length: {length} => {crystal.GetType().FullName}");
                                     restored.Add(plane);
@@ -1040,12 +1053,10 @@ public partial class CrystalControl
                         }
                     }
                 }
-                else
-                {
-                }
             }
             catch
             {
+                failure = true;
             }
             finally
             {
@@ -1073,7 +1084,7 @@ public partial class CrystalControl
         goshujin.Add(new(this.StorageControl)); // StorageControl
 
         // First, persist Crystals and StorageControl.
-        var concurrentUnload = Math.Max(1, this.Options.MaxConcurrentUnloads);
+        var concurrentUnload = Math.Clamp(this.Options.MaxConcurrentUnloads, 1, crystals.Length + 1);
         var releaseTasks = new Task[concurrentUnload];
         for (var i = 0; i < concurrentUnload; i++)
         {
@@ -1090,7 +1101,8 @@ public partial class CrystalControl
             goshujin.Add(new(x));
         }
 
-        for (var i = 0; i < concurrentUnload; i++)
+        var storageTaskCount = Math.Min(storages.Length, concurrentUnload);
+        for (var i = 0; i < storageTaskCount; i++)
         {
             releaseTasks[i] = StoreTaskExtension.StoreTask(this, goshujin, storeMode, cancellationToken);
         }

@@ -42,7 +42,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     /// <summary>
     /// Gets a value indicating whether storage is locked.<br/>
-    /// Reading is possible, but writing or unloading is not allowed.
+    /// Existing data may be read, but persistence and exclusive mutation must wait.
     /// </summary>
     public bool IsLocked => this.storageObject?.IsLocked == true;
 
@@ -59,6 +59,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     public bool IsNotLockable => this.storageObject?.IsNotLockable == true;
 
     #endregion
+
+    static StoragePoint()
+    {
+        // Generated structural replay resolves closed generic members through the formatter registry.
+        if (Tinyhand.Resolvers.GeneratedResolver.Instance.TryGetFormatter<StoragePoint<TData>>() is null)
+        {
+            Tinyhand.Resolvers.GeneratedResolver.Instance.SetFormatter(new Tinyhand.Formatters.TinyhandObjectFormatter<StoragePoint<TData>>());
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StoragePoint{TData}"/> class.
@@ -145,16 +154,15 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     /// A <see cref="ValueTask{TData}"/> representing the asynchronous operation.<br/>
     /// The result contains the pinned data.
     /// </returns>
+    /// <exception cref="InvalidOperationException">This point has been deleted.</exception>
     public ValueTask<TData> PinData()
         => this.GetOrCreateStorageObject().PinData<TData>();
 
     /// <summary>
-    /// Adds this storage point to the save queue.<br/>
-    /// The save queue is used to schedule data persistence operations.
+    /// Adds this storage point to the save queue using the control's shared save delay.
     /// </summary>
     /// <param name="delaySeconds">
-    /// The number of seconds to delay before saving.<br/>
-    /// If 0 is specified, the default delay time is used.
+    /// Reserved for interface compatibility; storage points use the control's shared delay.
     /// </param>
     public void AddToSaveQueue(int delaySeconds = 0)
         => ((IStructuralRoot)this.GetOrCreateStorageObject()).AddToSaveQueue(delaySeconds);
@@ -163,8 +171,8 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(StoragePoint<TData> other)
     {
-        var data = this.TryGet().AsTask().GetAwaiter().GetResult();
-        var otherData = other.TryGet().AsTask().GetAwaiter().GetResult();
+        var data = this.GetDataSynchronously();
+        var otherData = other.GetDataSynchronously();
         if (data is null)
         {
             return otherData is null;
@@ -177,7 +185,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     public bool DataEquals(TData? otherData)
     {
-        var data = this.TryGet().AsTask().GetAwaiter().GetResult();
+        var data = this.GetDataSynchronously();
         if (data is null)
         {
             return otherData is null;
@@ -219,14 +227,11 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
     }
 
     /// <summary>
-    /// Deletes the data associated with this storage point.<br/>
-    /// This operation removes the data from storage and memory.
+    /// Deletes this point's data and children and prevents subsequent acquisition.
     /// </summary>
-    /// <param name="forceDeleteAfter">The UTC <see cref="DateTime"/> after which the object will be forcibly deleted if not already deleted.<br/>
-    /// <see langword="default"/>: Do not forcibly delete; wait until all operations are finished.<br/>
-    /// <see cref="DateTime.UtcNow"/> or earlier: forcibly delete data without waiting.
+    /// <param name="forceDeleteAfter">The deletion deadline passed to child objects. This point always waits for its active data scope.
     /// </param>
-    /// <param name="writeJournal">Indicates whether to write the deletion operation to the journal.</param>
+    /// <param name="writeJournal">Reserved for structural compatibility; the point deletion is always journaled outside replay.</param>
     /// <returns>
     /// A <see cref="Task"/> representing the asynchronous delete operation.
     /// </returns>
@@ -255,6 +260,7 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
             if (record == JournalRecordType.Value)
             {
                 this.pointId = reader.ReadUInt64();
+                this.storageObject = null;
                 return true;
             }
         }
@@ -307,9 +313,12 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
         {
             // If the type is interger, it is treated as PointId; otherwise, deserialization is attempted as TData (since TData is not expected to be of interger type, this should generally work without issue).
             v.pointId = pointId;
+            v.storageObject = null;
         }
         else
         {
+            v.pointId = 0;
+            v.storageObject = null;
             StorageMap.Disabled.StorageControl.GetOrCreate<TData>(ref v.pointId, ref v.storageObject, StorageMap.Disabled);
             v.storageObject.SetTypeIdentifier<TData>(); // If the TypeIdentifier is changed, serialization becomes impossible, so update it.
 
@@ -337,11 +346,17 @@ public partial class StoragePoint<TData> : ITinyhandSerializable<StoragePoint<TD
 
     #endregion
 
+    private TData? GetDataSynchronously()
+    {
+        var task = this.TryGet();
+        return task.IsCompletedSuccessfully ? task.Result : task.AsTask().GetAwaiter().GetResult();
+    }
+
     private StorageObject GetOrCreateStorageObject()
     {
-        if (this.storageObject is not null)
+        if (Volatile.Read(ref this.storageObject) is { } existing)
         {
-            return this.storageObject;
+            return existing;
         }
 
         var storageMap = this.GetStorageMap();

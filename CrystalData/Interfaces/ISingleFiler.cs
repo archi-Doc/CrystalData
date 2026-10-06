@@ -5,6 +5,11 @@ namespace CrystalData;
 /// <summary>
 /// Defines asynchronous operations for one preconfigured file.
 /// </summary>
+/// <remarks>
+/// Return read-result memory after use. Writes share the supplied memory without taking the caller's reference.
+/// A timeout can return before the queued operation finishes; keep the bytes unchanged until it completes.
+/// Methods ending in <c>AndForget</c> acknowledge submission only.
+/// </remarks>
 public interface ISingleFiler
 {
     bool SupportsPartialWrite { get; }

@@ -17,6 +17,7 @@ CrystalData is a persistence engine for .NET. It combines snapshot files, option
 - [Concurrency and durability](#concurrency-and-durability)
 - [Journaling](#journaling)
 - [Auxiliary storage](#auxiliary-storage)
+- [Additional utilities](#additional-utilities)
 - [S3 storage](#s3-storage)
 - [Recovery](#recovery)
 - [Samples](#samples)
@@ -144,6 +145,21 @@ context.AddCrystal<SecondData>(
 
 `CreateCrystal<TData>` creates an independent instance on each call. `GetOrCreateCrystal<TData>` returns the registered instance for that type, or atomically creates and registers one. When an instance already exists, the supplied configuration is ignored. Use different paths for independent crystals.
 
+`Configure`, `ConfigureFile`, and `ConfigureStorage` retain cached data. Call the crystal's `PrepareAndLoad` again before saving with the new settings; the next snapshot save writes to the new destination even when the data has not changed. Reconfiguration does not migrate existing auxiliary files. `SaveConfigurations`, `LoadConfigurations`, and `ResetConfigurations` save, apply, and restore the registered persistence settings.
+
+Additional `CrystalOptions` settings:
+
+| Property | Purpose |
+| --- | --- |
+| `DataDirectory` | Resolves relative local paths, including the default supplement metadata. |
+| `GlobalStorage` | Supplies auxiliary storage for crystals using `GlobalStorageConfiguration`. |
+| `SaveDelay` | Delays saves requested through the save queue; defaults to one minute. |
+| `MemoryUsageLimit` | Triggers eviction of loaded auxiliary data; defaults to 500 MiB. Locked or pinned data can keep usage above the limit. |
+| `MaxConcurrentUnloads` | Limits concurrent bulk save/release workers; defaults to eight. |
+| `TimeoutUntilForcedRelease` | Controls when a bulk release switches from retrying to forced release; defaults to ten seconds. |
+| `FilerTimeout` | Limits how long callers wait for individual file operations; defaults to three seconds. |
+| `SupplementFile`, `BackupSupplementFile` | Select primary and backup control metadata files. |
+
 ## Paths and backups
 
 - `LocalFileConfiguration` and `LocalDirectoryConfiguration` use absolute paths as-is. Relative paths are resolved against `CrystalOptions.DataDirectory`.
@@ -172,6 +188,8 @@ For a single crystal, call `ICrystal.StoreData()`. For independently loaded node
 
 Check the `CrystalResult` returned by `PrepareAndLoad` and individual crystal saves. Failed preparation can be retried; `IsPrepared` alone does not confirm that every crystal loaded successfully. `Store`, `StoreAndRelease`, and `StoreAndRip` throw `IOException` for reported persistence failures. Unloaded and deleted crystals are skipped. These operations can also throw cancellation or serialization exceptions.
 
+Accessing `ICrystal<T>.Data` loads it synchronously when necessary and throws `IOException` if preparation or loading fails. Prefer explicit asynchronous preparation during startup. `LoadAllCrystals` loads deferred crystals and throws on a load failure.
+
 Snapshot and auxiliary-data saves await configured backup writes. A failed storage-point write retains its in-memory data and previous storage identifiers for retry. The clean-shutdown marker is written only after the data, journal, and supplement saves succeed.
 
 ## Concurrency and durability
@@ -181,6 +199,8 @@ Persistence operations are serialized per crystal, and full-control saves are se
 Use `StoragePoint<T>.TryLock` for mutations. Dispose its `DataScope<T>` before awaiting a save of that point or any containing crystal. `StoreOnly` and `ForceRelease` wait for the point's lock; `TryRelease` returns `false` if it cannot acquire the lock. Keep a consistent parent-to-child lock order. `TryGet` and `PinData` return references without granting exclusive mutation access; pinning only prevents data eviction.
 
 Saving is not a transaction across crystals, snapshots, journal files, or backups. A failure can leave some writes completed. File-write completion does not guarantee survival of an immediate power loss. With histories disabled, snapshots are overwritten in place. Use histories and separate backups for recoverability, and test your application's recovery policy. Cross-process writers and different controls targeting the same files are not supported.
+
+Low-level filer operations preserve submission order for the same path. A timeout stops the caller from waiting but can leave the queued operation running. Methods ending in `AndForget` report submission, so use their awaited counterparts when completion or failure must be observed. Return pooled read-result memory after use, and do not mutate buffers while shared writes are pending.
 
 ## Journaling
 
@@ -248,6 +268,15 @@ await root.Child.StoreData(StoreMode.StoreOnly);
 
 Avoid replacing a storage-point instance with `Set` unless instance replacement is specifically required.
 
+`DeleteData` waits for active data scopes and permanently invalidates the point; later acquisition fails and `PinData` throws. Dispose scopes before deleting. Storage-point queue timing uses `CrystalOptions.SaveDelay`; its per-call delay argument currently has no effect. `StorageControl.StorageUsage` includes retained auxiliary-file histories.
+
+Crystals using the same primary auxiliary-storage directory share a storage instance. Use consistent backup and history settings for that directory. `GlobalStorageConfiguration.Default` selects `CrystalOptions.GlobalStorage`.
+
+## Additional utilities
+
+- `MonoData<TKey, TValue>` is a thread-safe, Tinyhand-serializable bounded collection. Writes refresh eviction order; reads do not. Reducing capacity evicts the oldest entries, and a capacity of zero retains nothing. Synchronization protects the collection, not mutations inside referenced values.
+- `RsCoder` encodes and recovers Reed-Solomon shards over GF(256). Any `DataShardCount` intact shards recover the original bytes. Keep the original byte length and shard-availability flags for decoding. Use the span overloads with reusable buffers to reduce allocation. The codec does not detect corrupt shards; identify damaged shards before decoding. It is a standalone utility and is not automatically applied to persisted files.
+
 ## S3 storage
 
 Supply bucket credentials through `IStorageKey`, then use an S3 file or directory configuration:
@@ -268,9 +297,13 @@ Do not embed production credentials in source code. Provide them through the app
 
 `PrepareAndLoad(useQuery: true)` consults the registered `ICrystalDataQuery` when recovery requires a decision. Pass `false` for non-interactive startup behavior. The second argument, `loadCrystals`, can defer loading after a clean shutdown; recovery after an unclean shutdown always loads crystals and replays the journal.
 
+The non-interactive policy accepts backup recovery and continuation after load failures, which can reconstruct default data. To reject failed snapshot loads for previously stored data, set `RequiredForLoading = true`, register an `ICrystalDataQuery` that aborts, and prepare with `useQuery: true`.
+
 CrystalData checks the primary snapshot, available histories, and configured backups. For previously stored data with `RequiredForLoading = true`, a load failure is passed to `ICrystalDataQuery`; initialization fails when the query chooses to abort.
 
 History snapshots and auxiliary data are hash-checked before deserialization. A damaged primary snapshot can fall back to a valid backup with the same waypoint. Recovery queries may choose to reconstruct defaults when data cannot be loaded; review that policy before using unattended startup with valuable data.
+
+Journal replay is not transactional. Malformed-record errors may be logged after earlier records have already changed in-memory data. Test your recovery policy with incomplete and damaged journals; successful initialization alone does not prove that every record was replayed.
 
 ## Samples
 

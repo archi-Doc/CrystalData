@@ -5,6 +5,11 @@ namespace CrystalData.Filer;
 /// <summary>
 /// Defines asynchronous file operations for caller-supplied paths.
 /// </summary>
+/// <remarks>
+/// Return memory obtained from reads after use. Writes share the supplied pooled memory;
+/// callers retain their own reference and must not modify the bytes while a write is pending.
+/// A timeout stops waiting and may leave the queued operation running.
+/// </remarks>
 public interface IFiler
 {
     bool SupportsPartialWrite { get; }
@@ -22,12 +27,20 @@ public interface IFiler
 
     Task<CrystalMemoryOwnerResult> ReadAsync(string path, long offset, int length, TimeSpan timeout);
 
+    /// <summary>
+    /// Queues a write. A result of <see cref="CrystalResult.Started"/> acknowledges submission, not persistence.
+    /// </summary>
+    /// <param name="path">The file path.</param>
+    /// <param name="offset">The byte offset at which to write.</param>
+    /// <param name="dataToBeShared">The pooled memory to share with the queued operation.</param>
+    /// <param name="truncate">Whether to truncate the file after the written bytes.</param>
+    /// <returns>The submission result.</returns>
     CrystalResult WriteAndForget(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, bool truncate = true);
 
     Task<CrystalResult> WriteAsync(string path, long offset, BytePool.RentedReadOnlyMemory dataToBeShared, TimeSpan timeout, bool truncate = true);
 
     /// <summary>
-    /// Delete the file matching the path.
+    /// Queues deletion of the file. A result of <see cref="CrystalResult.Started"/> acknowledges submission only.
     /// </summary>
     /// <param name="path">The file path.</param>
     /// <returns><see cref="CrystalResult"/>.</returns>

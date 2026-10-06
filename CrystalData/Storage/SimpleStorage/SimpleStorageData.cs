@@ -17,6 +17,9 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
 
     #region PropertyAndField
 
+    /// <summary>
+    /// Gets the sum of all tracked file sizes in bytes.
+    /// </summary>
     public long StorageUsage
     {
         get
@@ -28,6 +31,9 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
         }
     }
 
+    /// <summary>
+    /// Gets the number of tracked files.
+    /// </summary>
     public int Count
     {
         get
@@ -74,6 +80,7 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
     {
         if (reader.TryReadNil())
         {
+            value = null;
             return;
         }
 
@@ -86,15 +93,31 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
             }*/
 
             // 1st item
-            value.storageUsage = reader.ReadInt64();
+            var storageUsage = reader.ReadInt64();
 
             // 2nd item
             var count = reader.ReadMapHeaderOrEmptyArray();
-            value.fileToSize = new(count);
+            var fileToSize = new Dictionary<uint, int>(count);
+            long actualUsage = 0;
             for (var i = 0; i < count; i++)
             {
-                value.fileToSize.TryAdd(reader.ReadUInt32(), reader.ReadInt32());
+                var file = reader.ReadUInt32();
+                var size = reader.ReadInt32();
+                if (file == 0 || size < 0 || !fileToSize.TryAdd(file, size))
+                {
+                    throw new TinyhandException("Invalid storage file index.");
+                }
+
+                actualUsage += size;
             }
+
+            if (storageUsage != actualUsage)
+            {
+                throw new TinyhandException("Storage usage does not match the file index.");
+            }
+
+            value.fileToSize = fileToSize;
+            value.storageUsage = actualUsage;
         }
     }
 
@@ -140,8 +163,15 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
         }
     }*/
 
+    /// <summary>
+    /// Inserts or updates a file entry and its accounted size atomically.
+    /// </summary>
+    /// <param name="file">The existing identifier, or a value replaced with a new identifier when absent.</param>
+    /// <param name="dataSize">The non-negative size in bytes.</param>
+    /// <exception cref="ArgumentOutOfRangeException">The size is negative.</exception>
     public void Put(ref uint file, int dataSize)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(dataSize);
         using (this.lockObject.EnterScope())
         {
             if (file != 0 && this.fileToSize.TryGetValue(file, out var size))
@@ -162,31 +192,25 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
             }
             else
             {// Not found
-                file = this.NewFileInternal(dataSize);
+                file = this.CreateFileInternal(dataSize);
                 this.storageUsage += dataSize;
             }
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>
+    /// Creates a unique file entry and includes its size in storage usage.
+    /// </summary>
+    /// <param name="size">The non-negative data size in bytes.</param>
+    /// <returns>The new nonzero file identifier.</returns>
     public uint NewFileInternal(int size)
-    {// this.syncObject
-        while (true)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(size);
+        using (this.lockObject.EnterScope())
         {
-            var file = RandomVault.Default.NextUInt32();
-            if (file != 0 && this.fileToSize.TryAdd(file, size))
-            {
-                if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
-                {
-                    writer.Write(JournalRecordType.AddItem);
-                    writer.Write(file);
-                    writer.Write(size);
-                    writer.Write(size);
-                    root.AddJournalAndDispose(ref writer);
-                }
-
-                return file;
-            }
+            var file = this.CreateFileInternal(size);
+            this.storageUsage += size;
+            return file;
         }
     }
 
@@ -222,33 +246,62 @@ public partial class SimpleStorageData : ITinyhandSerializable<SimpleStorageData
             return false;
         }
 
-        if (record == JournalRecordType.AddItem)
+        using (this.lockObject.EnterScope())
         {
-            var file = reader.ReadUInt32();
-            var size = reader.ReadInt32();
-            var diff = reader.ReadInt32();
-            this.fileToSize[file] = size;
-            this.storageUsage += diff;
+            if (record == JournalRecordType.AddItem)
+            {
+                var file = reader.ReadUInt32();
+                var size = reader.ReadInt32();
+                reader.ReadInt32(); // Legacy size delta; derive usage from the current index for idempotent replay.
+                if (file == 0 || size < 0)
+                {
+                    return false;
+                }
 
-            return true;
-        }
-        else if (record == JournalRecordType.DeleteItem)
-        {
-            var file = reader.ReadUInt32();
-            this.TryRemoveFile(file);
+                this.fileToSize.TryGetValue(file, out var previousSize);
+                this.fileToSize[file] = size;
+                this.storageUsage += (long)size - previousSize;
+                return true;
+            }
+            else if (record == JournalRecordType.DeleteItem)
+            {
+                var file = reader.ReadUInt32();
+                this.TryRemoveFile(file);
 
-            return true;
+                return true;
+            }
         }
 
         return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private uint CreateFileInternal(int size)
+    {// this.syncObject
+        while (true)
+        {
+            var file = RandomVault.Default.NextUInt32();
+            if (file != 0 && this.fileToSize.TryAdd(file, size))
+            {
+                if (((IStructuralObject)this).TryGetJournalWriter(out var root, out var writer, false))
+                {
+                    writer.Write(JournalRecordType.AddItem);
+                    writer.Write(file);
+                    writer.Write(size);
+                    writer.Write(size);
+                    root.AddJournalAndDispose(ref writer);
+                }
+
+                return file;
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryRemoveFile(uint file)
     {
-        if (this.fileToSize.TryGetValue(file, out var size))
+        if (this.fileToSize.Remove(file, out var size))
         {
-            this.fileToSize.Remove(file);
             this.storageUsage -= size;
             return true;
         }
